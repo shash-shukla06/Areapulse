@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AreaPulse · NGO Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Fraunces:ital,wght@0,700;1,700&family=Caveat:wght@500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --paper:     #FAF5EB;
+  --paper-2:   #F2EBDC;
+  --surface:   #FFFFFF;
+  --border:    #E8E0CC;
+  --border-s:  #F0E9D8;
+  --ink:       #1A1A1A;
+  --ink-2:     #44423E;
+  --ink-3:     #7A7569;
+  --ink-4:     #ABA59A;
+  --saffron:   #E55934;
+  --saffron-d: #B8431F;
+  --saffron-s: #FBE3DA;
+  --sage:      #6B9473;
+  --sage-d:    #4F7158;
+  --sage-s:    #E3EFE3;
+  --navy:      #0B3D91;
+  --navy-s:    #DCE4F4;
+  --yellow:    #F9D923;
+  --yellow-s:  #FEF4B5;
+  --green:     #15803D;
+  --green-s:   #DCFCE7;
+  --red:       #DC2626;
+  --red-s:     #FEE2E2;
+  --amber:     #D97706;
+  --amber-s:   #FEF3C7;
+  --blue:      #2563EB;
+  --blue-s:    #DBEAFE;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+button, a { font-family: inherit; cursor: pointer; border: 0; text-decoration: none; }
+.serif-italic { font-family: 'Fraunces', serif; font-style: italic; font-weight: 700; }
+.handwritten { font-family: 'Caveat', cursive; font-weight: 500; }
+
+/* NAV */
+.ng-nav {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.ng-brand { display: flex; align-items: center; gap: 12px; }
+.ng-brand-mark {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--sage), var(--sage-d));
+  border-radius: 11px;
+  display: grid; place-items: center;
+  color: white;
+  font-weight: 800;
+  font-size: 18px;
+  box-shadow: 0 2px 8px rgba(107,148,115,0.3);
+}
+.ng-brand-name {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.ng-brand-name .badge {
+  display: inline-block;
+  background: var(--sage-s);
+  color: var(--sage-d);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 5px;
+  margin-left: 6px;
+  vertical-align: 3px;
+}
+.ng-nav-links {
+  display: flex;
+  gap: 32px;
+  margin-left: 60px;
+}
+.ng-nav-link {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.ng-nav-link.active { color: var(--sage-d); font-weight: 800; }
+.ng-nav-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ng-user {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--paper);
+  padding: 5px 16px 5px 5px;
+  border-radius: 22px;
+  border: 1px solid var(--border-s);
+}
+.ng-user-av {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sage), var(--sage-d));
+  color: white;
+  display: grid; place-items: center;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+.ng-user-info { display: flex; flex-direction: column; line-height: 1.2; }
+.ng-user-name { font-size: 12.5px; font-weight: 800; color: var(--ink); }
+.ng-user-org { font-size: 10.5px; color: var(--ink-3); font-weight: 600; }
+.ng-logout {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ink-3);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+/* HERO */
+.ng-hero {
+  background: linear-gradient(135deg, var(--sage-s) 0%, var(--paper) 100%);
+  padding: 48px 60px 40px;
+  position: relative;
+  overflow: hidden;
+}
+.ng-hero::before {
+  content: "";
+  position: absolute;
+  top: -60px; right: -60px;
+  width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(107,148,115,0.18), transparent 70%);
+  border-radius: 50%;
+}
+.ng-hero-inner { position: relative; max-width: 1200px; margin: 0 auto; }
+.ng-eyebrow {
+  display: inline-block;
+  background: var(--sage);
+  color: white;
+  padding: 5px 14px;
+  border-radius: 16px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.ng-title {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  margin-bottom: 10px;
+  max-width: 720px;
+}
+.ng-title .accent {
+  color: var(--sage-d);
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 700;
+}
+.ng-sub {
+  font-size: 15px;
+  color: var(--ink-2);
+  max-width: 580px;
+  font-weight: 500;
+}
+
+.ng-stat-row {
+  display: flex;
+  gap: 40px;
+  margin-top: 30px;
+  padding-top: 28px;
+  border-top: 1px solid rgba(107,148,115,0.18);
+}
+.ng-stat { display: flex; flex-direction: column; gap: 4px; }
+.ng-stat-num {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 36px;
+  letter-spacing: -0.02em;
+  color: var(--sage-d);
+  line-height: 1;
+}
+.ng-stat-label {
+  font-size: 12px;
+  color: var(--ink-3);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+/* CONTENT */
+.ng-content { max-width: 1200px; margin: 0 auto; padding: 44px 60px; }
+
+.ng-section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+.ng-section-title { font-size: 24px; font-weight: 800; letter-spacing: -0.015em; }
+.ng-section-sub { font-size: 13px; color: var(--ink-3); margin-top: 4px; font-weight: 600; }
+.ng-see-all { font-size: 13px; font-weight: 800; color: var(--sage-d); }
+
+/* Filter chips */
+.ng-filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.ng-chip {
+  padding: 7px 14px;
+  border-radius: 18px;
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface);
+  color: var(--ink-2);
+  border: 1px solid var(--border);
+  font-family: inherit;
+  cursor: pointer;
+}
+.ng-chip:hover { border-color: var(--sage); }
+.ng-chip.active {
+  background: var(--sage);
+  color: white;
+  border-color: var(--sage);
+}
+
+/* OPPORTUNITY GRID */
+.ng-opp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-bottom: 50px;
+}
+.ng-opp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 26px 28px;
+  position: relative;
+  transition: transform .15s, box-shadow .15s;
+}
+.ng-opp-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.06);
+  border-color: var(--sage-s);
+}
+.ng-opp-tag {
+  display: inline-block;
+  background: var(--saffron-s);
+  color: var(--saffron-d);
+  padding: 4px 12px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.ng-opp-tag.water { background: var(--blue-s); color: var(--blue); }
+.ng-opp-tag.waste { background: var(--green-s); color: var(--green); }
+.ng-opp-tag.electricity { background: var(--amber-s); color: var(--amber); }
+.ng-opp-tag.tree { background: rgba(111,207,151,0.2); color: var(--green); }
+.ng-opp-tag.streetlight { background: var(--yellow-s); color: var(--amber); }
+.ng-opp-tag.traffic { background: var(--red-s); color: var(--red); }
+.ng-opp-tag.noise { background: rgba(192,132,252,0.2); color: #7C3AED; }
+.ng-opp-tag.sewage { background: rgba(212,184,112,0.2); color: #8B6914; }
+.ng-opp-tag.pothole { background: rgba(229,142,82,0.2); color: var(--saffron-d); }
+.ng-opp-tag.other { background: var(--border-s); color: var(--ink-3); }
+.ng-opp-title {
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin-bottom: 6px;
+}
+.ng-opp-area {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.ng-opp-area .pin { color: var(--saffron); }
+
+.ng-opp-stats {
+  display: flex;
+  gap: 20px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-s);
+}
+.ng-opp-stat {}
+.ng-opp-stat-num {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.ng-opp-stat-lbl {
+  font-size: 10.5px;
+  color: var(--ink-3);
+  font-weight: 700;
+  margin-top: 5px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.ng-opp-cta-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+}
+.ng-opp-btn {
+  flex: 1;
+  padding: 11px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  font-family: inherit;
+  border: 0;
+  cursor: pointer;
+}
+.ng-opp-btn-primary { background: var(--sage); color: white; }
+.ng-opp-btn-primary:hover { background: var(--sage-d); }
+.ng-opp-btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+}
+.ng-opp-btn-secondary:hover { border-color: var(--sage); color: var(--sage-d); }
+
+.ng-opp-committed {
+  background: var(--sage-s);
+  color: var(--sage-d);
+  padding: 11px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  flex: 1;
+}
+
+/* My Projects section */
+.ng-projects-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 50px;
+}
+.ng-project-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+}
+.ng-project-status {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.ng-project-status.active { background: var(--blue-s); color: var(--blue); }
+.ng-project-status.complete { background: var(--green-s); color: var(--green); }
+.ng-project-title { font-size: 16px; font-weight: 800; margin-bottom: 4px; }
+.ng-project-meta { font-size: 12px; color: var(--ink-3); font-weight: 600; }
+.ng-project-progress {
+  margin-top: 14px;
+}
+.ng-progress-bar {
+  height: 6px;
+  background: var(--border-s);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 6px;
+}
+.ng-progress-fill {
+  height: 100%;
+  background: var(--sage);
+  border-radius: 3px;
+}
+
+/* Impact banner */
+.ng-impact {
+  background: var(--sage-d);
+  color: white;
+  border-radius: 22px;
+  padding: 40px 44px;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 40px;
+}
+.ng-impact::before {
+  content: "";
+  position: absolute;
+  top: -80px; right: -80px;
+  width: 280px; height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(249,217,35,0.15), transparent 70%);
+}
+.ng-impact-inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 36px;
+  align-items: center;
+}
+.ng-impact-quote {
+  font-family: 'Fraunces', serif;
+  font-style: italic;
+  font-weight: 700;
+  font-size: 24px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+.ng-impact-meta-label {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  opacity: 0.7;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.ng-impact-meta-val { font-size: 13.5px; font-weight: 700; opacity: 0.92; }
+.ng-impact-divider { width: 100%; height: 1px; background: rgba(255,255,255,0.18); margin: 16px 0; }
+
+/* Bottom CTA */
+.ng-cta-strip {
+  background: var(--paper-2);
+  padding: 28px 36px;
+  border-radius: 16px;
+  text-align: center;
+  font-family: 'Caveat', cursive;
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--ink-2);
+  letter-spacing: 0.01em;
+}
+
+/* Empty state */
+.ng-empty {
+  text-align: center;
+  padding: 60px 30px;
+  color: var(--ink-3);
+}
+.ng-empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+.ng-empty-title { font-size: 16px; font-weight: 800; color: var(--ink); margin-bottom: 6px; }
+.ng-empty-sub { font-size: 13px; }
+
+/* Toast */
+#ng-toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--sage-d);
+  color: white;
+  padding: 12px 22px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 1500;
+  opacity: 0;
+  transition: opacity .25s, transform .25s;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.25);
+}
+#ng-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#ng-toast.error { background: var(--red); }
+
+/* AI Recommendations panel */
+.ng-ai-panel {
+  background: linear-gradient(135deg, #EDE9FE, #DBEAFE);
+  border-radius: 18px;
+  padding: 22px 26px;
+  margin-bottom: 30px;
+  border: 1px solid #DDD6FE;
+}
+.ng-ai-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #7C3AED;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+.ng-ai-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-bottom: 8px;
+}
+.ng-ai-text {
+  font-size: 13.5px;
+  color: var(--ink-2);
+  line-height: 1.6;
+  font-weight: 500;
+}
+.ng-ai-btn {
+  display: inline-block;
+  margin-top: 14px;
+  background: white;
+  color: #7C3AED;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 800;
+  border: 1px solid #DDD6FE;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 1024px) {
+  .ng-opp-grid { grid-template-columns: 1fr; }
+  .ng-projects-grid { grid-template-columns: 1fr; }
+  .ng-impact-inner { grid-template-columns: 1fr; }
+  .ng-hero, .ng-content { padding-left: 24px; padding-right: 24px; }
+  .ng-nav-links { display: none; }
+}
+@media (max-width: 768px) {
+  .ng-title { font-size: 28px; }
+  .ng-stat-row { gap: 22px; flex-wrap: wrap; }
+  .ng-stat-num { font-size: 26px; }
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="ng-nav">
+  <div class="ng-brand">
+    <div class="ng-brand-mark">A</div>
+    <div class="ng-brand-name">AreaPulse<span class="badge">NGO PORTAL</span></div>
+  </div>
+  <div class="ng-nav-links">
+    <a class="ng-nav-link active">Dashboard</a>
+    <a class="ng-nav-link" href="#opportunities">Opportunities</a>
+    <a class="ng-nav-link" href="#projects">My Projects</a>
+    <a class="ng-nav-link" href="/stats">Reports</a>
+  </div>
+  <div class="ng-nav-right">
+    <div class="ng-user">
+      <div class="ng-user-av">{{ ngo.name[:2].upper() if ngo and ngo.name else 'NG' }}</div>
+      <div class="ng-user-info">
+        <div class="ng-user-name">{{ current_user or 'NGO User' }}</div>
+        <div class="ng-user-org">{{ ngo.org_name if ngo else 'Delhi NGO' }}</div>
+      </div>
+    </div>
+    <a class="ng-logout" href="/logout">Sign Out</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="ng-hero">
+  <div class="ng-hero-inner">
+    <span class="ng-eyebrow">Welcome back, {{ (current_user or 'Partner').split()[0] }}</span>
+    <h1 class="ng-title">Find where you can <span class="accent">make the most impact.</span></h1>
+    <p class="ng-sub">Live civic data from across Delhi — sorted by your focus areas. Pick a community that needs your team.</p>
+    
+    <div class="ng-stat-row">
+      <div class="ng-stat">
+        <div class="ng-stat-num">{{ stats.opportunities or '14' }}</div>
+        <div class="ng-stat-label">HIGH-PRIORITY OPPORTUNITIES</div>
+      </div>
+      <div class="ng-stat">
+        <div class="ng-stat-num">{{ stats.citizens_reachable or '3,200+' }}</div>
+        <div class="ng-stat-label">CITIZENS YOU CAN HELP</div>
+      </div>
+      <div class="ng-stat">
+        <div class="ng-stat-num">{{ stats.underserved_areas or '8' }}</div>
+        <div class="ng-stat-label">UNDERSERVED NEIGHBORHOODS</div>
+      </div>
+      <div class="ng-stat">
+        <div class="ng-stat-num">{{ stats.committed or '0' }}</div>
+        <div class="ng-stat-label">YOUR ACTIVE PROJECTS</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="ng-content">
+
+  <!-- AI Recommendations -->
+  <div class="ng-ai-panel">
+    <div class="ng-ai-header">✨ AI INSIGHTS · POWERED BY GROQ</div>
+    <div class="ng-ai-title" id="ai-rec-title">Loading personalized recommendations...</div>
+    <div class="ng-ai-text" id="ai-rec-text">AI is analyzing the civic data to recommend where your NGO can have the biggest impact this month.</div>
+    <button class="ng-ai-btn" onclick="loadAiRecommendations()">↻ Refresh AI Insights</button>
+  </div>
+
+  <!-- OPPORTUNITIES -->
+  <section id="opportunities">
+    <div class="ng-section-head">
+      <div>
+        <h2 class="ng-section-title">Where you're <span class="serif-italic">needed most</span></h2>
+        <p class="ng-section-sub">Areas with multiple unresolved issues and no NGO presence yet.</p>
+      </div>
+      <a class="ng-see-all" href="/issues-all">See all {{ stats.opportunities or 14 }} →</a>
+    </div>
+
+    <!-- Category filters -->
+    <div class="ng-filter-row">
+      <button class="ng-chip active" data-tag="" onclick="filterByTag('', this)">All Categories</button>
+      {% for tag in ['sewage', 'water', 'garbage', 'streetlight', 'pothole', 'electricity'] %}
+      <button class="ng-chip" data-tag="{{ tag }}" onclick="filterByTag('{{ tag }}', this)">{{ tag|capitalize }}</button>
+      {% endfor %}
+    </div>
+
+    <div class="ng-opp-grid" id="opportunities-grid">
+      {% if opportunities %}
+        {% for opp in opportunities %}
+        <div class="ng-opp-card" data-tag="{{ opp.tag }}">
+          <span class="ng-opp-tag {{ opp.tag }}">{{ opp.tag|upper }}</span>
+          <h3 class="ng-opp-title">{{ opp.title }}</h3>
+          <div class="ng-opp-area"><span class="pin">📍</span> {{ opp.area }}</div>
+          <div class="ng-opp-stats">
+            <div class="ng-opp-stat">
+              <div class="ng-opp-stat-num">{{ opp.issue_count }}</div>
+              <div class="ng-opp-stat-lbl">Unresolved Issues</div>
+            </div>
+            <div class="ng-opp-stat">
+              <div class="ng-opp-stat-num">~{{ opp.citizens_affected }}</div>
+              <div class="ng-opp-stat-lbl">Affected Citizens</div>
+            </div>
+            <div class="ng-opp-stat">
+              <div class="ng-opp-stat-num">{{ opp.ngos_active }}</div>
+              <div class="ng-opp-stat-lbl">NGOs Active</div>
+            </div>
+          </div>
+          <div class="ng-opp-cta-row">
+            {% if opp.committed_by_me %}
+              <div class="ng-opp-committed">✓ You're working on this</div>
+              <button class="ng-opp-btn ng-opp-btn-secondary" onclick="viewOpportunity('{{ opp.area }}', '{{ opp.tag }}')">View details</button>
+            {% else %}
+              <button class="ng-opp-btn ng-opp-btn-primary" onclick="commitToProject('{{ opp.area }}', '{{ opp.tag }}', this)">Start project →</button>
+              <button class="ng-opp-btn ng-opp-btn-secondary" onclick="viewOpportunity('{{ opp.area }}', '{{ opp.tag }}')">View details</button>
+            {% endif %}
+          </div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="ng-empty" style="grid-column:1/-1">
+          <div class="ng-empty-icon">🌱</div>
+          <div class="ng-empty-title">No opportunities matching your focus right now</div>
+          <div class="ng-empty-sub">Great news — all the areas in your focus already have active NGO support. Check back tomorrow.</div>
+        </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- MY ACTIVE PROJECTS -->
+  {% if my_projects %}
+  <section id="projects">
+    <div class="ng-section-head">
+      <div>
+        <h2 class="ng-section-title">Your <span class="serif-italic">active projects</span></h2>
+        <p class="ng-section-sub">Issues you've committed to resolving.</p>
+      </div>
+    </div>
+
+    <div class="ng-projects-grid">
+      {% for p in my_projects %}
+      <div class="ng-project-card">
+        <span class="ng-project-status {{ 'complete' if p.completed else 'active' }}">
+          {% if p.completed %}✓ COMPLETED{% else %}● IN PROGRESS{% endif %}
+        </span>
+        <div class="ng-project-title">{{ p.title }}</div>
+        <div class="ng-project-meta">📍 {{ p.area }} · {{ p.issues_count }} issues · started {{ p.started_ago }}</div>
+        <div class="ng-project-progress">
+          <div style="display:flex; justify-content:space-between; font-size:11px; font-weight:700; color:var(--ink-3)">
+            <span>Progress</span>
+            <span>{{ p.progress_pct }}%</span>
+          </div>
+          <div class="ng-progress-bar">
+            <div class="ng-progress-fill" style="width:{{ p.progress_pct }}%"></div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- IMPACT BANNER -->
+  <div class="ng-impact">
+    <div class="ng-impact-inner">
+      <div class="ng-impact-quote">"Knowing where the need was most acute changed everything. We deployed our team to Lajpat Nagar — 47 issues resolved in 3 weeks."</div>
+      <div>
+        <div class="ng-impact-meta-label">RECENT IMPACT</div>
+        <div class="ng-impact-meta-val">{{ stats.total_helped or '3,400' }} citizens directly helped<br/>{{ stats.total_resolved or '47' }} civic issues closed<br/>Avg resolution time: {{ stats.avg_days or '9' }} days</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Caveat handwritten CTA -->
+  <div class="ng-cta-strip">
+    make some difference in the society — AreaPulse 🌱
+  </div>
+</div>
+
+<div id="ng-toast"></div>
+
+<script>
+const NGO = {{ ngo | tojson if ngo else "null" }};
+
+function showToast(msg, kind) {
+  const t = document.getElementById('ng-toast');
+  t.textContent = msg;
+  t.className = '';
+  t.classList.add('show');
+  if (kind) t.classList.add(kind);
+  clearTimeout(window._tt);
+  window._tt = setTimeout(() => t.classList.remove('show'), 3200);
+}
+
+async function commitToProject(area, tag, btn) {
+  const orig = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Committing...';
+  try {
+    const r = await fetch('/ngo/commit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ area, tag })
+    });
+    const d = await r.json();
+    if (d.error) {
+      showToast('⚠ ' + d.error, 'error');
+      btn.disabled = false;
+      btn.textContent = orig;
+      return;
+    }
+    showToast('✓ Project started in ' + area + '. Citizens notified via WhatsApp.', 'success');
+    setTimeout(() => location.reload(), 1200);
+  } catch (e) {
+    showToast('⚠ Network error', 'error');
+    btn.disabled = false;
+    btn.textContent = orig;
+  }
+}
+
+function viewOpportunity(area, tag) {
+  window.location.href = '/issues-all?area=' + encodeURIComponent(area) + '&tag=' + encodeURIComponent(tag);
+}
+
+function filterByTag(tag, btn) {
+  document.querySelectorAll('.ng-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.ng-opp-card').forEach(card => {
+    if (!tag) { card.style.display = ''; return; }
+    card.style.display = card.dataset.tag === tag ? '' : 'none';
+  });
+}
+
+async function loadAiRecommendations() {
+  document.getElementById('ai-rec-title').textContent = '✨ Analyzing your impact area...';
+  document.getElementById('ai-rec-text').textContent = 'AI is reviewing civic data to find the highest-impact opportunities for your team.';
+  try {
+    const r = await fetch('/ngo/ai-recommendations');
+    const d = await r.json();
+    if (d.error) {
+      document.getElementById('ai-rec-title').textContent = 'AI insights unavailable';
+      document.getElementById('ai-rec-text').textContent = d.error;
+      return;
+    }
+    document.getElementById('ai-rec-title').textContent = d.title || 'Personalized recommendations';
+    document.getElementById('ai-rec-text').textContent = d.recommendation || 'No recommendations available.';
+  } catch (e) {
+    document.getElementById('ai-rec-title').textContent = 'AI insights unavailable';
+    document.getElementById('ai-rec-text').textContent = 'Could not connect to AI service. Showing default opportunities below.';
+  }
+}
+
+// Auto-load AI recommendations on page load
+loadAiRecommendations();
+</script>
+
+</body>
+</html>

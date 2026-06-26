@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+{% block title %}Community — Problem Map{% endblock %}
+{% block extra_head %}
+<style>
+  @media (max-width: 640px) {
+  .community-layout { flex-direction: column; }
+  .channel-sidebar { width: 100%; height: auto; border-right: none; border-bottom: 1px solid var(--border); flex-direction: row; overflow-x: auto; }
+  .channel-list { display: flex; flex-direction: row; flex-wrap: nowrap; padding: 4px 8px; overflow-x: auto; }
+  .channel-section { display: none; }
+  .channel-item { flex-shrink: 0; }
+  .community-right { display: none; }
+  .community-feed { min-height: 0; }
+}
+
+/* ═══ Mobile rework — proper channel rail + readable feed + sticky compose ═══ */
+@media (max-width: 768px){
+  .community-layout{
+    flex-direction:column !important;
+    height:auto !important;
+    min-height:100% !important;
+    overflow:visible !important;
+  }
+
+  /* Channel sidebar: thin horizontal scroller sticky at top */
+  .channel-sidebar{
+    position:sticky; top:0; z-index:50;
+    width:100% !important; height:auto !important;
+    flex-direction:column !important;
+    background:var(--surface);
+    border-right:none !important;
+    border-bottom:1px solid var(--border);
+    overflow:visible !important;
+  }
+  .channel-header{ display:none !important; }
+  .channel-list{
+    display:flex !important; flex-direction:row !important;
+    flex-wrap:nowrap !important; overflow-x:auto !important;
+    -webkit-overflow-scrolling:touch;
+    padding:8px 10px !important; gap:6px !important;
+    scrollbar-width:none;
+  }
+  .channel-list::-webkit-scrollbar{ display:none; }
+  .channel-section{ display:none !important; }
+  .channel-item{
+    flex-shrink:0 !important;
+    padding:6px 12px !important;
+    border-radius:14px !important;
+    background:var(--surface2);
+    font-size:12px !important;
+    white-space:nowrap;
+  }
+  .channel-item.active{
+    background:var(--accent);
+    color:#000 !important;
+  }
+
+  /* Hide the right info panel on mobile */
+  .community-right{ display:none !important; }
+
+  /* Feed area: full width, natural flow */
+  .community-feed{
+    flex:1 !important; overflow:visible !important;
+    min-height:0 !important;
+  }
+  .feed-topbar{
+    padding:12px 16px !important;
+    position:sticky; top:48px; z-index:40;
+    background:var(--bg);
+    border-bottom:1px solid var(--border);
+  }
+  .feed-title{ font-size:16px !important; }
+  .feed-posts{
+    padding:12px 14px !important;
+    overflow:visible !important;
+  }
+
+  /* Compose box: sticky at bottom of feed area (above bottom nav, which sits at body) */
+  .compose-box{
+    position:sticky; bottom:0; z-index:30;
+    padding:10px 12px !important;
+    background:var(--surface);
+    border-top:1px solid var(--border);
+  }
+  .compose-inner{ gap:8px !important; }
+  .compose-avatar{ width:28px !important; height:28px !important; font-size:11px !important; }
+  .compose-input{ font-size:14px !important; }
+}
+  .community-layout {
+    display: flex; height: calc(100vh - var(--nav-h)); overflow: hidden;
+  }
+
+  /* ── CHANNEL SIDEBAR ─────────────────────── */
+  .channel-sidebar {
+    width: 220px; flex-shrink: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .channel-header { padding: 16px 16px 12px; border-bottom: 1px solid var(--border); }
+  .channel-header-title { font-weight: 600; font-size: 13px; }
+  .channel-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .channel-item {
+    display: flex; align-items: center; gap: 8px; padding: 8px 10px;
+    border-radius: 7px; cursor: pointer; font-size: 13px; color: var(--text2);
+    transition: background 0.12s, color 0.12s;
+  }
+  .channel-item:hover { background: var(--surface2); color: var(--text); }
+  .channel-item.active { background: var(--surface2); color: var(--text); font-weight: 500; }
+  .channel-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); flex-shrink: 0; }
+  .channel-dot.active { background: var(--green); }
+  .channel-section { padding: 12px 10px 4px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text3); }
+
+  /* ── FEED ─────────────────────────────────── */
+  .community-feed { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .feed-topbar {
+    padding: 16px 20px; border-bottom: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .feed-title { font-family: 'DM Serif Display', serif; font-size: 17px; }
+  .feed-posts { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+  .post-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px;
+  }
+  .post-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .post-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0;
+  }
+  .post-meta { flex: 1; }
+  .post-user { font-size: 13px; font-weight: 600; }
+  .post-time { font-size: 11.5px; color: var(--text3); }
+  .post-body { font-size: 13.5px; line-height: 1.6; margin-bottom: 10px; }
+  .post-footer { display: flex; align-items: center; gap: 10px; }
+  .like-btn {
+    display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 6px; background: transparent;
+    cursor: pointer; font-size: 12.5px; color: var(--text2); font-family: inherit;
+    transition: all 0.15s;
+  }
+  .like-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .post-type-badge { font-size: 11px; }
+
+  /* ── COMPOSE ──────────────────────────────── */
+  .compose-box {
+    padding: 14px 20px; border-top: 1px solid var(--border);
+    background: var(--surface); flex-shrink: 0;
+  }
+  .compose-inner { display: flex; gap: 10px; align-items: flex-start; }
+  .compose-avatar {
+    width: 32px; height: 32px; border-radius: 50%; background: var(--accent);
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 600; flex-shrink: 0; margin-top: 2px;
+  }
+  .compose-right { flex: 1; }
+  .compose-textarea {
+    width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px;
+    font-family: inherit; font-size: 13.5px; resize: none; outline: none;
+    transition: border-color 0.15s;
+  }
+  .compose-textarea:focus { border-color: var(--accent); }
+  .compose-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .type-select { padding: 5px 10px; font-size: 12.5px; border-radius: 6px; }
+
+  /* ── RIGHT PANEL ──────────────────────────── */
+  .community-right {
+    width: 240px; flex-shrink: 0; border-left: 1px solid var(--border);
+    background: var(--surface); overflow-y: auto; padding: 16px;
+  }
+  .right-section { margin-bottom: 24px; }
+  .right-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text3); margin-bottom: 10px; }
+  .top-poster {
+    display: flex; align-items: center; gap: 8px; padding: 6px 0;
+    font-size: 13px; border-bottom: 1px solid var(--border);
+  }
+  .top-poster:last-child { border-bottom: none; }
+  .poster-rank { font-size: 11px; color: var(--text3); width: 16px; text-align: center; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="community-layout">
+
+  <!-- Channel Sidebar -->
+  <aside class="channel-sidebar">
+    <div class="channel-header">
+      <div class="channel-header-title">Community</div>
+    </div>
+    <div class="channel-list">
+      <div class="channel-section">Channels</div>
+      <div class="channel-item active" onclick="setChannel('general', this)" data-area="">
+        <div class="channel-dot active"></div> # general
+      </div>
+      <div class="channel-item" onclick="setChannel('rohini', this)" data-area="Rohini">
+        <div class="channel-dot"></div> # rohini
+      </div>
+      <div class="channel-item" onclick="setChannel('dwarka', this)" data-area="Dwarka">
+        <div class="channel-dot"></div> # dwarka
+      </div>
+      <div class="channel-item" onclick="setChannel('hauz-khas', this)" data-area="Hauz Khas">
+        <div class="channel-dot"></div> # hauz-khas
+      </div>
+      <div class="channel-item" onclick="setChannel('lajpat-nagar', this)" data-area="Lajpat Nagar">
+        <div class="channel-dot"></div> # lajpat-nagar
+      </div>
+      <div class="channel-item" onclick="setChannel('karol-bagh', this)" data-area="Karol Bagh">
+        <div class="channel-dot"></div> # karol-bagh
+      </div>
+      <div class="channel-item" onclick="setChannel('shahdara', this)" data-area="Shahdara">
+        <div class="channel-dot"></div> # shahdara
+      </div>
+      <div class="channel-section">Groups</div>
+      <div class="channel-item" onclick="setChannel('alerts', this)" data-area="">
+        <div class="channel-dot"></div> # alerts
+      </div>
+      <div class="channel-item" onclick="setChannel('volunteers', this)" data-area="">
+        <div class="channel-dot"></div> # volunteers
+      </div>
+      <div class="channel-item" onclick="setChannel('resolved', this)" data-area="">
+        <div class="channel-dot"></div> # resolved
+      </div>
+    </div>
+  </aside>
+
+  <!-- Feed -->
+  <div class="community-feed">
+    <div class="feed-topbar">
+      <div>
+        <div class="feed-title"># <span id="feed-title">general</span></div>
+        <div style="font-size:12px; color:var(--text2); margin-top:2px" id="feed-sub">All Delhi civic updates</div>
+      </div>
+      <div style="font-size:12px; color:var(--text2)" id="post-count"></div>
+    </div>
+
+    <div class="feed-posts" id="feed-posts">
+      <div style="text-align:center; padding:40px">
+        <div class="spinner" style="margin:0 auto 10px"></div>
+        <div class="text-muted">Loading posts…</div>
+      </div>
+    </div>
+
+    <!-- Compose -->
+    <div class="compose-box">
+      <div class="compose-inner">
+        <div class="compose-avatar" id="compose-avatar">{{ (current_user or 'A')[:2].upper() }}</div>
+        <div class="compose-right">
+          <textarea class="compose-textarea" id="compose-text" rows="2" placeholder="Share an update, ask a question, report progress…"></textarea>
+          <div class="compose-actions">
+            <select class="type-select" id="compose-type">
+              <option value="update">Update</option>
+              <option value="question">Question</option>
+              <option value="alert">Alert</option>
+              <option value="resolved">Resolved</option>
+            </select>
+            <input id="compose-user" type="text" value="{{ current_user or '' }}" placeholder="Your name" style="width:120px; padding:5px 10px; font-size:12.5px"/>
+            <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="submitPost()">Post</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel -->
+  <aside class="community-right">
+    <div class="right-section">
+      <div class="right-section-title">Top Contributors</div>
+      <div id="top-posters">
+        <div class="text-muted text-sm">Loading…</div>
+      </div>
+    </div>
+    <div class="right-section">
+      <div class="right-section-title">Post Types</div>
+      <div style="font-size:12.5px; color:var(--text2); line-height:2">
+        <div>Update — share news</div>
+        <div>Question — ask community</div>
+        <div>Alert — urgent notice</div>
+        <div>Resolved — issue fixed</div>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const CURRENT_USER = "{{ current_user or '' }}";
+let currentArea = '';
+const TYPE_ICONS = { update: '○', question: '?', alert: '!', resolved: '✓' };
+const TYPE_COLORS = { update: 'var(--blue)', question: 'var(--amber)', alert: 'var(--accent)', resolved: 'var(--green)' };
+
+function setChannel(name, el) {
+  document.querySelectorAll('.channel-item').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  currentArea = el.dataset.area || '';
+  document.getElementById('feed-title').textContent = name;
+  document.getElementById('feed-sub').textContent = currentArea ? `${currentArea} community posts` : 'All Delhi civic updates';
+  loadPosts();
+}
+
+function loadPosts() {
+  let url = '/community/posts?limit=50';
+  if (currentArea) url += `&area=${encodeURIComponent(currentArea)}`;
+  fetch(url).then(r=>r.json()).then(posts => {
+    // Newest first
+    posts.sort((a,b) => b.timestamp - a.timestamp);
+    document.getElementById('post-count').textContent = `${posts.length} post${posts.length!==1?'s':''}`;
+    renderPosts(posts);
+    buildTopPosters(posts);
+  }).catch(() => {
+    document.getElementById('feed-posts').innerHTML = '<div class="empty-state"><div>Error loading posts</div></div>';
+  });
+}
+
+function renderPosts(posts) {
+  const el = document.getElementById('feed-posts');
+  if (!posts.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">○</div><div class="empty-state-title">No posts yet</div><div>Be the first to post in this channel!</div></div>';
+    return;
+  }
+  el.innerHTML = posts.map(p => {
+    const initials = (p.user||'A').slice(0,2).toUpperCase();
+    const icon = TYPE_ICONS[p.post_type||'update'] || '○';
+    const color = TYPE_COLORS[p.post_type||'update'] || 'var(--blue)';
+    const bgColor = p.post_type==='alert' ? 'var(--post-alert-bg)' : p.post_type==='resolved' ? 'var(--post-resolved-bg)' : 'var(--surface)';
+    return `
+    <div class="post-card" style="background:${bgColor}">
+      <div class="post-header">
+        <div class="post-avatar" style="background:${color}">${initials}</div>
+        <div class="post-meta">
+          <div class="post-user">${escHtml(p.user||'Anonymous')}</div>
+          <div class="post-time">${timeAgo(p.timestamp)} · ${escHtml(p.area||'Delhi')}</div>
+        </div>
+        <span class="badge" style="background:${color}22; color:${color}; font-size:11px">
+          ${icon} ${(p.post_type||'update')}
+        </span>
+      </div>
+      <div class="post-body">${escHtml(p.message)}</div>
+      <div class="post-footer">
+        <button class="like-btn" onclick="likePost(${p.id}, this)">
+          ♥ <span>${p.likes||0}</span>
+        </button>
+        <span class="text-sm text-muted">${p.likes||0} like${p.likes!==1?'s':''}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function buildTopPosters(posts) {
+  const counts = {};
+  posts.forEach(p => { counts[p.user||'Anonymous'] = (counts[p.user||'Anonymous']||0) + 1; });
+  const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  document.getElementById('top-posters').innerHTML = sorted.map(([user, count], i) => `
+    <div class="top-poster">
+      <span class="poster-rank">${i+1}</span>
+      <div class="post-avatar" style="width:22px;height:22px;font-size:9px;flex-shrink:0">${user.slice(0,2).toUpperCase()}</div>
+      <span style="flex:1;font-size:12.5px">${escHtml(user)}</span>
+      <span class="text-sm text-muted">${count}</span>
+    </div>
+  `).join('') || '<div class="text-sm text-muted">No posts yet</div>';
+}
+
+async function likePost(id, btn) {
+  const user = CURRENT_USER || document.getElementById('compose-user').value.trim();
+  if (!user) { showToast('Please enter your name first'); return; }
+  const r = await fetch(`/community/like/${id}`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({user})
+  });
+  const d = await r.json();
+  if (d.status === 'ok') {
+    const span = btn.querySelector('span');
+    if (span) span.textContent = parseInt(span.textContent||0) + 1;
+    btn.style.color = 'var(--accent)'; btn.style.borderColor = 'var(--accent)';
+  } else {
+    showToast(d.error || 'Already liked');
+  }
+}
+
+async function submitPost() {
+  const message = document.getElementById('compose-text').value.trim();
+  const user = document.getElementById('compose-user').value.trim() || CURRENT_USER;
+  const type = document.getElementById('compose-type').value;
+  if (!message || message.length < 5) { showToast('Please write a message (min 5 chars)'); return; }
+  if (!user) { showToast('Please enter your name'); return; }
+
+  const r = await fetch('/community/post', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ user, message, area: currentArea || 'Delhi', type })
+  });
+  const d = await r.json();
+  if (d.status === 'ok') {
+    showToast(`Posted! +${d.points_earned} pts`);
+    document.getElementById('compose-text').value = '';
+    loadPosts();
+  } else {
+    showToast(d.error || 'Error posting');
+  }
+}
+
+function escHtml(s) {
+  if(!s)return'';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+loadPosts();
+setInterval(loadPosts, 30000); // auto-refresh
+</script>
+{% endblock %}

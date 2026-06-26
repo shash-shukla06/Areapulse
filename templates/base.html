@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1c1f25">
+<title>{% block title %}AreaPulse Monitor{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=DM+Serif+Display&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* FR24-yellow palette — single source of truth */
+  --bg:        #1c1f25;
+  --bg-2:      #232730;
+  --bg-3:      #2a2f3a;
+  --bg-4:      #353a47;
+  --accent:    #f8c023;
+  --accent-2:  #ffd34d;
+  --accent-dim:rgba(248,192,35,0.13);
+  --red:       #e74c3c;   --red-dim:rgba(231,76,60,0.14);
+  --green:     #27ae60;   --green-dim:rgba(39,174,96,0.14);
+  --amber:     #f39c12;   --amber-dim:rgba(243,156,18,0.14);
+  --blue:      #4a90e2;   --blue-dim:rgba(74,144,226,0.16);
+  --border:    #2f3441;   --border-mid:#3d4352;
+  --text:      #ffffff;   --text-2:#b8bcc6;
+  --muted:     #8d9099;   --faint:#5e636c;
+
+  /* Aliases for the sub-pages (issues.html / my_issues.html / ngos.html / community.html)
+     so they can use --surface, --text2, --text3 etc. without rewriting */
+  --surface:   #232730;
+  --surface2:  #2a2f3a;
+  --text2:     #b8bcc6;
+  --text3:     #8d9099;
+  --shadow:    0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
+  --post-alert-bg:    rgba(231,76,60,0.10);
+  --post-resolved-bg: rgba(39,174,96,0.10);
+  --nav-h: 48px;
+}
+
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { width:100%; min-height:100%; font-family:'Inter', system-ui, sans-serif; font-size:13px; line-height:1.5; color:var(--text); background:var(--bg); }
+body { overflow:hidden; }
+button, input, select, textarea { font-family:inherit; color:inherit; background:transparent; border:none; outline:none; }
+a { color:inherit; text-decoration:none; }
+
+/* ═══ TOPBAR (shared with index.html, mobile-aware) ═══ */
+.topbar {
+  position:fixed; top:0; left:0; right:0; z-index:300;
+  height:var(--nav-h); padding:0 14px;
+  background:var(--bg); border-bottom:1px solid rgba(248,192,35,0.18);
+  display:flex; align-items:center; gap:10px;
+}
+.tb-left { display:flex; align-items:center; gap:8px; }
+.tb-right { display:flex; align-items:center; gap:8px; margin-left:auto; }
+.tb-center {
+  position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  display:flex; flex-direction:column; align-items:center; gap:1px; pointer-events:none;
+}
+.tb-brand { display:flex; align-items:center; gap:9px; font-family:'Barlow Condensed', sans-serif; font-weight:800; font-size:20px; letter-spacing:2.5px; color:#fff; }
+.tb-brand-dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px var(--accent); animation:dot-pulse 2s ease-in-out infinite; }
+@keyframes dot-pulse { 0%,100%{opacity:1} 50%{opacity:.55} }
+.tb-subtitle { font-family:'JetBrains Mono', monospace; font-size:9px; letter-spacing:2.5px; color:var(--muted); text-transform:uppercase; }
+
+.tb-action {
+  display:flex; align-items:center; gap:5px; padding:5px 11px;
+  font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700; letter-spacing:1px;
+  text-decoration:none; cursor:pointer; border:1px solid;
+}
+.tb-action svg { width:13px; height:13px; }
+.tb-action.ar { background:var(--red-dim); color:var(--red); border-color:rgba(231,76,60,0.4); }
+.tb-action.ar:hover { background:var(--red); color:#fff; }
+.tb-action.wa { background:rgba(37,211,102,0.13); color:#25D366; border-color:rgba(37,211,102,0.45); }
+.tb-action.wa:hover { background:#25D366; color:#fff; border-color:#25D366; }
+.tb-user-pill { display:flex; align-items:center; gap:7px; padding:4px 10px 4px 4px; background:var(--bg-2); border:1px solid var(--border); font-size:11px; color:var(--text); }
+.tb-avatar { width:22px; height:22px; border-radius:50%; background:var(--accent); color:#000; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-weight:700; font-size:10px; }
+.tb-signout { font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--muted); text-decoration:none; letter-spacing:1px; padding:4px 8px; border:1px solid var(--border); }
+.tb-signout:hover { color:var(--red); border-color:var(--red); }
+.tb-signin-btn { background:var(--accent); color:#000; padding:5px 14px; font-family:'JetBrains Mono', monospace; font-size:10.5px; font-weight:700; letter-spacing:1px; text-decoration:none; cursor:pointer; border:none; }
+.tb-signin-btn:hover { filter:brightness(1.15); }
+.tb-icon-btn { width:30px; height:30px; display:flex; align-items:center; justify-content:center; color:var(--muted); background:var(--bg-2); border:1px solid var(--border); cursor:pointer; }
+.tb-icon-btn:hover { color:var(--accent); border-color:var(--accent); }
+.tb-icon-btn svg { width:14px; height:14px; }
+.tb-icon-btn.active { color:var(--accent); border-color:var(--accent); background:var(--accent-dim); }
+
+/* ═══ SLIDE-OUT NAV MENU (FR24-style) ═══ */
+.nav-menu {
+  position:fixed; top:0; right:0; bottom:0; z-index:600;
+  width:360px; max-width:100vw;
+  background:var(--bg-2);
+  border-left:3px solid var(--accent);
+  box-shadow:-12px 0 30px rgba(0,0,0,0.5);
+  transform:translateX(100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  display:flex; flex-direction:column;
+}
+.nav-menu.open { transform:translateX(0); }
+.nav-menu-head { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-shrink:0; }
+.nav-menu-close {
+  width:32px; height:32px; border-radius:50%; background:var(--bg-3); border:1px solid var(--border);
+  color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;
+}
+.nav-menu-close:hover { color:var(--red); border-color:var(--red); }
+.nav-menu-title { font-family:'Barlow Condensed', sans-serif; font-size:18px; font-weight:700; letter-spacing:.5px; color:var(--accent); flex:1; }
+.nav-menu-live { font-family:'JetBrains Mono', monospace; font-size:9.5px; font-weight:700; letter-spacing:1.5px; background:var(--accent); color:#000; padding:3px 8px; }
+.nav-menu-body { flex:1; overflow-y:auto; padding:8px 0; }
+.nav-menu-body::-webkit-scrollbar { width:3px; }
+.nav-menu-body::-webkit-scrollbar-thumb { background:var(--border-mid); }
+.nav-section { font-family:'Barlow Condensed', sans-serif; font-size:10.5px; font-weight:700; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; padding:14px 22px 8px; }
+.nav-link {
+  display:flex; align-items:center; gap:14px; padding:14px 22px;
+  font-size:15px; font-weight:500; color:var(--text); cursor:pointer; border-left:3px solid transparent;
+  transition:background .12s, border-color .12s;
+}
+.nav-link:hover { background:rgba(248,192,35,0.06); border-left-color:var(--accent); }
+.nav-link.active { background:var(--accent-dim); border-left-color:var(--accent); color:var(--accent); font-weight:600; }
+.nav-link-icon {
+  width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+  color:var(--accent); flex-shrink:0;
+}
+.nav-link-icon svg { width:18px; height:18px; }
+.nav-link-text { flex:1; }
+.nav-link-sub { font-size:11px; color:var(--muted); margin-top:2px; }
+.nav-link-arrow { color:var(--faint); font-size:14px; }
+.nav-link:hover .nav-link-arrow { color:var(--accent); }
+.nav-menu-foot { padding:12px 22px; border-top:1px solid var(--border); flex-shrink:0; font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--faint); letter-spacing:1px; text-align:center; }
+
+/* Backdrop */
+.nav-backdrop {
+  position:fixed; inset:0; z-index:595;
+  background:rgba(0,0,0,0.6); backdrop-filter:blur(2px);
+  opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.nav-backdrop.show { opacity:1; pointer-events:auto; }
+
+/* ═══ UTILITY CLASSES used by sub-pages ═══ */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:6px;
+  padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600;
+  cursor:pointer; border:1px solid var(--border); background:var(--bg-3); color:var(--text);
+  transition:all .15s; text-decoration:none; font-family:inherit;
+}
+.btn:hover { border-color:var(--accent); color:var(--accent); }
+.btn-primary { background:var(--accent); color:#000; border-color:var(--accent); }
+.btn-primary:hover { filter:brightness(1.1); color:#000; }
+.btn-sm { padding:6px 12px; font-size:12px; }
+
+input, select, textarea {
+  background:var(--bg); border:1px solid var(--border); color:var(--text);
+  padding:8px 12px; font-size:13px; font-family:inherit; border-radius:6px;
+  transition:border-color .15s;
+}
+input:focus, select:focus, textarea:focus { border-color:var(--accent); }
+input::placeholder, textarea::placeholder { color:var(--faint); }
+select { cursor:pointer; }
+
+.spinner {
+  width:24px; height:24px; border:2px solid var(--border); border-top-color:var(--accent);
+  border-radius:50%; animation:spin .8s linear infinite;
+}
+@keyframes spin { to { transform:rotate(360deg); } }
+
+.empty-state { padding:48px 24px; text-align:center; color:var(--muted); }
+.empty-state-icon { font-size:48px; margin-bottom:12px; color:var(--faint); opacity:.6; }
+.empty-state-title { font-family:'Barlow Condensed', sans-serif; font-size:18px; font-weight:600; color:var(--text-2); margin-bottom:6px; letter-spacing:.5px; }
+
+.text-muted { color:var(--muted); }
+.text-sm { font-size:11.5px; }
+
+.badge { display:inline-flex; align-items:center; gap:4px; padding:2px 8px; font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; border-radius:3px; }
+.badge-open { background:var(--blue-dim); color:var(--blue); }
+.badge-resolved { background:var(--green-dim); color:var(--green); }
+.badge-escalated { background:var(--red-dim); color:var(--red); }
+.badge-verified { background:var(--accent-dim); color:var(--accent); }
+.badge-high { background:var(--red-dim); color:var(--red); }
+.badge-medium { background:var(--amber-dim); color:var(--amber); }
+.badge-low { background:var(--green-dim); color:var(--green); }
+.tag-pothole { background:rgba(229,142,82,0.15); color:#e58e52; }
+.tag-water { background:rgba(74,158,255,0.15); color:#4a9eff; }
+.tag-garbage { background:rgba(150,206,76,0.15); color:#96ce4c; }
+.tag-streetlight { background:rgba(170,184,200,0.15); color:#aab8c8; }
+.tag-traffic { background:rgba(255,68,68,0.15); color:var(--red); }
+.tag-noise { background:rgba(192,132,252,0.15); color:#c084fc; }
+.tag-sewage { background:rgba(212,184,112,0.15); color:#d4b870; }
+.tag-electricity { background:rgba(255,170,0,0.15); color:var(--amber); }
+.tag-tree { background:rgba(111,207,151,0.15); color:#6fcf97; }
+.tag-other { background:rgba(170,184,200,0.15); color:#aab8c8; }
+
+.section-title { font-family:'DM Serif Display', serif; font-size:24px; color:var(--text); margin-bottom:4px; }
+.section-sub { font-size:13px; color:var(--muted); }
+
+/* Layout utilities */
+.flex { display:flex; } .items-center { align-items:center; } .justify-between { justify-content:space-between; }
+.mb-16 { margin-bottom:16px; }
+
+/* Modal overlay (used by issues.html detail) */
+.modal-overlay { position:fixed; inset:0; z-index:500; background:rgba(0,0,0,0.75); display:none; align-items:center; justify-content:center; padding:16px; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--bg-2); border:1px solid var(--accent); width:100%; max-width:680px; padding:24px; max-height:90vh; overflow-y:auto; border-radius:8px; }
+
+/* Map (Leaflet) — dark popup styling */
+.leaflet-popup-content-wrapper { background:var(--bg-2) !important; color:var(--text) !important; border:1px solid var(--border) !important; border-radius:6px !important; }
+.leaflet-popup-tip { background:var(--bg-2) !important; }
+.leaflet-control-attribution { background:rgba(0,0,0,0.5) !important; color:var(--muted) !important; }
+.leaflet-control-attribution a { color:var(--accent) !important; }
+
+/* Toast */
+#toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:var(--bg-2); border:1px solid var(--accent); color:var(--text); padding:10px 18px; font-family:'JetBrains Mono', monospace; font-size:11.5px; z-index:1000; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; border-radius:4px; max-width:90vw; text-align:center; }
+#toast.show { opacity:1; transform:translateX(-50%) translateY(-8px); }
+
+/* Content area */
+.page-content { position:fixed; top:var(--nav-h); left:0; right:0; bottom:0; overflow:hidden; }
+
+/* ═══ RESPONSIVE ═══ */
+input, textarea, select { font-size:16px; }
+@media (min-width:721px) {
+  input, textarea, select { font-size:13px; }
+}
+
+@media (max-width:900px) {
+  .nav-menu { width:340px; }
+}
+
+@media (max-width:720px) {
+  .topbar { padding:0 8px; gap:6px; height:52px; }
+  .tb-action span { display:none; }
+  .tb-action { padding:7px 9px; }
+  .tb-action svg { width:15px; height:15px; }
+  .tb-user-pill span { display:none; }
+  .tb-user-pill { padding:3px 8px 3px 3px; }
+  .tb-signout { font-size:9px; padding:4px 7px; }
+  .tb-brand { font-size:16px; letter-spacing:1.5px; }
+  .tb-subtitle { font-size:8px; }
+  .tb-icon-btn { width:32px; height:32px; }
+  .nav-menu { width:100%; border-left:none; border-top:3px solid var(--accent); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SHARED MOBILE PHOTO-MATCH LAYER (base.html — applies to all child pages)
+   ═══════════════════════════════════════════════════════════════════ */
+@media (max-width:768px){
+  :root{
+    --m-safe-top: env(safe-area-inset-top, 0px);
+    --m-safe-bot: env(safe-area-inset-bottom, 0px);
+    --m-glass: rgba(20,24,32,0.78);
+    --m-border: rgba(255,255,255,0.10);
+    --m-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  /* Glassy floating topbar */
+  .topbar{
+    top:calc(10px + var(--m-safe-top)) !important;
+    left:10px !important; right:10px !important;
+    width:auto !important;
+    height:50px !important;
+    border-radius:14px !important;
+    background:var(--m-glass) !important;
+    backdrop-filter:blur(18px) saturate(140%);
+    -webkit-backdrop-filter:blur(18px) saturate(140%);
+    border:1px solid var(--m-border) !important;
+    box-shadow:var(--m-shadow);
+    padding:0 10px !important;
+    z-index:300 !important;
+  }
+  .tb-action.ar, .tb-action.wa{ display:none !important; }
+  .tb-right .tb-action[href="/stats"]{ display:none !important; }
+  .tb-subtitle{ display:none !important; }
+  .tb-brand{ font-size:13px !important; letter-spacing:.14em !important; }
+  .tb-brand-dot{ box-shadow:0 0 12px var(--accent); }
+
+  /* Mobile: abandon position:fixed page-content — let body scroll naturally.
+     This fixes invisible/empty-content bugs caused by fixed parent + sticky children. */
+  html{
+    overflow:visible !important;
+    overflow-y:auto !important;
+    height:auto !important;
+    min-height:100% !important;
+  }
+  body{
+    overflow:visible !important;
+    overflow-y:auto !important;
+    overflow-x:hidden !important;
+    height:auto !important;
+    min-height:100vh !important;
+    padding-top:72px !important;
+    padding-bottom:calc(82px + var(--m-safe-bot)) !important;
+    -webkit-overflow-scrolling:touch;
+  }
+  .page-content{
+    position:relative !important;
+    top:auto !important; bottom:auto !important; left:auto !important; right:auto !important;
+    width:100% !important;
+    overflow:visible !important;
+    height:auto !important;
+    min-height:auto !important;
+    display:block !important;
+  }
+
+  /* Child-page layout heights — these use 100vh - var(--nav-h) which doesn't
+     account for the floating bottom nav on mobile. Force them to fill page-content. */
+  .issues-layout,
+  .community-layout,
+  .my-issues-wrap,
+  .ngos-layout{
+    height:auto !important;
+    min-height:auto !important;
+    overflow:visible !important;
+    display:block !important;
+  }
+  /* But community and issues layouts need to stay flex for the sticky filter bar */
+  .issues-layout,
+  .community-layout,
+  .ngos-layout{
+    display:flex !important;
+    flex-direction:column !important;
+  }
+
+  /* Toast above bottom nav */
+  #toast{ bottom:calc(100px + var(--m-safe-bot)) !important; }
+
+  /* Bottom nav (Settings | Reports | AR | WhatsApp) */
+  .m-bottomnav{
+    position:fixed; left:10px; right:10px; bottom:calc(10px + var(--m-safe-bot));
+    height:62px; z-index:300;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:6px;
+    background:var(--m-glass); backdrop-filter:blur(18px) saturate(140%);
+    -webkit-backdrop-filter:blur(18px) saturate(140%);
+    border:1px solid var(--m-border); border-radius:18px;
+    box-shadow:var(--m-shadow);
+  }
+  .m-navbtn{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; border-radius:12px; border:0; background:transparent;
+    color:var(--muted, #8d9099); cursor:pointer; transition:all .15s; padding:0;
+    text-decoration:none;
+  }
+  .m-navbtn:active{ transform:scale(.95); }
+  .m-navbtn svg{ width:21px; height:21px; stroke:currentColor; fill:none;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .m-navbtn span{ font-family:'JetBrains Mono','Courier New',monospace; font-size:9.5px;
+    font-weight:600; letter-spacing:.06em; }
+  .m-navbtn.active{ background:rgba(255,255,255,0.06); color:#fff; }
+  .m-navbtn.ar svg{ color:#27ae60; }
+  .m-navbtn.wa svg{ color:#25d366; }
+}
+</style>
+
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- ── TOPBAR ── -->
+<div class="topbar">
+  <div class="tb-left">
+    <!-- FIX: correct AR scanner URL → https://areapulse-cam.onrender.com/ -->
+    <a href="https://areapulse-cam.onrender.com/" target="_blank" class="tb-action ar" title="AR Scanner">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 8V6a2 2 0 0 1 2-2h2M22 8V6a2 2 0 0 0-2-2h-2M2 16v2a2 2 0 0 0 2 2h2M22 16v2a2 2 0 0 1-2 2h-2"/><circle cx="12" cy="12" r="3"/></svg>
+      <span>AR SCAN</span>
+    </a>
+    <a href="https://wa.me/{{ wa_number or '14155238886' }}?text={{ ('join ' + (wa_join_code or 'feet-cheese')) | urlencode }}" target="_blank" class="tb-action wa" title="Report via WhatsApp">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+      <span>WHATSAPP</span>
+    </a>
+    {% if current_user %}
+    <div class="tb-user-pill"><div class="tb-avatar">{{ current_user[:2].upper() }}</div><span>{{ current_user }}</span></div>
+    <a href="/logout" class="tb-signout">SIGN OUT</a>
+    {% else %}
+    <a href="/login" class="tb-signin-btn">SIGN IN</a>
+    {% endif %}
+  </div>
+  <a href="/" class="tb-center" style="pointer-events:auto">
+    <div class="tb-brand"><div class="tb-brand-dot"></div>AREAPULSE</div>
+    <div class="tb-subtitle">LIVE CIVIC FEED</div>
+  </a>
+  <div class="tb-right">
+    <a href="/stats" class="tb-action" style="background:rgba(39,174,96,0.10); color:var(--green); border-color:rgba(39,174,96,0.35)" title="Public Stats">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-4 3 3 5-7"/></svg>
+      <span>STATS</span>
+    </a>
+    <button class="tb-icon-btn" onclick="toggleNavMenu()" title="Menu" id="nav-menu-btn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ── SLIDE-OUT NAV MENU ── -->
+<div class="nav-backdrop" id="nav-backdrop" onclick="closeNavMenu()"></div>
+<div class="nav-menu" id="nav-menu">
+  <div class="nav-menu-head">
+    <button class="nav-menu-close" onclick="closeNavMenu()" title="Close">✕</button>
+    <div class="nav-menu-title">AreaPulse</div>
+    <div class="nav-menu-live">● LIVE</div>
+  </div>
+  <div class="nav-menu-body">
+    <div class="nav-section">Navigation</div>
+    {% set _path = request.path if request else '/' %}
+    <a href="/" class="nav-link {% if _path == '/' %}active{% endif %}">
+      <div class="nav-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg></div>
+      <div class="nav-link-text">Live Map<div class="nav-link-sub">Real-time issue map</div></div>
+      <span class="nav-link-arrow">›</span>
+    </a>
+    <a href="/issues-all" class="nav-link {% if _path == '/issues-all' %}active{% endif %}">
+      <div class="nav-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg></div>
+      <div class="nav-link-text">All Issues<div class="nav-link-sub">Browse, filter, search</div></div>
+      <span class="nav-link-arrow">›</span>
+    </a>
+    <a href="/my-reports" class="nav-link {% if _path == '/my-reports' %}active{% endif %}">
+      <div class="nav-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></div>
+      <div class="nav-link-text">My Reports<div class="nav-link-sub">Track your submissions</div></div>
+      <span class="nav-link-arrow">›</span>
+    </a>
+    <a href="/community" class="nav-link {% if _path == '/community' %}active{% endif %}">
+      <div class="nav-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg></div>
+      <div class="nav-link-text">Community<div class="nav-link-sub">Posts, alerts, updates</div></div>
+      <span class="nav-link-arrow">›</span>
+    </a>
+
+    <div class="nav-section">Insights</div>
+    <a href="/stats" class="nav-link {% if _path == '/stats' %}active{% endif %}">
+      <div class="nav-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 16l4-4 3 3 5-7"/></svg></div>
+      <div class="nav-link-text">Public Stats<div class="nav-link-sub">Resolution rates, hotspots</div></div>
+      <span class="nav-link-arrow">›</span>
+    </a>
+    {% if current_user and current_user.startswith('gov_') %}
+    <a href="/gov" class="nav-link {% if _path == '/gov' %}active{% endif %}">
+      <div class="nav-link-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+      <div class="nav-link-text">Gov Dashboard<div class="nav-link-sub">Officer control panel</div></div>
+      <span class="nav-link-arrow">›</span>
+    </a>
+    {% endif %}
+  </div>
+  <div class="nav-menu-foot">AreaPulse · QuantCraft 2026</div>
+</div>
+
+<!-- ── PAGE CONTENT ── -->
+<div class="page-content">
+{% block content %}{% endblock %}
+</div>
+
+<div id="toast"></div>
+
+<script>
+const TAG_LABELS = { pothole:'Pothole', water:'Water', garbage:'Garbage', streetlight:'Streetlight', traffic:'Traffic', noise:'Noise', sewage:'Sewage', electricity:'Electricity', tree:'Tree', other:'Other' };
+
+function toggleNavMenu() {
+  const m = document.getElementById('nav-menu');
+  const b = document.getElementById('nav-backdrop');
+  const btn = document.getElementById('nav-menu-btn');
+  const on = !m.classList.contains('open');
+  m.classList.toggle('open', on);
+  b.classList.toggle('show', on);
+  btn.classList.toggle('active', on);
+}
+function closeNavMenu() {
+  document.getElementById('nav-menu')?.classList.remove('open');
+  document.getElementById('nav-backdrop')?.classList.remove('show');
+  document.getElementById('nav-menu-btn')?.classList.remove('active');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNavMenu(); });
+
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function timeAgo(ts) {
+  if (!ts) return '—';
+  const sec = Math.floor(Date.now()/1000 - ts);
+  if (sec < 60) return 'just now';
+  if (sec < 3600) return Math.floor(sec/60) + 'm ago';
+  if (sec < 86400) return Math.floor(sec/3600) + 'h ago';
+  return Math.floor(sec/86400) + 'd ago';
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Mobile bottom nav — injected on every base-extended page.
+   Skipped on home (/) because index.html provides its own full mobile chrome.
+   ═══════════════════════════════════════════════════════════════════ */
+function _initBaseBottomNav(){
+  if (window._mNavInited) return;
+  if (!document.body) return;
+  if (!window.matchMedia('(max-width:768px)').matches) return;
+  if (location.pathname === '/' || location.pathname === '') return;  // home has its own
+  window._mNavInited = true;
+
+  const path = location.pathname;
+  const isReports = /^\/(issues-all|my-reports|reports)/.test(path);
+  const isSettings = /^\/(settings|account)/.test(path);
+
+  const nav = document.createElement('nav');
+  nav.className = 'm-bottomnav';
+  nav.innerHTML = `
+    <a class="m-navbtn ${isSettings?'active':''}" href="/my-reports" title="My Reports">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </a>
+    <a class="m-navbtn ${isReports?'active':''}" href="/issues-all" title="All Reports">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>Reports</span>
+    </a>
+    <a class="m-navbtn ar" href="https://areapulse-cam.onrender.com/" target="_blank" rel="noopener" title="AR Scan">
+      <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>AR Scan</span>
+    </a>
+    <a class="m-navbtn wa" href="https://wa.me/14155238886?text=join%20feet-cheese" target="_blank" rel="noopener" title="WhatsApp">
+      <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      <span>WhatsApp</span>
+    </a>`;
+  document.body.appendChild(nav);
+}
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', _initBaseBottomNav);
+} else { _initBaseBottomNav(); }
+window.addEventListener('load', _initBaseBottomNav);
+window.addEventListener('pageshow', _initBaseBottomNav);
+</script>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

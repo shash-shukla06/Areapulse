@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% block title %}NGOs & Agencies — Problem Map{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<style>
+  .ngos-layout { display: flex; height: calc(100vh - var(--nav-h)); overflow: hidden; }
+  .ngos-sidebar {
+    width: 380px; flex-shrink: 0; background: var(--surface);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden;
+  }
+  .ngos-tabs {
+    display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .ngos-tab {
+    flex: 1; padding: 12px; text-align: center; font-size: 13px; font-weight: 500;
+    cursor: pointer; color: var(--text2); border-bottom: 2px solid transparent;
+    transition: all 0.15s;
+  }
+  .ngos-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .ngos-content { flex: 1; overflow-y: auto; }
+  .ngos-filters { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; }
+  .ngos-filters select { font-size: 12.5px; padding: 6px 10px; flex: 1; }
+
+  .ngo-card {
+    padding: 14px 16px; border-bottom: 1px solid var(--border);
+    cursor: pointer; transition: background 0.12s;
+  }
+  .ngo-card:hover { background: var(--surface2); }
+  .ngo-card-header { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .ngo-icon-box {
+    width: 38px; height: 38px; border-radius: 8px; background: var(--surface2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .ngo-info { flex: 1; min-width: 0; }
+  .ngo-name { font-size: 13.5px; font-weight: 600; }
+  .ngo-focus { font-size: 12px; color: var(--text2); margin-top: 2px; }
+  .ngo-stats { display: flex; gap: 14px; margin-top: 8px; }
+  .ngo-stat { text-align: center; }
+  .ngo-stat-num { font-size: 16px; font-weight: 600; font-family: 'DM Serif Display', serif; }
+  .ngo-stat-lbl { font-size: 10.5px; color: var(--text3); }
+  .rating-stars { color: var(--amber); font-size: 12px; }
+  .rank-badge {
+    width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center;
+    justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .rank-1 { background: #FFD700; color: #7A4D00; }
+  .rank-2 { background: #C0C0C0; color: #4A4A4A; }
+  .rank-3 { background: #CD7F32; color: white; }
+  .rank-n { background: var(--surface2); color: var(--text2); }
+
+  .nearby-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11.5px; color: var(--green); font-weight: 500;
+  }
+
+  /* FIX: contact buttons — solid styling so they're clearly clickable */
+  .ngo-contact-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 5px 12px; border-radius: 6px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); text-decoration: none; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .ngo-contact-btn:hover { background: var(--accent); color: white; border-color: var(--accent); text-decoration: none; }
+  .ngo-contact-btn.call:hover { background: var(--green); border-color: var(--green); }
+
+  /* Map panel */
+  .ngos-map { flex: 1; position: relative; }
+  #ngo-map { width: 100%; height: 100%; }
+  .map-overlay-card {
+    position: absolute; bottom: 20px; right: 20px; z-index: 500;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; min-width: 220px; max-width: 260px;
+    box-shadow: var(--shadow-lg); display: none;
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="ngos-layout">
+
+  <!-- Sidebar -->
+  <aside class="ngos-sidebar">
+    <!-- Tabs -->
+    <div class="ngos-tabs">
+      <div class="ngos-tab active" onclick="switchTab('nearby', this)">Nearby NGOs</div>
+      <div class="ngos-tab" onclick="switchTab('ranking', this)">Performance</div>
+      <div class="ngos-tab" onclick="switchTab('govt', this)">Govt Agencies</div>
+    </div>
+
+    <!-- Filters -->
+    <div class="ngos-filters">
+      <select id="ngo-tag-filter" onchange="loadCurrentTab()">
+        <option value="">All Categories</option>
+        <option value="pothole">Pothole</option>
+        <option value="water">Water</option>
+        <option value="garbage">Garbage</option>
+        <option value="streetlight">Streetlight</option>
+        <option value="traffic">Traffic</option>
+        <option value="noise">Noise</option>
+        <option value="sewage">Sewage</option>
+        <option value="electricity">Electricity</option>
+        <option value="tree">Tree</option>
+      </select>
+      <select id="ngo-sort" onchange="loadCurrentTab()">
+        <option value="resolved">By Resolved</option>
+        <option value="rating">By Rating</option>
+      </select>
+    </div>
+
+    <!-- Content -->
+    <div class="ngos-content" id="ngos-content">
+      <div style="text-align:center; padding:40px">
+        <div class="spinner" style="margin:0 auto 10px"></div>
+        <div class="text-muted">Finding NGOs near you…</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Map -->
+  <div class="ngos-map">
+    <div id="ngo-map"></div>
+    <div class="map-overlay-card" id="ngo-detail-card"></div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const CURRENT_USER   = "{{ current_user or '' }}";
+const MAPTILER_KEY   = {{ maptiler_key | tojson }};
+const MAPTILER_STYLE = {{ maptiler_style | tojson }};
+let currentTab = 'nearby';
+let userLat = 28.6139, userLng = 77.2090;
+let ngoMarkers = [];
+
+const ngoMap = L.map('ngo-map', { zoomControl: false, attributionControl: true }).setView([28.6139, 77.2090], 11);
+ngoMap.attributionControl.setPrefix(false);  // drop the "Leaflet" prefix
+window.ngoMap = ngoMap;
+
+// Use MapTiler if key available (same tiles as live map), else fall back to CARTO
+if (MAPTILER_KEY) {
+  L.tileLayer(`https://api.maptiler.com/maps/${MAPTILER_STYLE}/{z}/{x}/{y}.png?key=${MAPTILER_KEY}`, {
+    attribution: '© MapTiler © OpenStreetMap', maxZoom: 19, crossOrigin: true
+  }).addTo(ngoMap);
+} else {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO', maxZoom: 19
+  }).addTo(ngoMap);
+}
+L.control.zoom({ position: 'bottomright' }).addTo(ngoMap);
+
+// Get user location — always call loadCurrentTab() regardless of geo result
+if (navigator.geolocation) {
+  navigator.geolocation.getCurrentPosition(pos => {
+    userLat = pos.coords.latitude;
+    userLng = pos.coords.longitude;
+    ngoMap.setView([userLat, userLng], 12);
+    L.circleMarker([userLat, userLng], {
+      radius: 7, color: '#1B4F72', fillColor: '#1B4F72', fillOpacity: 1, weight: 3
+    }).addTo(ngoMap).bindPopup('Your location');
+    if (currentTab === 'nearby') loadCurrentTab();
+  }, () => {
+    // Denied or unavailable — use Delhi center, still load NGOs
+    loadCurrentTab();
+  });
+} else {
+  loadCurrentTab();
+}
+
+function switchTab(tab, el) {
+  currentTab = tab;
+  document.querySelectorAll('.ngos-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  loadCurrentTab();
+}
+
+function loadCurrentTab() {
+  if (currentTab === 'nearby') loadNearby();
+  else if (currentTab === 'ranking') loadRanking();
+  else loadGovt();
+}
+
+function loadNearby() {
+  const tag = document.getElementById('ngo-tag-filter').value;
+  let url = `/ngo/nearby?lat=${userLat}&lng=${userLng}`;
+  if (tag) url += `&tag=${encodeURIComponent(tag)}`;
+  fetch(url).then(r=>r.json()).then(data => {
+    const ngos = Array.isArray(data) ? data : (data.ngos || []);
+    renderNGOs(ngos, true);
+    plotNGOMarkers(ngos);
+  });
+}
+
+function loadRanking() {
+  const tag = document.getElementById('ngo-tag-filter').value;
+  const sort = document.getElementById('ngo-sort').value;
+  let url = `/ngo/all?sort=${sort}`;
+  if (tag) url += `&tag=${encodeURIComponent(tag)}`;
+  fetch(url).then(r=>r.json()).then(data => {
+    const ngos = Array.isArray(data) ? data : (data.ngos || []);
+    renderNGOs(ngos, false, true);
+    plotNGOMarkers(ngos);
+  });
+}
+
+function loadGovt() {
+  const tag = document.getElementById('ngo-tag-filter').value;
+  let url = '/gov/all?';
+  if (tag) url += `tag=${encodeURIComponent(tag)}`;
+  fetch(url).then(r=>r.json()).then(data => {
+    const agencies = Array.isArray(data) ? data : (data.agencies || data.ngos || []);
+    renderGovt(agencies);
+    plotNGOMarkers(agencies.map(a => ({...a, issues_resolved: a.issues_resolved || 0, rating: 4.0})));
+  });
+}
+
+function stars(rating) {
+  const full = Math.floor(rating);
+  const half = rating - full >= 0.5 ? 1 : 0;
+  return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(5 - full - half);
+}
+
+// FIX: contact buttons use ngo-contact-btn class with proper href handling
+function makeContactBtns(ngo) {
+  let btns = '';
+  if (ngo.phone) {
+    btns += `<a href="tel:${escHtml(ngo.phone)}" class="ngo-contact-btn call" onclick="event.stopPropagation()">📞 ${escHtml(ngo.phone)}</a>`;
+  }
+  if (ngo.email) {
+    btns += `<a href="mailto:${escHtml(ngo.email)}" class="ngo-contact-btn" onclick="event.stopPropagation()">✉ Email</a>`;
+  }
+  return btns;
+}
+
+function renderNGOs(ngos, showDist=false, showRank=false) {
+  const el = document.getElementById('ngos-content');
+  if (!ngos.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">○</div><div class="empty-state-title">No NGOs found</div></div>';
+    return;
+  }
+  el.innerHTML = ngos.map((ngo, i) => {
+    const rank = i + 1;
+    const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-n';
+    return `
+    <div class="ngo-card" onclick="focusNGO(${ngo.lat}, ${ngo.lng}, '${escJs(ngo.name)}')">
+      <div class="ngo-card-header">
+        ${showRank ? `<div class="rank-badge ${rankClass}">${rank}</div>` : ''}
+        <div class="ngo-icon-box">${ngo.icon || '○'}</div>
+        <div class="ngo-info">
+          <div class="ngo-name">${escHtml(ngo.name)}</div>
+          <div class="ngo-focus">${escHtml(ngo.focus || '')}</div>
+          <div style="margin-top:4px; display:flex; gap:10px; align-items:center; flex-wrap:wrap">
+            <span class="badge tag-${ngo.tag||'other'}">${TAG_LABELS[ngo.tag]||'Other'}</span>
+            ${showDist && ngo.distance_km != null ? `<span class="nearby-badge">◎ ${ngo.distance_km} km away</span>` : ''}
+            <span class="rating-stars">${stars(ngo.rating||4)}</span>
+            <span style="font-size:11.5px; color:var(--text2)">${(ngo.rating||4).toFixed(1)}</span>
+          </div>
+        </div>
+      </div>
+      <div class="ngo-stats">
+        <div class="ngo-stat"><div class="ngo-stat-num" style="color:var(--green)">${ngo.issues_resolved||0}</div><div class="ngo-stat-lbl">Resolved</div></div>
+        <div class="ngo-stat"><div class="ngo-stat-num" style="color:var(--amber)">${ngo.issues_escalated||0}</div><div class="ngo-stat-lbl">Escalated</div></div>
+        <div class="ngo-stat"><div class="ngo-stat-num" style="color:var(--blue)">${(ngo.rating||4).toFixed(1)}</div><div class="ngo-stat-lbl">Rating</div></div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap; align-items:center">
+        ${makeContactBtns(ngo)}
+        <span style="font-size:12px; color:var(--text2); display:flex; align-items:center">📍 ${escHtml(ngo.area||'')}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderGovt(agencies) {
+  const el = document.getElementById('ngos-content');
+  if (!agencies.length) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">○</div><div class="empty-state-title">No agencies found</div></div>';
+    return;
+  }
+  el.innerHTML = agencies.map(a => `
+    <div class="ngo-card" onclick="focusNGO(${a.lat}, ${a.lng}, '${escJs(a.name)}')">
+      <div class="ngo-card-header">
+        <div class="ngo-icon-box">${a.icon || '○'}</div>
+        <div class="ngo-info">
+          <div class="ngo-name">${escHtml(a.name)}</div>
+          <div class="ngo-focus">${escHtml(a.focus||'')}</div>
+          <div style="margin-top:4px; display:flex; gap:8px; flex-wrap:wrap">
+            <span class="badge tag-${a.tag||'other'}">${TAG_LABELS[a.tag]||'Other'}</span>
+            <span style="font-size:11.5px; color:var(--text2)">${escHtml(a.department||'')}</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px; display:flex; gap:8px; flex-wrap:wrap">
+        ${makeContactBtns(a)}
+      </div>
+    </div>
+  `).join('');
+}
+
+function plotNGOMarkers(ngos) {
+  ngoMarkers.forEach(m => ngoMap.removeLayer(m));
+  ngoMarkers = [];
+  ngos.forEach(ngo => {
+    if (!ngo.lat || !ngo.lng) return;
+    const m = L.circleMarker([ngo.lat, ngo.lng], {
+      radius: 8, color: '#2D6A4F', fillColor: '#2D6A4F', fillOpacity: 0.8, weight: 2
+    }).addTo(ngoMap).bindPopup(`<b>${ngo.name}</b><br><small>${ngo.area||''}</small>`);
+    ngoMarkers.push(m);
+  });
+}
+
+function focusNGO(lat, lng, name) {
+  if (!lat || !lng) return;
+  ngoMap.setView([lat, lng], 14);
+  const card = document.getElementById('ngo-detail-card');
+  card.innerHTML = `<div style="font-weight:600; margin-bottom:4px">${escHtml(name)}</div><div style="font-size:12px; color:var(--text2)">Focused on map</div>`;
+  card.style.display = 'block';
+  setTimeout(() => { card.style.display = 'none'; }, 3000);
+}
+
+function escHtml(s) { if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function escJs(s) { if(!s)return''; return String(s).replace(/'/g,"\\'"); }
+
+loadCurrentTab();
+</script>
+{% endblock %}

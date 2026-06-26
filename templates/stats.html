@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AreaPulse · Public Civic Stats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #19232f;
+  --bg-2:      #1f2b39;
+  --bg-3:      #25323f;
+  --bg-4:      #2c3a4a;
+  --accent:    #f8c023;   --accent-dim:rgba(248,192,35,0.14);
+  --info:      #3787c7;   --info-dim:rgba(55,135,199,0.16);
+  --red:       #f85149;   --red-dim:rgba(248,81,73,0.14);
+  --green:     #3fb950;   --green-dim:rgba(63,185,80,0.14);
+  --amber:     #e3b341;   --amber-dim:rgba(227,179,65,0.14);
+  --purple:    #a371f7;   --purple-dim:rgba(163,113,247,0.14);
+  --blue:      #3787c7;   --blue-dim:rgba(55,135,199,0.14);
+  --border:    #2f3e4f;   --border-mid:#3a4a5d;
+  --text:#e8eef3; --muted:#7e8b99; --faint:#5a6878;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter', system-ui, sans-serif; font-size:13px; color:var(--text); background:var(--bg); min-height:100vh; }
+
+.st-topbar { height:52px; padding:0 18px; background:var(--bg); border-bottom:1px solid rgba(248,192,35,0.18); display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:50; }
+.st-brand { display:flex; align-items:center; gap:9px; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:20px; letter-spacing:2px; color:#fff; }
+.st-brand-dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px var(--accent); }
+.st-badge { font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:2px; color:var(--green); padding:3px 9px; background:var(--green-dim); border:1px solid rgba(0,255,136,0.35); text-transform:uppercase; }
+.st-actions { margin-left:auto; display:flex; gap:8px; }
+.st-back { font-family:'JetBrains Mono', monospace; font-size:10px; padding:6px 12px; color:var(--accent); text-decoration:none; border:1px solid var(--accent); letter-spacing:1px; }
+.st-back:hover { background:var(--accent); color:#000; }
+
+.st-page { max-width:1280px; margin:0 auto; padding:28px 18px 60px; }
+.st-title { font-family:'Barlow Condensed', sans-serif; font-size:32px; font-weight:700; letter-spacing:2px; color:#fff; margin-bottom:6px; text-transform:uppercase; }
+.st-subtitle { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); letter-spacing:.5px; margin-bottom:28px; }
+.st-subtitle .dot { color:var(--green); animation:dp 1.6s infinite; }
+@keyframes dp { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+
+/* Hero KPI cards */
+.st-kpis { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:26px; }
+.st-kpi { background:var(--bg-2); border:1px solid var(--border); padding:18px 20px; border-top:3px solid; display:flex; flex-direction:column; gap:8px; }
+.st-kpi.total    { border-top-color:var(--accent); }
+.st-kpi.resolved { border-top-color:var(--green); }
+.st-kpi.overdue  { border-top-color:var(--red); }
+.st-kpi.recent   { border-top-color:var(--amber); }
+.st-kpi-num { font-family:'JetBrains Mono', monospace; font-size:32px; font-weight:700; line-height:1; color:#fff; }
+.st-kpi.resolved .st-kpi-num { color:var(--green); }
+.st-kpi.overdue  .st-kpi-num { color:var(--red); }
+.st-kpi.recent   .st-kpi-num { color:var(--amber); }
+.st-kpi-sub { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); letter-spacing:.3px; }
+.st-kpi-sub strong { color:var(--text); font-weight:600; }
+.st-kpi-lbl { font-family:'Barlow Condensed', sans-serif; font-size:11px; font-weight:600; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
+
+/* Two-column rows */
+.st-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px; }
+.st-card { background:var(--bg-2); border:1px solid var(--border); padding:18px 20px; }
+.st-card-title { font-family:'Barlow Condensed', sans-serif; font-size:13px; font-weight:700; letter-spacing:1.8px; color:var(--accent); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
+.st-card-title::before { content:''; width:3px; height:13px; background:var(--accent); }
+
+/* Bar rows */
+.bar-row { display:grid; grid-template-columns:130px 1fr 60px; gap:10px; align-items:center; padding:7px 0; font-size:12.5px; }
+.bar-label { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text); text-transform:capitalize; }
+.bar-track { height:14px; background:rgba(255,255,255,0.04); position:relative; }
+.bar-fill { height:100%; background:var(--accent); position:relative; transition:width .5s cubic-bezier(.4,0,.2,1); min-width:1px; }
+.bar-fill.pothole{background:#e58e52} .bar-fill.water{background:var(--blue)} .bar-fill.garbage{background:#96ce4c}
+.bar-fill.streetlight{background:#aab8c8} .bar-fill.traffic{background:var(--red)} .bar-fill.noise{background:var(--purple)}
+.bar-fill.sewage{background:#d4b870} .bar-fill.electricity{background:var(--amber)} .bar-fill.tree{background:#6fcf97}
+.bar-fill.other{background:#aab8c8}
+.bar-fill.high{background:var(--red)} .bar-fill.medium{background:var(--amber)} .bar-fill.low{background:var(--green)}
+.bar-fill.open{background:var(--blue)} .bar-fill.acknowledged{background:var(--purple)} .bar-fill.in_progress{background:var(--amber)} .bar-fill.resolved{background:var(--green)} .bar-fill.escalated{background:var(--red)}
+.bar-num { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text); text-align:right; font-weight:600; }
+
+/* Dept performance table */
+.st-table-wrap { background:var(--bg-2); border:1px solid var(--border); margin-bottom:24px; }
+.st-table-head { display:grid; grid-template-columns:130px 80px 80px 1fr 80px; padding:12px 18px; border-bottom:1px solid var(--border); background:var(--bg-3); font-family:'Barlow Condensed', sans-serif; font-size:11px; font-weight:700; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; gap:14px; }
+.st-table-row { display:grid; grid-template-columns:130px 80px 80px 1fr 80px; padding:13px 18px; border-bottom:1px solid var(--border); gap:14px; align-items:center; }
+.st-table-row:last-child { border-bottom:none; }
+.st-table-row:hover { background:rgba(248,192,35,0.05); }
+.dept-name { font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--text); text-transform:capitalize; font-weight:600; }
+.dept-count { font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--text); font-weight:600; }
+.dept-bar-row { height:9px; background:rgba(255,255,255,0.04); position:relative; }
+.dept-bar { height:100%; background:linear-gradient(90deg, var(--red), var(--amber) 50%, var(--green)); }
+.dept-rate { font-family:'JetBrains Mono', monospace; font-size:12.5px; text-align:right; font-weight:700; }
+.dept-rate.good { color:var(--green); }
+.dept-rate.mid { color:var(--amber); }
+.dept-rate.poor { color:var(--red); }
+
+.st-footer { text-align:center; padding:32px 14px 14px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--faint); letter-spacing:1px; }
+.st-footer a { color:var(--accent); text-decoration:none; }
+
+@media (max-width:900px) {
+  .st-kpis { grid-template-columns:repeat(2, 1fr); }
+  .st-grid { grid-template-columns:1fr; }
+  .st-table-head, .st-table-row { grid-template-columns:1fr 60px 80px; gap:8px; padding:11px 14px; }
+  .st-table-head > :nth-child(2), .st-table-row > :nth-child(2),
+  .st-table-head > :nth-child(4), .st-table-row > :nth-child(4) { display:none; }
+}
+
+/* ═══ Mobile photo-match layer ═══ */
+@media (max-width:768px){
+  :root{
+    --m-safe-top: env(safe-area-inset-top, 0px);
+    --m-safe-bot: env(safe-area-inset-bottom, 0px);
+    --m-glass: rgba(20,24,32,0.78);
+    --m-border: rgba(255,255,255,0.10);
+    --m-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
+  }
+  body{ padding-bottom:90px; }
+  .st-topbar{
+    position:fixed !important;
+    top:calc(10px + var(--m-safe-top)) !important;
+    left:10px !important; right:10px !important;
+    height:50px !important;
+    border-radius:14px !important;
+    background:var(--m-glass) !important;
+    backdrop-filter:blur(18px) saturate(140%);
+    -webkit-backdrop-filter:blur(18px) saturate(140%);
+    border:1px solid var(--m-border) !important;
+    box-shadow:var(--m-shadow);
+    padding:0 14px !important;
+    z-index:300 !important;
+  }
+  .st-brand{ font-size:14px !important; letter-spacing:.14em !important; }
+  .st-badge{ display:none !important; }
+  .st-page{ padding:80px 14px 30px !important; }
+  .st-title{ font-size:24px !important; }
+  .st-kpi-num{ font-size:24px !important; }
+
+  .m-bottomnav{
+    position:fixed; left:10px; right:10px; bottom:calc(10px + var(--m-safe-bot));
+    height:62px; z-index:300;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:6px;
+    background:var(--m-glass); backdrop-filter:blur(18px) saturate(140%);
+    -webkit-backdrop-filter:blur(18px) saturate(140%);
+    border:1px solid var(--m-border); border-radius:18px;
+    box-shadow:var(--m-shadow);
+  }
+  .m-navbtn{
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:3px; border-radius:12px; border:0; background:transparent;
+    color:var(--muted); cursor:pointer; transition:all .15s; padding:0;
+    text-decoration:none;
+  }
+  .m-navbtn:active{ transform:scale(.95); }
+  .m-navbtn svg{ width:21px; height:21px; stroke:currentColor; fill:none;
+    stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+  .m-navbtn span{ font-family:'JetBrains Mono',monospace; font-size:9.5px;
+    font-weight:600; letter-spacing:.06em; }
+  .m-navbtn.ar svg{ color:var(--green); }
+  .m-navbtn.wa svg{ color:#25d366; }
+}
+</style>
+</head>
+<body>
+
+<header class="st-topbar">
+  <div class="st-brand"><div class="st-brand-dot"></div>AREAPULSE</div>
+  <div class="st-badge">Public Stats</div>
+  <div class="st-actions">
+    <a href="/" class="st-back">← Live Map</a>
+  </div>
+</header>
+
+<main class="st-page">
+  <h1 class="st-title">Citywide Civic Health</h1>
+  <div class="st-subtitle"><span class="dot">●</span> Anonymous public dashboard · auto-aggregated from every report on the platform</div>
+
+  <div class="st-kpis">
+    <div class="st-kpi total">
+      <div class="st-kpi-num">{{ total }}</div>
+      <div class="st-kpi-lbl">Total Reports</div>
+      <div class="st-kpi-sub"><strong>{{ last_7d }}</strong> in last 7 days</div>
+    </div>
+    <div class="st-kpi resolved">
+      <div class="st-kpi-num">{{ resolution_rate }}%</div>
+      <div class="st-kpi-lbl">Resolution Rate</div>
+      <div class="st-kpi-sub"><strong>{{ resolved }}</strong> of {{ total }} resolved</div>
+    </div>
+    <div class="st-kpi overdue">
+      <div class="st-kpi-num">{{ overdue }}</div>
+      <div class="st-kpi-lbl">SLA Breached</div>
+      <div class="st-kpi-sub">{{ sla_breach_rate }}% of all issues</div>
+    </div>
+    <div class="st-kpi recent">
+      <div class="st-kpi-num">
+        {%- if avg_resolution_hr is none -%}
+        —
+        {%- elif avg_resolution_hr < 24 -%}
+        {{ avg_resolution_hr|round|int }}h
+        {%- else -%}
+        {{ (avg_resolution_hr / 24)|round(1) }}d
+        {%- endif -%}
+      </div>
+      <div class="st-kpi-lbl">Avg Resolution Time</div>
+      <div class="st-kpi-sub">{% if avg_resolution_hr %}across {{ resolved }} closed issues{% else %}not enough data{% endif %}</div>
+    </div>
+  </div>
+
+  <div class="st-grid">
+    <div class="st-card">
+      <div class="st-card-title">By Issue Category</div>
+      {% if tag_list %}
+        {% for tag, count in tag_list %}
+          <div class="bar-row">
+            <span class="bar-label">{{ tag }}</span>
+            <div class="bar-track"><div class="bar-fill {{ tag }}" style="width:{{ (count / max_tag_count * 100)|round|int }}%"></div></div>
+            <span class="bar-num">{{ count }}</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div style="color:var(--faint);font-family:JetBrains Mono,monospace;font-size:11px;text-align:center;padding:30px">No data yet</div>
+      {% endif %}
+    </div>
+
+    <div class="st-card">
+      <div class="st-card-title">Top Reporting Areas</div>
+      {% if top_areas %}
+        {% for area, count in top_areas %}
+          <div class="bar-row">
+            <span class="bar-label" style="text-transform:none">{{ area }}</span>
+            <div class="bar-track"><div class="bar-fill" style="width:{{ (count / max_area_count * 100)|round|int }}%"></div></div>
+            <span class="bar-num">{{ count }}</span>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div style="color:var(--faint);font-family:JetBrains Mono,monospace;font-size:11px;text-align:center;padding:30px">No data yet</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="st-grid">
+    <div class="st-card">
+      <div class="st-card-title">Severity Distribution</div>
+      {% set sev_total = (by_severity.high + by_severity.medium + by_severity.low) or 1 %}
+      <div class="bar-row">
+        <span class="bar-label">High</span>
+        <div class="bar-track"><div class="bar-fill high" style="width:{{ (by_severity.high / sev_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_severity.high }}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Medium</span>
+        <div class="bar-track"><div class="bar-fill medium" style="width:{{ (by_severity.medium / sev_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_severity.medium }}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Low</span>
+        <div class="bar-track"><div class="bar-fill low" style="width:{{ (by_severity.low / sev_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_severity.low }}</span>
+      </div>
+    </div>
+
+    <div class="st-card">
+      <div class="st-card-title">Resolution Pipeline</div>
+      {% set status_total = (by_status.open + by_status.acknowledged + by_status.in_progress + by_status.resolved + by_status.escalated) or 1 %}
+      <div class="bar-row">
+        <span class="bar-label">Open</span>
+        <div class="bar-track"><div class="bar-fill open" style="width:{{ (by_status.open / status_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_status.open }}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Acknowledged</span>
+        <div class="bar-track"><div class="bar-fill acknowledged" style="width:{{ (by_status.acknowledged / status_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_status.acknowledged }}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">In Progress</span>
+        <div class="bar-track"><div class="bar-fill in_progress" style="width:{{ (by_status.in_progress / status_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_status.in_progress }}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Resolved</span>
+        <div class="bar-track"><div class="bar-fill resolved" style="width:{{ (by_status.resolved / status_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_status.resolved }}</span>
+      </div>
+      <div class="bar-row">
+        <span class="bar-label">Escalated</span>
+        <div class="bar-track"><div class="bar-fill escalated" style="width:{{ (by_status.escalated / status_total * 100)|round|int }}%"></div></div>
+        <span class="bar-num">{{ by_status.escalated }}</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="st-card-title">Department Performance</div>
+  <div class="st-table-wrap">
+    <div class="st-table-head">
+      <span>Category</span>
+      <span>Total</span>
+      <span>Resolved</span>
+      <span>Resolution Rate</span>
+      <span style="text-align:right">Rate %</span>
+    </div>
+    {% for d in dept_perf %}
+    <div class="st-table-row">
+      <span class="dept-name">{{ d.tag }}</span>
+      <span class="dept-count">{{ d.total }}</span>
+      <span class="dept-count">{{ d.resolved }}</span>
+      <span><div class="dept-bar-row"><div class="dept-bar" style="width:{{ d.resolution_rate }}%"></div></div></span>
+      <span class="dept-rate {{ 'good' if d.resolution_rate >= 70 else 'mid' if d.resolution_rate >= 40 else 'poor' }}">{{ d.resolution_rate }}%</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="st-footer">
+    Updated in real-time · No personal data is shown on this page · Built by Team Nexons · <a href="/">Return to live map</a>
+  </div>
+</main>
+
+<script>
+(function(){
+  if (!window.matchMedia('(max-width:768px)').matches) return;
+  const nav = document.createElement('nav');
+  nav.className = 'm-bottomnav';
+  nav.innerHTML = `
+    <a class="m-navbtn" href="/my-reports">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <span>Settings</span>
+    </a>
+    <a class="m-navbtn" href="/issues-all">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      <span>Reports</span>
+    </a>
+    <a class="m-navbtn ar" href="https://areapulse-cam.onrender.com" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>AR Scan</span>
+    </a>
+    <a class="m-navbtn wa" href="https://wa.me/14155238886?text=join%20feet-cheese" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+      <span>WhatsApp</span>
+    </a>`;
+  document.body.appendChild(nav);
+})();
+</script>
+</body>
+</html>

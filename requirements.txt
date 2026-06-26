@@ -1,0 +1,10 @@
+flask==3.0.0
+flask-cors==4.0.0
+groq==1.2.0
+firebase-admin==6.5.0
+python-dotenv==1.0.0
+gunicorn==21.2.0
+psycopg[binary]==3.2.10
+psycopg-pool==3.2.8
+twilio==9.3.4
+requests==2.32.3
