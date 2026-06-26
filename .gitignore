@@ -1,2 +1,34 @@
+# Secrets
 .env
+.env.local
+*.env
+firebase_key.json
+firebase-key.json
+*-credentials.json
+service-account*.json
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# OS
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
