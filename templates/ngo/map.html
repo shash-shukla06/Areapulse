@@ -1,0 +1,116 @@
+{% extends "base_ngo.html" %}
+{% block title %}Field Map — AreaPulse NGO Portal{% endblock %}
+{% block page_title %}Field Map{% endblock %}
+
+{% block extra_css %}
+<style>
+.map-page { height: calc(100vh - var(--topbar-h)); position: relative; overflow: hidden; }
+.full-map  { width: 100%; height: 100%; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="map-page">
+  <div id="field-map" class="full-map"></div>
+
+  {# Floating filter panel #}
+  <div class="map-filter-panel" id="filter-panel">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin-bottom:10px">🌿 NGO Field Filters</div>
+    <div class="input-group">
+      <label class="input-label">Category</label>
+      <select class="input" id="map-tag-filter" onchange="applyFilter()" style="padding:7px 10px">
+        <option value="">Your Focus Areas</option>
+        {% for tag in cu.tags %}
+        <option>{{ tag }}</option>
+        {% endfor %}
+        <option value="_all">All Categories</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">SLA Urgency</label>
+      <select class="input" id="map-sla-filter" onchange="applyFilter()" style="padding:7px 10px">
+        <option value="">All</option>
+        <option>breached</option>
+        <option>critical</option>
+        <option>at_risk</option>
+        <option>healthy</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Severity</label>
+      <select class="input" id="map-sev-filter" onchange="applyFilter()" style="padding:7px 10px">
+        <option value="">All</option>
+        <option>high</option>
+        <option>medium</option>
+        <option>low</option>
+      </select>
+    </div>
+    <button class="btn btn-secondary w-full btn-sm" onclick="resetFilter()">✕ Clear</button>
+    <div class="divider"></div>
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:6px">Legend</div>
+    {% for label, color in [('High Match','var(--ngo)'),('Medium','var(--amber)'),('Low','var(--blue)'),('Breached','var(--magenta)')] %}
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px">
+      <span style="width:10px;height:10px;border-radius:50%;background:{{ color }};display:inline-block;flex-shrink:0"></span>{{ label }}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# FAB bar #}
+  <div class="map-fab-bar">
+    <button class="btn btn-secondary btn-sm" id="heatmap-btn" onclick="toggleHeatmap()">🌡 Heatmap</button>
+    <button class="btn btn-secondary btn-sm" onclick="fieldMap.setView([28.6139,77.2090],11)">🎯 Reset</button>
+    <button class="btn btn-primary btn-sm" style="background:var(--ngo)" onclick="document.getElementById('filter-panel').style.display='block'">⚙ Filters</button>
+  </div>
+
+  {# Issue count overlay #}
+  <div style="position:absolute;top:12px;left:12px;z-index:500;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 16px">
+    <div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em">Opportunities</div>
+    <div class="font-display" style="font-size:24px;font-weight:700;color:var(--ngo)" id="map-count">—</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script>
+const ALL_ISSUES = {{ issues_json | safe }};
+let fieldMap = null;
+let issueLayer = null;
+let heatLayer  = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  fieldMap = MapEngine.initMap('field-map', { zoom: 11 });
+  if (fieldMap) {
+    issueLayer = MapEngine.renderIssues(fieldMap, ALL_ISSUES, 'ngo');
+    document.getElementById('map-count').textContent = ALL_ISSUES.length;
+  }
+});
+
+function applyFilter() {
+  let tag = document.getElementById('map-tag-filter').value;
+  const sla = document.getElementById('map-sla-filter').value;
+  const sev = document.getElementById('map-sev-filter').value;
+
+  let filtered = ALL_ISSUES;
+  if (tag && tag !== '_all') filtered = filtered.filter(i => i.tag === tag);
+  if (sla) filtered = filtered.filter(i => i.sla_state === sla);
+  if (sev) filtered = filtered.filter(i => i.severity === sev);
+
+  issueLayer = MapEngine.renderIssues(fieldMap, filtered, 'ngo', issueLayer);
+  document.getElementById('map-count').textContent = filtered.length;
+  Toast.info(`Showing ${filtered.length} opportunities`);
+}
+
+function resetFilter() {
+  ['map-tag-filter','map-sla-filter','map-sev-filter'].forEach(id => document.getElementById(id).value = '');
+  issueLayer = MapEngine.renderIssues(fieldMap, ALL_ISSUES, 'ngo', issueLayer);
+  document.getElementById('map-count').textContent = ALL_ISSUES.length;
+}
+
+function toggleHeatmap() {
+  heatLayer = MapEngine.toggleHeatmap(fieldMap, ALL_ISSUES, heatLayer);
+  const btn = document.getElementById('heatmap-btn');
+  btn.textContent = heatLayer ? '🌡 Hide Heat' : '🌡 Heatmap';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base_gov.html" %}
+{% block title %}Departments — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}Departments{% endblock %}
+{% block content %}
+<div class="page-body stagger-children">
+  <div class="section-header reveal"><div class="section-title">Department Overview</div></div>
+  <div class="data-table-wrap reveal">
+    <table><thead><tr><th>Officer</th><th>Department</th><th>Tags</th><th>Total</th><th>Open</th><th>Resolved</th><th>Breached</th><th>Compliance</th></tr></thead>
+    <tbody>
+    {% for username, d in depts.items() %}
+    <tr>
+      <td><div style="display:flex;align-items:center;gap:8px"><div class="avatar" style="background:var(--accent)">{{d.name[:2].upper()}}</div><div><div style="font-weight:600">{{d.name}}</div><div style="font-size:11px;color:var(--ink-3)">{{username}}</div></div></div></td>
+      <td>{{d.dept}}</td>
+      <td><div style="display:flex;gap:4px;flex-wrap:wrap">{% for t in d.tags %}<span class="badge badge-gov" style="font-size:10px">{{t}}</span>{% endfor %}</div></td>
+      <td><span class="font-display" style="font-size:18px;font-weight:700">{{d.total}}</span></td>
+      <td><span class="font-display" style="font-size:18px;font-weight:700;color:var(--blue)">{{d.open}}</span></td>
+      <td><span class="font-display" style="font-size:18px;font-weight:700;color:var(--green)">{{d.resolved}}</span></td>
+      <td><span class="font-display" style="font-size:18px;font-weight:700;color:var(--red)">{{d.breached}}</span></td>
+      <td><span class="compliance-{{('high' if d.compliance>70 else ('mid' if d.compliance>40 else 'low'))}}">{{d.compliance}}%</span></td>
+    </tr>
+    {% endfor %}
+    </tbody></table>
+  </div>
+</div>
+{% endblock %}

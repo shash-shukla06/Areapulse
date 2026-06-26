@@ -1,0 +1,45 @@
+{% extends "base_ngo.html" %}
+{% block title %}Donor Reports — AreaPulse NGO Portal{% endblock %}
+{% block page_title %}Donor Reports{% endblock %}
+{% block content %}
+<div class="page-body stagger-children">
+  <div class="section-header reveal">
+    <div><div class="section-title">Donor Report Builder</div><div class="section-sub">Generate impact reports for donors and stakeholders</div></div>
+    <a href="{{ url_for('ngo_api_export_impact_pdf') }}" class="btn btn-primary" style="background:var(--ngo)" target="_blank">⬇ Download PDF</a>
+  </div>
+  <div class="grid-3 reveal">
+    {% for icon, title, desc, rtype in [('📊','Impact Summary','Total resolved, citizens helped, upvotes','impact'),('📍','Area Report','Issue density by neighbourhood','area'),('🌱','Monthly Report','30-day field activity','monthly'),('🤝','Donor Brief','2-paragraph stakeholder brief','brief'),('📈','Trend Analysis','Issue resolution trend','trend'),('🤖','AI Custom Report','AI-generated impact narrative','ai')] %}
+    <div class="report-type-card" onclick="generateReport('{{ rtype }}')" style="--accent:var(--ngo)">
+      <div class="report-type-icon">{{ icon }}</div>
+      <div class="report-type-name">{{ title }}</div>
+      <div style="font-size:11px;color:var(--ink-3);margin-top:4px">{{ desc }}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="card reveal" id="report-output" style="min-height:200px">
+    <div class="empty-state"><div style="font-size:36px">📄</div><h3>Select a report type above</h3><p>Your donor report will appear here and can be exported as PDF.</p></div>
+  </div>
+</div>
+{% endblock %}
+{% block page_scripts %}
+<script>
+async function generateReport(type) {
+  const el = document.getElementById('report-output');
+  el.innerHTML = '<div class="loading-dots" style="padding:40px;justify-content:center"><div class="loading-dot" style="background:var(--ngo)"></div><div class="loading-dot" style="background:var(--ngo)"></div><div class="loading-dot" style="background:var(--ngo)"></div><span style="margin-left:8px;color:var(--ink-3)">Generating report...</span></div>';
+  if (type === 'ai' || type === 'brief') {
+    const prompts = {ai:'Generate a comprehensive 3-paragraph impact report for our NGO donors. Include specific areas, issue types, and citizen impact numbers. Be compelling and specific.',brief:'Write a concise 2-paragraph donor brief highlighting our key impact and why continued support matters.'};
+    try {
+      const res = await fetch('/ngo/ai-chat', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:prompts[type]||prompts.ai,history:[]})});
+      let text='';
+      const reader=res.body.getReader();const dec=new TextDecoder();
+      el.innerHTML='<div style="padding:20px"><div style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--ngo)">🌿 '+( type==='brief'?'Donor Brief':'AI Impact Report')+'</div><div id="ai-r-txt" style="font-size:13px;line-height:1.8;color:var(--ink-2)"></div><div style="margin-top:16px;display:flex;gap:8px"><a href="/ngo/api/export-impact-pdf" class="btn btn-primary btn-sm" style="background:var(--ngo)" target="_blank">⬇ PDF</a></div></div>';
+      const t=document.getElementById('ai-r-txt');
+      while(true){const{done,value}=await reader.read();if(done)break;dec.decode(value,{stream:true}).split('\n').forEach(l=>{if(l.startsWith('data: ')){try{const d=JSON.parse(l.slice(6));text+=d.content||'';t.innerHTML=text.replace(/\n/g,'<br>');}catch{}}});}
+    } catch(e){el.innerHTML='<div style="padding:20px;color:var(--red)">Error: '+e.message+'</div>';}
+    return;
+  }
+  await new Promise(r=>setTimeout(r,600));
+  el.innerHTML=`<div style="padding:20px"><div style="font-size:15px;font-weight:700;margin-bottom:12px;color:var(--ngo)">📊 ${type.toUpperCase()} Report Ready</div><p style="font-size:13px;color:var(--ink-2)">Report generated successfully.</p><div style="margin-top:16px;display:flex;gap:8px"><a href="/ngo/api/export-impact-pdf" class="btn btn-primary btn-sm" style="background:var(--ngo)" target="_blank">⬇ Download PDF</a></div></div>`;
+}
+</script>
+{% endblock %}

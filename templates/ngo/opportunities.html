@@ -1,0 +1,250 @@
+{% extends "base_ngo.html" %}
+{% block title %}Opportunities — AreaPulse NGO Portal{% endblock %}
+{% block page_title %}Opportunities{% endblock %}
+
+{% block extra_css %}
+<style>
+.opps-shell {
+  height: calc(100vh - var(--topbar-h));
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  overflow: hidden;
+}
+.opps-map { position: relative; }
+.opps-list {
+  display: flex; flex-direction: column;
+  border-left: 1px solid var(--border);
+  overflow: hidden; background: var(--bg-surface);
+}
+.opps-list-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0; background: var(--bg-surface);
+}
+.opps-filters {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0; background: var(--bg-subtle);
+}
+.opps-cards { flex: 1; overflow-y: auto; }
+.opp-card {
+  padding: 14px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background var(--ease-ui);
+  position: relative;
+}
+.opp-card:hover { background: var(--bg-subtle); }
+.opp-card.selected { background: var(--ngo-soft); border-left: 3px solid var(--ngo); }
+.opp-card-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.opp-card-desc { font-size: 12px; color: var(--ink-3); line-height: 1.5; margin-bottom: 8px; }
+.opp-card-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 768px) {
+  .opps-shell { grid-template-columns: 1fr; }
+  .opps-map { display: none; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# FILTER BAR above the split #}
+<div style="padding:12px 20px;border-bottom:1px solid var(--border);background:var(--bg-surface);display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+  <span style="font-size:13px;font-weight:600;color:var(--ink)">
+    <span class="font-display" style="font-size:18px">{{ opportunities|length }}</span>
+    opportunities
+  </span>
+  {% for s, label in [('','All'),('high','High Sev'),('medium','Medium'),('low','Low')] %}
+  <a href="{{ url_for('ngo_opportunities') }}?severity={{ s }}{% if filters.tag %}&tag={{ filters.tag }}{% endif %}"
+     class="chip {% if filters.severity == s or (not filters.severity and not s) %}active{% endif %}">{{ label }}</a>
+  {% endfor %}
+  <select class="input" style="width:auto;padding:6px 10px;border-radius:var(--r-full)"
+          onchange="location.href='{{ url_for('ngo_opportunities') }}?tag='+this.value">
+    <option value="">All Categories</option>
+    {% for t in cu.tags %}
+    <option value="{{ t }}" {% if filters.tag == t %}selected{% endif %}>{{ t.title() }}</option>
+    {% endfor %}
+  </select>
+  <select class="input" style="width:auto;padding:6px 10px;border-radius:var(--r-full)"
+          onchange="location.href='{{ url_for('ngo_opportunities') }}?area='+this.value">
+    <option value="">All Areas</option>
+    {% for area in areas %}
+    <option value="{{ area }}" {% if filters.area == area %}selected{% endif %}>{{ area }}</option>
+    {% endfor %}
+  </select>
+  <a href="{{ url_for('ngo_opportunities') }}" class="btn btn-ghost btn-sm">✕ Clear</a>
+</div>
+
+<div class="opps-shell">
+  {# Left: Full map #}
+  <div class="opps-map">
+    <div id="opps-map" style="width:100%;height:100%"></div>
+    {# Floating legend #}
+    <div style="position:absolute;top:12px;right:12px;z-index:500;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--r-md);padding:10px 14px;font-size:11px">
+      <div style="font-weight:700;margin-bottom:6px;color:var(--ink-2)">Match Score</div>
+      {% for score, color, label in [('90+','var(--ngo)','High'),('60-90','var(--amber)','Medium'),('<60','var(--blue)','Low')] %}
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+        <span style="width:10px;height:10px;border-radius:50%;background:{{ color }};display:inline-block"></span>
+        <span>{{ score }} — {{ label }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# Right: Opportunity list #}
+  <div class="opps-list">
+    <div class="opps-list-header">
+      <div style="font-size:13px;font-weight:700;color:var(--ink)">{{ opportunities|length }} Opportunities</div>
+      <div style="font-size:11px;color:var(--ink-3);margin-top:2px">Sorted by match score · {{ cu.tags|join(', ') }}</div>
+    </div>
+
+    <div class="opps-cards" id="opps-cards">
+      {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+      {% for issue in opportunities %}
+      <div class="opp-card" id="opp-{{ issue.id }}"
+           onclick="selectOpp({{ issue.id }}, {{ issue.lat or 0 }}, {{ issue.lng or 0 }})">
+        <div class="opp-card-top">
+          <span class="category-icon cat-{{ issue.tag }}" style="flex-shrink:0">{{ cat_icons.get(issue.tag,'📍') }}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:var(--ink)">#AP-{{ issue.id }} · {{ issue.area }}</div>
+            <div class="opp-card-desc truncate">{{ issue.description[:70] }}...</div>
+          </div>
+          <div class="match-score" style="flex-shrink:0">
+            <div class="match-score-num" style="color:{{ 'var(--ngo)' if issue.match_score >= 70 else ('var(--amber)' if issue.match_score >= 40 else 'var(--blue)') }}">
+              {{ issue.match_score }}
+            </div>
+            <div class="match-score-label">match</div>
+          </div>
+        </div>
+        <div class="opp-card-meta">
+          <span class="sla-pill sla-{{ issue.sla_state|replace('_','-') }}" style="font-size:10px">
+            <span class="sla-dot"></span>
+            {% if issue.sla_state == 'breached' %}OVERDUE{% else %}{{ issue.get('remaining_hours',0)|round(0)|int }}h{% endif %}
+          </span>
+          <span class="badge badge-{{ 'red' if issue.severity == 'high' else ('amber' if issue.severity == 'medium' else 'green') }}" style="font-size:10px">{{ issue.severity }}</span>
+          <span style="font-size:11px;color:var(--ink-3)">👍 {{ issue.upvotes or 0 }}</span>
+          {% if (issue.upvotes or 0) >= 25 %}<span class="crowd-badge">🔥 Hot</span>{% endif %}
+          <button class="btn btn-primary btn-sm" style="margin-left:auto;background:var(--ngo);font-size:11px;padding:4px 10px"
+                  onclick="event.stopPropagation();openCommitModal({{ issue.id }}, '{{ issue.area }}', '{{ issue.tag }}')">
+            Commit →
+          </button>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:40px">
+        <div style="font-size:36px">🔍</div>
+        <h3>No opportunities match</h3>
+        <p>Try adjusting your filters or expanding your focus tags in Settings.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{# COMMIT MODAL #}
+<div class="modal-backdrop" id="commit-modal-backdrop">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">🤝 Commit to Issue</div>
+        <div class="modal-sub" id="commit-modal-sub">Assign your team to this opportunity</div>
+      </div>
+      <button class="drawer-close" onclick="document.getElementById('commit-modal-backdrop').classList.remove('open')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="commit-issue-id">
+      <div class="input-group">
+        <label class="input-label">Number of Volunteers</label>
+        <div class="volunteer-input-row">
+          <button class="volunteer-count-btn" onclick="adjustVol(-1)">−</button>
+          <div class="volunteer-count" id="vol-display">2</div>
+          <button class="volunteer-count-btn" onclick="adjustVol(1)">+</button>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Estimated Completion</label>
+        <select class="input" id="commit-eta">
+          <option value="24h">Within 24 hours</option>
+          <option value="48h" selected>Within 48 hours</option>
+          <option value="72h">Within 72 hours</option>
+          <option value="7d">Within 7 days</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Note (optional)</label>
+        <textarea class="input" id="commit-note" rows="3" placeholder="Describe your plan..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="document.getElementById('commit-modal-backdrop').classList.remove('open')">Cancel</button>
+      <button class="btn btn-primary" id="commit-submit-btn" style="background:var(--ngo)" onclick="submitCommit()">✅ Confirm Commitment</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script>
+const ALL_OPPS = {{ opportunities | map(attribute='id') | list | tojson }};
+let mapInstance = null;
+let volCount = 2;
+
+const OPP_DATA = [
+  {% for issue in opportunities %}
+  {id:{{ issue.id }}, lat:{{ issue.lat or 0 }}, lng:{{ issue.lng or 0 }},
+   tag:'{{ issue.tag }}', area:'{{ issue.area }}',
+   description:'{{ (issue.description or '')[:60]|replace("'","\\'") }}',
+   status:'{{ issue.status }}', severity:'{{ issue.severity }}',
+   upvotes:{{ issue.upvotes or 0 }}, timestamp:{{ issue.timestamp or 0 }},
+   sla_state:'{{ issue.sla_state or "healthy" }}'},
+  {% endfor %}
+];
+
+document.addEventListener('DOMContentLoaded', () => {
+  mapInstance = MapEngine.initMap('opps-map', { zoom: 11 });
+  if (mapInstance) MapEngine.renderIssues(mapInstance, OPP_DATA, 'ngo');
+});
+
+function selectOpp(id, lat, lng) {
+  document.querySelectorAll('.opp-card').forEach(c => c.classList.remove('selected'));
+  const card = document.getElementById('opp-' + id);
+  if (card) { card.classList.add('selected'); card.scrollIntoView({ block: 'nearest' }); }
+  if (mapInstance && lat && lng) mapInstance.setView([lat, lng], 15);
+  window.location = '{{ url_for("ngo_issue_detail", issue_id=0) }}'.replace('0', id);
+}
+
+function openCommitModal(id, area, tag) {
+  document.getElementById('commit-issue-id').value = id;
+  document.getElementById('commit-modal-sub').textContent = `#AP-${id} · ${tag.toUpperCase()} in ${area}`;
+  document.getElementById('commit-modal-backdrop').classList.add('open');
+}
+
+function adjustVol(delta) {
+  volCount = Math.max(1, Math.min(50, volCount + delta));
+  document.getElementById('vol-display').textContent = volCount;
+}
+
+async function submitCommit() {
+  const btn = document.getElementById('commit-submit-btn');
+  const id  = document.getElementById('commit-issue-id').value;
+  const eta  = document.getElementById('commit-eta').value;
+  const note = document.getElementById('commit-note').value;
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const r = await fetch('/ngo/commit', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ issue_id: id, volunteers: volCount, eta, note })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      Toast.success(`Committed to #AP-${id}!`);
+      document.getElementById('commit-modal-backdrop').classList.remove('open');
+      setTimeout(() => location.reload(), 800);
+    } else throw new Error('Failed');
+  } catch (e) {
+    Toast.error('Commit failed. Please try again.');
+    btn.textContent = 'Confirm Commitment'; btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,257 @@
+{% extends "base_ngo.html" %}
+{% block title %}Dashboard — AreaPulse{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-body">
+
+  {# ── GREETING ─────────────────────────────────────────────── #}
+  <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid var(--border)">
+    <div>
+      <div style="font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-.02em">Good morning, {{ cu.name }} 🌿</div>
+      <div style="font-size:13px;color:var(--t3);margin-top:4px">{{ cu.dept }} &nbsp;·&nbsp; {{ total_matched }} matching issues &nbsp;·&nbsp; Delhi</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a href="{{ url_for('ngo_opportunities') }}" class="btn btn-secondary">Browse Opportunities</a>
+      <a href="{{ url_for('ngo_ai_assistant') }}" class="btn btn-primary">AI Advisor</a>
+    </div>
+  </div>
+
+  {# ── 4 KPI CARDS — same style as gov ─────────────────────── #}
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px">
+
+    <div class="kpi-card" onclick="window.location='{{ url_for('ngo_opportunities') }}'">
+      <div class="kpi-label">Opportunities</div>
+      <div class="kpi-value" data-counter="{{ total_matched }}">{{ total_matched }}</div>
+      <div class="kpi-meta">In your focus area</div>
+    </div>
+
+    <div class="kpi-card" onclick="window.location='{{ url_for('ngo_projects') }}'">
+      <div class="kpi-label">Active Projects</div>
+      <div class="kpi-value" data-counter="{{ issues|selectattr('status','in',['in_progress','acknowledged'])|list|length }}">
+        {{ issues|selectattr('status','in',['in_progress','acknowledged'])|list|length }}
+      </div>
+      <div class="kpi-meta">Currently committed</div>
+    </div>
+
+    <div class="kpi-card" onclick="window.location='{{ url_for('ngo_impact') }}'">
+      <div class="kpi-label">Resolved</div>
+      <div class="kpi-value" style="color:var(--s-green)" data-counter="{{ resolved_count }}">{{ resolved_count }}</div>
+      <div class="kpi-meta" style="color:var(--s-green)">✓ Closed this period</div>
+    </div>
+
+    <div class="kpi-card" onclick="window.location='{{ url_for('ngo_opportunities') }}?severity=high'">
+      <div class="kpi-label">Urgent</div>
+      <div class="kpi-value" style="color:var(--s-red)"
+           data-counter="{{ issues|selectattr('sla_state','in',['breached','critical'])|list|length }}">
+        {{ issues|selectattr('sla_state','in',['breached','critical'])|list|length }}
+      </div>
+      <div class="kpi-meta" style="color:var(--s-red)">⚠ SLA breached or critical</div>
+    </div>
+
+  </div>
+
+  {# ── AI INSIGHTS ──────────────────────────────────────────── #}
+  <div class="card" style="margin-bottom:28px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <span style="font-size:15px">✨</span>
+      <span style="font-size:14px;font-weight:600;color:var(--t1)">AI Opportunity Insights</span>
+      <span class="badge badge-indigo" style="margin-left:auto">Groq Llama</span>
+      <button onclick="refreshAIRec()" class="btn btn-ghost btn-sm" style="font-size:12px">↻ Refresh</button>
+    </div>
+    <div id="ai-rec-text" style="font-size:13px;color:var(--t2);line-height:1.7;min-height:36px">
+      <div class="loading-dots">
+        <div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>
+        <span style="font-size:12px;color:var(--t4);margin-left:8px">Analysing your opportunities...</span>
+      </div>
+    </div>
+  </div>
+
+  {# ── ESCALATION TOGGLE ────────────────────────────────────── #}
+  <div class="card" style="margin-bottom:28px;padding:16px 20px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--t1)">Escalation Mode</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">{{ issues|selectattr('sla_state','equalto','breached')|list|length }} breached issues in your focus area</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span id="esc-label" style="font-size:12px;color:var(--t4)">Off</span>
+        <button id="esc-toggle" onclick="toggleEscalation()" style="width:44px;height:24px;border-radius:12px;border:none;cursor:pointer;background:var(--border);position:relative;transition:background .2s">
+          <span id="esc-thumb" style="position:absolute;top:2px;left:2px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+        </button>
+      </div>
+    </div>
+    <div id="esc-panel" style="display:none;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)">
+      {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+      {% for issue in issues|selectattr('sla_state','in',['breached','critical'])|list %}
+      <div class="urgent-row" onclick="window.location='{{ url_for('ngo_issue_detail', issue_id=issue.id) }}'">
+        <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</span>
+        <div style="flex:1;min-width:0">
+          <div class="urgent-row-title truncate">#AP-{{ issue.id }} — {{ issue.description[:55] }}...</div>
+          <div class="urgent-row-area">{{ issue.area }} · {{ issue.tag }}</div>
+        </div>
+        <span class="sla-pill sla-{{ issue.sla_state|replace('_','-') }}"><span class="sla-dot"></span>{{ issue.sla_state.replace('_',' ').upper() }}</span>
+        <button class="quick-btn quick-btn-prog" onclick="event.stopPropagation();commitIssue({{ issue.id }},this)">Commit</button>
+      </div>
+      {% else %}
+      <div style="font-size:13px;color:var(--t3)">No breached issues in your focus area right now.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── MAIN: two column layout like gov ─────────────────────── #}
+  <div style="display:grid;grid-template-columns:1fr 340px;gap:20px">
+
+    {# LEFT — High priority issues + category bars #}
+    <div style="display:flex;flex-direction:column;gap:20px">
+
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <div style="font-size:15px;font-weight:600;color:var(--t1)">High Priority Opportunities</div>
+          <a href="{{ url_for('ngo_opportunities') }}" class="btn btn-ghost btn-sm">View all →</a>
+        </div>
+        {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+        {% for issue in high_priority %}
+        <div class="urgent-row" onclick="window.location='{{ url_for('ngo_issue_detail', issue_id=issue.id) }}'">
+          <div class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</div>
+          <div style="flex:1;min-width:0">
+            <div class="urgent-row-title truncate">#AP-{{ issue.id }} — {{ issue.description[:60] }}...</div>
+            <div class="urgent-row-area">{{ issue.area }} · {{ issue.tag.title() }} · {{ issue.severity }}</div>
+          </div>
+          <span class="sla-pill sla-{{ issue.sla_state|replace('_','-') }}" style="flex-shrink:0">
+            <span class="sla-dot"></span>
+            {% if issue.sla_state == 'breached' %}+{{ issue.sla_overdue_hours|round(1) }}h
+            {% else %}{{ issue.get('remaining_hours',0)|round(0)|int }}h left{% endif %}
+          </span>
+          <button class="quick-btn quick-btn-prog" onclick="event.stopPropagation();commitIssue({{ issue.id }},this)">Commit</button>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:28px">
+          <div style="font-size:28px">✅</div>
+          <h3>No urgent opportunities</h3>
+          <p>All high-priority issues are being handled.</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      {# Category bars #}
+      <div class="card">
+        <div style="font-size:15px;font-weight:600;color:var(--t1);margin-bottom:16px">Issues by Category</div>
+        {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+        {% set max_count = by_tag.values()|max if by_tag else 1 %}
+        {% for tag, count in by_tag.items() %}
+        <div style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer"
+             onclick="window.location='{{ url_for('ngo_opportunities') }}?tag={{ tag }}'">
+          <span class="category-icon cat-{{ tag }}" style="flex-shrink:0">{{ cat_icons.get(tag,'📍') }}</span>
+          <span style="font-size:13px;font-weight:500;color:var(--t2);width:90px;flex-shrink:0">{{ tag.title() }}</span>
+          <div style="flex:1;height:6px;background:var(--subtle);border-radius:9999px;overflow:hidden">
+            <div style="height:100%;background:var(--indigo);border-radius:9999px;opacity:.6;width:{{ [(count/max_count*100)|round(1),100]|min }}%;transition:width .5s ease"></div>
+          </div>
+          <span style="font-size:14px;font-weight:700;min-width:28px;text-align:right;color:var(--t1)">{{ count }}</span>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+
+    {# RIGHT — map + leaderboard #}
+    <div style="display:flex;flex-direction:column;gap:20px">
+
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:14px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+          <span style="font-size:14px;font-weight:600;color:var(--t1)">Field Map</span>
+          <a href="{{ url_for('ngo_map') }}" class="btn btn-ghost btn-sm">Full Map →</a>
+        </div>
+        <div id="mini-map" style="height:220px"></div>
+      </div>
+
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:14px">Focus Tags</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          {% set cat_icons2 = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+          {% for tag in cu.tags %}
+          <span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;background:var(--subtle);border:1px solid var(--border);border-radius:9999px;font-size:12px;font-weight:500;color:var(--t2)">
+            {{ cat_icons2.get(tag,'📍') }} {{ tag.title() }}
+          </span>
+          {% endfor %}
+        </div>
+        <div class="divider"></div>
+        <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:10px">NGO Leaderboard</div>
+        {% set lb = [{"name":"Delhi Green Mission","count":34},{"name":"Jal Seva Trust","count":28},{"name":"Road Safety India","count":19},{"name":cu.name,"count":resolved_count}]|sort(attribute="count",reverse=True) %}
+        {% for entry in lb %}
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="width:20px;height:20px;border-radius:50%;background:{{ '#FEF3C7' if loop.index==1 else '#F1F5F9' }};color:{{ '#B45309' if loop.index==1 else '#64748B' }};display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">{{ loop.index }}</div>
+          <div style="flex:1;font-size:13px;font-weight:500;color:{{ 'var(--indigo)' if entry.name == cu.name else 'var(--t2)' }}">{{ entry.name }}</div>
+          <div style="font-size:15px;font-weight:700;color:var(--t1)">{{ entry.count }}</div>
+        </div>
+        {% endfor %}
+      </div>
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-counter]').forEach(el => animateCounter(el, parseInt(el.dataset.counter)||0));
+  setTimeout(async () => {
+    const map = MapEngine.initMap('mini-map', { zoom: 11 });
+    if (map) {
+      try {
+        const r = await fetch('/ngo/api/opportunities?limit=60');
+        const d = await r.json();
+        MapEngine.renderIssues(map, (d.issues||[]).filter(i=>i.lat&&i.lng), 'ngo');
+      } catch(e) {}
+    }
+  }, 150);
+  setTimeout(() => loadAIRec(), 800);
+});
+
+async function loadAIRec() {
+  const el = document.getElementById('ai-rec-text');
+  if (!el) return;
+  try {
+    const ctrl = new AbortController();
+    setTimeout(() => ctrl.abort(), 12000);
+    const r = await fetch('/ngo/api/ai-recommend', { signal: ctrl.signal });
+    const d = await r.json();
+    el.innerHTML = d.recommendation || 'Set GROQ_API_KEY for AI recommendations.';
+  } catch(e) {
+    el.innerHTML = 'AI insights unavailable.';
+  }
+}
+function refreshAIRec() {
+  const el = document.getElementById('ai-rec-text');
+  if (el) el.innerHTML = '<div class="loading-dots"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>';
+  loadAIRec();
+}
+
+let escOn = false;
+function toggleEscalation() {
+  escOn = !escOn;
+  const btn = document.getElementById('esc-toggle');
+  const thumb = document.getElementById('esc-thumb');
+  const label = document.getElementById('esc-label');
+  const panel = document.getElementById('esc-panel');
+  if (btn)   btn.style.background = escOn ? 'var(--s-red)' : 'var(--border)';
+  if (thumb) thumb.style.left     = escOn ? '22px' : '2px';
+  if (label) { label.textContent  = escOn ? 'On' : 'Off'; label.style.color = escOn ? 'var(--s-red)' : 'var(--t4)'; }
+  if (panel) panel.style.display  = escOn ? 'block' : 'none';
+}
+
+async function commitIssue(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const r = await fetch('/ngo/commit', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ issue_id: id, volunteers: 2, eta: '48h', note: 'Dashboard commit' }) });
+    const d = await r.json();
+    if (d.ok) { Toast.success(`Committed to #AP-${id}`); btn.textContent = '✓'; }
+    else throw new Error();
+  } catch { btn.textContent = '✕'; btn.disabled = false; }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,262 @@
+/* ═══════════════════════════════════════════════════════════════
+   GOV PORTAL STYLES — gov.css
+   ═══════════════════════════════════════════════════════════════ */
+
+body.gov-mode {
+  --accent:      #1E3A5F;
+  --accent-deep: #152C47;
+  --accent-soft: #E0EAF4;
+  --accent-mid:  #AACCEE;
+}
+
+/* Department color tape */
+.dept-water       { background: #2C5282; }
+.dept-sewage      { background: #6B3FA0; }
+.dept-electricity { background: #C07018; }
+.dept-traffic     { background: #B83228; }
+.dept-streetlight { background: #C47B2B; }
+.dept-garbage     { background: #3D6B52; }
+.dept-pothole     { background: #4A3520; }
+.dept-tree        { background: #2A4D3A; }
+.dept-noise       { background: #8A7060; }
+.dept-other       { background: #5A4E40; }
+
+/* Issue row category icon */
+.category-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.cat-pothole     { background: #F5F0E8; color: #4A3520; }
+.cat-water       { background: var(--blue-soft); color: var(--blue); }
+.cat-sewage      { background: var(--purple-soft); color: var(--purple); }
+.cat-electricity { background: var(--amber-soft); color: var(--amber); }
+.cat-streetlight { background: var(--honey-soft); color: var(--honey-deep); }
+.cat-garbage     { background: var(--green-soft); color: var(--green); }
+.cat-traffic     { background: var(--red-soft); color: var(--red); }
+.cat-noise       { background: var(--bg-subtle); color: var(--ink-3); }
+.cat-tree        { background: #E8F5EC; color: #2A4D3A; }
+.cat-other       { background: var(--bg-subtle); color: var(--ink-2); }
+
+/* Gov urgent queue row */
+.urgent-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  transition: background var(--ease-ui);
+  cursor: pointer;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+.urgent-row:last-child { border-bottom: none; }
+.urgent-row:hover {
+  background: var(--bg-hover);
+}
+.urgent-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  flex: 1;
+  min-width: 0;
+}
+.urgent-row-area  { font-size: 11px; color: var(--ink-3); }
+.urgent-row-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity var(--ease-ui);
+}
+.urgent-row:hover .urgent-row-actions { opacity: 1; }
+
+/* Quick action buttons on issue rows */
+.quick-btn {
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+  transition: all var(--ease-ui);
+}
+.quick-btn-ack  { background: var(--blue-soft); color: var(--blue); }
+.quick-btn-prog { background: var(--amber-soft); color: var(--amber); }
+.quick-btn-done { background: var(--green-soft); color: var(--green); }
+.quick-btn-esc  { background: var(--red-soft); color: var(--red); }
+.quick-btn:hover { opacity: .8; transform: scale(1.05); }
+.quick-btn:active { transform: scale(.97); }
+
+/* SLA board lanes */
+.lane-healthy  .kanban-lane-header { border-bottom-color: var(--green); }
+.lane-at-risk  .kanban-lane-header { border-bottom-color: var(--amber); }
+.lane-critical .kanban-lane-header { border-bottom-color: var(--red); }
+.lane-breached .kanban-lane-header { border-bottom-color: var(--magenta); }
+
+.lane-healthy  .kanban-lane-title { color: var(--green); }
+.lane-at-risk  .kanban-lane-title { color: var(--amber); }
+.lane-critical .kanban-lane-title { color: var(--red); }
+.lane-breached .kanban-lane-title { color: var(--magenta); }
+
+.kanban-card.healthy  { border-top: 3px solid var(--green); }
+.kanban-card.at-risk  { border-top: 3px solid var(--amber); }
+.kanban-card.critical { border-top: 3px solid var(--red); }
+.kanban-card.breached { border-top: 3px solid var(--magenta); }
+
+/* Breached flashing */
+.kanban-card.breached .kanban-card-sla { animation: pulse .8s ease-in-out infinite; color: var(--magenta); }
+.sla-breached-flash { animation: pulse .6s ease-in-out infinite; }
+
+/* AI Triage briefing card */
+.ai-briefing-card {
+  background: linear-gradient(135deg, var(--gov-soft) 0%, var(--bg-surface) 100%);
+  border: 1.5px solid var(--gov-mid);
+  border-radius: var(--r-lg);
+  padding: 18px;
+}
+.ai-briefing-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.ai-briefing-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gov);
+}
+.ai-briefing-sparkle {
+  font-size: 16px;
+  animation: float 3s ease-in-out infinite;
+}
+.ai-briefing-result {
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 1.7;
+  padding: 10px 12px;
+  background: var(--bg-surface);
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+}
+.ai-briefing-result strong { color: var(--gov); }
+
+/* Department table */
+.dept-table th { color: var(--gov); }
+.dept-table .dept-name { font-weight: 600; }
+.dept-table .compliance-high { color: var(--green); font-weight: 600; }
+.dept-table .compliance-mid  { color: var(--amber); font-weight: 600; }
+.dept-table .compliance-low  { color: var(--red); font-weight: 600; }
+
+/* Gov map floating panels */
+.map-filter-panel {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  background: var(--bg-surface);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-lg);
+  padding: 14px;
+  width: 240px;
+}
+.map-issue-panel {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1000;
+  background: var(--bg-surface);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-lg);
+  width: 300px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  transform: translateX(320px);
+  transition: transform var(--ease-spring);
+}
+.map-issue-panel.open { transform: translateX(0); }
+.map-fab-bar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: var(--bg-surface);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh-lg);
+  padding: 6px 8px;
+  display: flex;
+  gap: 4px;
+}
+
+/* Gov notification types */
+.notif-sla     .notif-icon-wrap { background: var(--red-soft);    color: var(--red); }
+.notif-crowd   .notif-icon-wrap { background: var(--amber-soft);  color: var(--amber); }
+.notif-new     .notif-icon-wrap { background: var(--blue-soft);   color: var(--blue); }
+.notif-resolve .notif-icon-wrap { background: var(--green-soft);  color: var(--green); }
+.notif-ngo     .notif-icon-wrap { background: var(--ngo-soft);    color: var(--ngo); }
+.notif-ai      .notif-icon-wrap { background: var(--purple-soft); color: var(--purple); }
+
+/* Report builder */
+.report-type-card {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  cursor: pointer;
+  transition: all var(--ease-spring);
+  text-align: center;
+}
+.report-type-card:hover {
+  border-color: var(--accent-mid);
+  background: var(--accent-soft);
+  transform: translateY(-3px);
+  box-shadow: var(--sh-md);
+}
+.report-type-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.report-type-icon { font-size: 28px; margin-bottom: 8px; }
+.report-type-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+
+/* Crowd badge */
+.crowd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 8px;
+  background: var(--amber-soft);
+  color: var(--amber);
+  border-radius: var(--r-full);
+  font-size: 10px;
+  font-weight: 700;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* Ward heatmap overlay */
+.ward-health {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--r-full);
+}
+.ward-excellent { background: #d4edda; color: #1e5c32; }
+.ward-good      { background: #d4edd4; color: #2a4d3a; }
+.ward-medium    { background: var(--amber-soft); color: var(--amber); }
+.ward-poor      { background: var(--red-soft); color: var(--red); }
+.ward-critical  { background: var(--red); color: #fff; }
+.dept-table th { text-align: left; }
+.kanban-lane.breached .kanban-card-sla { color: var(--s-pink); }
+.kanban-lane.critical .kanban-card-sla { color: var(--s-red); }
+.kanban-lane.at_risk  .kanban-card-sla { color: var(--s-amber); }
+.kanban-lane.healthy  .kanban-card-sla { color: var(--s-green); }
+ 

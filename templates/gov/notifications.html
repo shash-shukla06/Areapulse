@@ -1,0 +1,25 @@
+{% extends "base_gov.html" %}
+{% block title %}Notifications — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-body">
+  <div class="section-header reveal"><div class="section-title">Notifications</div><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" onclick="markAllRead()">✓ Mark all read</button></div></div>
+  <div class="card reveal" id="notif-list"><div class="loading-dots" style="padding:30px;justify-content:center"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div></div>
+</div>
+{% endblock %}
+{% block page_scripts %}
+<script>
+const typeColors = {sla:'red',crowd:'amber',new:'blue',resolve:'green',ngo:'ngo',ai:'purple'};
+fetch('/gov/api/notifications').then(r=>r.json()).then(d=>{
+  const el = document.getElementById('notif-list');
+  if(!d.notifications?.length){el.innerHTML='<div class="empty-state"><div style="font-size:36px">🔔</div><h3>No notifications</h3></div>';return;}
+  el.innerHTML = d.notifications.map(n=>`
+    <div class="activity-item notif-${n.type}" style="padding:14px 0;border-bottom:1px solid var(--border)">
+      <div class="activity-icon notif-icon-wrap" style="background:var(--${typeColors[n.type]||'blue'}-soft);color:var(--${typeColors[n.type]||'blue'})">🔔</div>
+      <div class="flex-col gap-4 flex-1"><div style="font-size:13px;font-weight:600">${n.title}</div><div class="activity-text">${n.body}</div></div>
+      ${n.issue_id?`<a href="/gov/issue/${n.issue_id}" class="btn btn-ghost btn-sm">View →</a>`:''}
+    </div>`).join('');
+}).catch(()=>{document.getElementById('notif-list').innerHTML='<div class="empty-state"><h3>Could not load notifications</h3></div>';});
+function markAllRead(){Toast.success('All notifications marked read');}
+</script>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base_gov.html" %}
+{% block title %}NGO Partners — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}NGO Partners{% endblock %}
+{% block content %}
+<div class="page-body stagger-children">
+  <div class="section-header reveal"><div class="section-title">NGO Partner Network</div><div class="section-sub">{{ngos|length}} registered NGO partners across Delhi</div></div>
+  <div class="grid-3 reveal">
+    {% for ngo in ngos %}
+    <div class="card partner-card" style="flex-direction:column;align-items:flex-start;gap:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="partner-avatar">{{ngo.name[:2].upper()}}</div>
+        <div><div class="partner-name">{{ngo.name}}</div><div class="partner-focus">{{ngo.focus}}</div></div>
+        <div style="margin-left:auto"><span class="badge badge-ngo">{{ngo.tag}}</span></div>
+      </div>
+      <div class="partner-area">📍 {{ngo.area}}</div>
+      <div style="font-size:12px;color:var(--ink-3)">⭐ {{ngo.rating}} · 📞 {{ngo.phone}}</div>
+      <div style="font-size:12px;color:var(--ngo);font-weight:600">✅ {{ngo.issues_resolved or 0}} issues resolved</div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

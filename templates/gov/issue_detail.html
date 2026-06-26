@@ -1,0 +1,196 @@
+{% extends "base_gov.html" %}
+{% block title %}Issue #AP-{{ issue.id }} — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}Issue #AP-{{ issue.id }}{% endblock %}
+
+{% block content %}
+<div class="page-body">
+  {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+  {% set sla_colors = {'healthy':'s-green','at_risk':'s-amber','critical':'s-red','breached':'s-red'} %}
+  {% set status_colors = {'open':'blue','acknowledged':'honey','in_progress':'amber','resolved':'green','escalated':'red'} %}
+
+  {# Breadcrumb #}
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:20px;font-size:13px">
+    <a href="{{ url_for('gov_queue') }}" style="color:var(--ink-3)">Queue</a>
+    <span style="color:var(--border-2)">›</span>
+    <span style="color:var(--ink);font-weight:600">#AP-{{ issue.id }}</span>
+    <div style="margin-left:auto;display:flex;gap:8px">
+      <span class="badge badge-{{ status_colors.get(issue.status,'blue') }}">{{ issue.status.replace('_',' ').title() }}</span>
+      <span class="badge badge-{{ sla_colors.get(issue.sla_state,'green') }}">SLA {{ issue.sla_state.replace('_',' ').upper() }}</span>
+    </div>
+  </div>
+
+  <div class="grid-60-40" style="gap:24px">
+
+    {# Left column - main detail #}
+    <div class="flex-col gap-20">
+
+      {# Header card #}
+      <div class="card">
+        <div style="display:flex;gap:12px;align-items:flex-start">
+          <div class="category-icon cat-{{ issue.tag }}" style="width:44px;height:44px;font-size:20px;border-radius:10px">
+            {{ cat_icons.get(issue.tag,'📍') }}
+          </div>
+          <div style="flex:1">
+            <div style="font-family:'DM Sans',sans-serif;font-size:22px;font-weight:700;color:var(--ink)">#AP-{{ issue.id }}</div>
+            <div style="font-size:14px;color:var(--ink-2);margin-top:4px">{{ issue.area }} · {{ issue.tag.title() }} · Severity: {{ issue.severity.title() }}</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <p style="font-size:14px;color:var(--ink-2);line-height:1.7">{{ issue.description }}</p>
+        {% if issue.image %}
+        <img src="{{ issue.image }}" style="width:100%;border-radius:10px;margin-top:12px;object-fit:cover;max-height:300px">
+        {% endif %}
+        {% if issue.landmark %}
+        <div style="margin-top:12px;font-size:13px;color:var(--ink-3)">📍 {{ issue.landmark }}</div>
+        {% endif %}
+      </div>
+
+      {# Status update form #}
+      <div class="card">
+        <div class="card-header"><div class="card-title">Update Status</div></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+          {% for s, label, color in [('acknowledged','✓ Acknowledge','blue'),('in_progress','▶ Start','amber'),('resolved','✅ Resolve','green'),('escalated','🚨 Escalate','red')] %}
+          <button class="quick-btn quick-btn-{{ color.replace('blue','ack').replace('amber','prog').replace('green','done').replace('red','esc') }}"
+                  onclick="updateStatus('{{ issue.id }}','{{ s }}',this)">{{ label }}</button>
+          {% endfor %}
+          {% if issue.status == 'escalated' %}
+          <button class="quick-btn" style="background:var(--amber-soft);color:var(--amber);border:1px solid var(--amber)"
+                  onclick="deEscalate('{{ issue.id }}',this)">↩ De-escalate</button>
+          {% endif %}
+        </div>
+        <textarea id="status-note" class="input" rows="2" placeholder="Add a note (optional)..." style="font-size:13px"></textarea>
+      </div>
+
+      {# Timeline #}
+      <div class="card">
+        <div class="card-header"><div class="card-title">Status History</div></div>
+        <div class="timeline">
+          <div class="timeline-item">
+            <div class="timeline-dot active"></div>
+            <div class="timeline-time">Filed</div>
+            <div class="timeline-text">Issue reported by citizen</div>
+          </div>
+          {% if issue.get('status_history') %}
+            {% for h in (issue.status_history or []) %}
+            <div class="timeline-item">
+              <div class="timeline-dot"></div>
+              <div class="timeline-time">{{ h.get('changed_at','') }}</div>
+              <div class="timeline-text">Status → <strong>{{ h.get('status','').replace('_',' ').title() }}</strong></div>
+              {% if h.get('note') %}<div class="timeline-by">{{ h.note }}</div>{% endif %}
+            </div>
+            {% endfor %}
+          {% endif %}
+          {% if issue.status == 'resolved' %}
+          <div class="timeline-item">
+            <div class="timeline-dot" style="background:var(--green)"></div>
+            <div class="timeline-text" style="color:var(--green);font-weight:600">✅ Resolved</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    {# Right column - meta #}
+    <div class="flex-col gap-20">
+
+      {# SLA card #}
+      <div class="card" >
+        <div class="card-header"><div class="card-title">SLA Status</div></div>
+        <div class="sla-countdown-large" style="color:var(--{{ sla_colors.get(issue.sla_state,'green') }})">
+          {% if issue.sla_state == 'breached' %}
+            +{{ issue.sla_overdue_hours | round(1) }}h overdue
+          {% else %}
+            {{ issue.get('remaining_hours',0) | round(0) | int }}h remaining
+          {% endif %}
+        </div>
+        <div class="sla-countdown-label">SLA limit: {{ sla_hours.get(issue.tag, 120) }}h · State: {{ issue.sla_state.replace('_',' ').title() }}</div>
+        <div class="divider"></div>
+        <div style="font-size:12px;color:var(--ink-3)">Filed {{ issue.timestamp | int }} (Unix)</div>
+      </div>
+
+      {# Citizen info #}
+      <div class="card">
+        <div class="card-header"><div class="card-title">Reporter Info</div></div>
+        <div class="flex-col gap-8">
+          <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em">Reported by</div><div style="font-weight:600;margin-top:2px">{{ issue.get('user_name') or issue.get('user','Anonymous') }}</div></div>
+          {% if issue.contact %}<div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em">Contact</div><div style="font-weight:600;margin-top:2px">{{ issue.contact }}</div></div>{% endif %}
+          <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em">Upvotes</div><div style="font-family:'DM Sans',sans-serif;font-size:24px;font-weight:700;margin-top:2px">{{ issue.upvotes or 0 }} {% if (issue.upvotes or 0) >= 25 %}<span class="crowd-badge">🔥 Hot</span>{% endif %}</div></div>
+        </div>
+        {% if issue.contact %}
+        <div class="divider"></div>
+        <button class="btn btn-secondary w-full btn-sm" onclick="draftWhatsApp()">📱 Send WhatsApp Update</button>
+        {% endif %}
+      </div>
+
+      {# Nearby NGOs #}
+      {% if nearby_ngos %}
+      <div class="card">
+        <div class="card-header"><div class="card-title">Nearby NGO Partners</div></div>
+        {% for ngo in nearby_ngos %}
+        <div class="partner-card" style="margin-bottom:8px">
+          <div class="partner-avatar">{{ ngo.name[:2].upper() }}</div>
+          <div style="flex:1">
+            <div class="partner-name">{{ ngo.name }}</div>
+            <div class="partner-focus">{{ ngo.focus }}</div>
+          </div>
+          <span class="badge badge-ngo" style="font-size:10px">{{ ngo.rating }}★</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      {# Map location #}
+      {% if issue.lat and issue.lng %}
+      <div class="card" style="padding:0;overflow:hidden">
+        <div style="padding:12px 16px;border-bottom:1px solid var(--border)"><div class="card-title">Location</div></div>
+        <div id="issue-mini-map" style="height:200px"></div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script>
+async function updateStatus(id, status, btn) {
+  const note = document.getElementById('status-note').value;
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    await API.issues.updateStatus(id, status, note);
+    Toast.success(`#AP-${id} → ${status.replace('_',' ')}`);
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { btn.textContent = '✕'; btn.disabled = false; Toast.error('Update failed: ' + e.message); }
+}
+
+async function deEscalate(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    await API.issues.deescalate(id, document.getElementById('status-note')?.value || 'Manually de-escalated');
+    Toast.success(`#AP-${id} de-escalated → In Progress`);
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { btn.textContent = '↩ De-escalate'; btn.disabled = false; Toast.error('De-escalation failed'); }
+}
+function draftWhatsApp() {
+  const msg = `Dear citizen, your issue #AP-{{ issue.id }} ({{ issue.tag.title() }} in {{ issue.area }}) has been updated to: {{ issue.status.replace('_',' ').title() }}. Thank you for reporting. — Delhi Civic Portal`;
+  const phone = '{{ issue.contact or '' }}';
+  const workspace = document.getElementById('ai-workspace');
+  if (!phone) { Toast.warning('No contact number available'); return; }
+  Toast.info('Sending WhatsApp...');
+  API.whatsapp.send(phone, msg).then(r => Toast.success('WhatsApp sent!')).catch(e => Toast.error('Failed: ' + e.message));
+}
+
+{% if issue.lat and issue.lng %}
+document.addEventListener('DOMContentLoaded', () => {
+  const m = MapEngine.initMap('issue-mini-map', {center:[{{ issue.lat }},{{ issue.lng }}], zoom:15});
+  if (m) {
+    const icon = MapEngine.calcSLAState({tag:'{{ issue.tag }}', timestamp:{{ issue.timestamp or 0 }}, upvotes:{{ issue.upvotes or 0 }}});
+    L.marker([{{ issue.lat }},{{ issue.lng }}]).addTo(m).bindPopup('#AP-{{ issue.id }} · {{ issue.area }}').openPopup();
+  }
+});
+{% endif %}
+</script>
+{% endblock %}

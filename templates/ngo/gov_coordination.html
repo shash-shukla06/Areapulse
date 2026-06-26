@@ -1,0 +1,143 @@
+{% extends "base_ngo.html" %}
+{% block title %}Govt Coordination — AreaPulse NGO Portal{% endblock %}
+{% block page_title %}Govt Coordination{% endblock %}
+
+{% block content %}
+<div class="page-body stagger-children">
+
+  <div class="section-header reveal">
+    <div>
+      <div class="section-title">Government Coordination</div>
+      <div class="section-sub">Track government response on issues in your focus areas · {{ issues|length }} relevant issues</div>
+    </div>
+  </div>
+
+  {# Response quality KPIs #}
+  <div class="grid-4 reveal">
+    {% set resp_counts = {'open':0,'acknowledged':0,'in_progress':0,'resolved':0,'escalated':0} %}
+    {% for i in issues %}{% set _ = resp_counts.update({i.status: resp_counts.get(i.status,0)+1}) %}{% endfor %}
+    <div class="stat-card" style="cursor:default;border-top:3px solid var(--blue)">
+      <div class="stat-label" style="color:var(--blue)">No Response</div>
+      <div class="stat-number font-display" style="color:var(--blue)" data-counter="{{ resp_counts.get('open',0) }}">{{ resp_counts.get('open',0) }}</div>
+      <div class="stat-trend down">Still open, no action</div>
+    </div>
+    <div class="stat-card" style="cursor:default;border-top:3px solid var(--amber)">
+      <div class="stat-label" style="color:var(--amber)">Acknowledged</div>
+      <div class="stat-number font-display" style="color:var(--amber)" data-counter="{{ resp_counts.get('acknowledged',0) }}">{{ resp_counts.get('acknowledged',0) }}</div>
+      <div class="stat-trend up">Govt aware, pending action</div>
+    </div>
+    <div class="stat-card" style="cursor:default;border-top:3px solid var(--purple)">
+      <div class="stat-label" style="color:var(--purple)">In Progress</div>
+      <div class="stat-number font-display" style="color:var(--purple)" data-counter="{{ resp_counts.get('in_progress',0) }}">{{ resp_counts.get('in_progress',0) }}</div>
+      <div class="stat-trend up">Active government work</div>
+    </div>
+    <div class="stat-card" style="cursor:default;border-top:3px solid var(--green)">
+      <div class="stat-label" style="color:var(--green)">Resolved by Govt</div>
+      <div class="stat-number font-display" style="color:var(--green)" data-counter="{{ resp_counts.get('resolved',0) }}">{{ resp_counts.get('resolved',0) }}</div>
+      <div class="stat-trend up">✅ Government-closed</div>
+    </div>
+  </div>
+
+  {# Issue table with govt response indicators #}
+  <div class="card reveal">
+    <div class="card-header">
+      <div class="card-title">Issue Status vs Govt Response</div>
+      <a href="{{ url_for('ngo_opportunities') }}" class="btn btn-ghost btn-sm">Find Gaps →</a>
+    </div>
+    <div style="overflow-x:auto">
+      <table style="width:100%">
+        <thead>
+          <tr>
+            <th>Ticket</th>
+            <th>Area</th>
+            <th>Category</th>
+            <th>Description</th>
+            <th>Govt Response</th>
+            <th>SLA</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+          {% for issue in issues[:40] %}
+          <tr style="cursor:pointer" onclick="window.location='{{ url_for('ngo_issue_detail', issue_id=issue.id) }}'">
+            <td><span style="font-family:'DM Sans',sans-serif;font-weight:700;color:var(--accent)">#AP-{{ issue.id }}</span></td>
+            <td style="font-weight:500">{{ issue.area }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:5px">
+                <span class="category-icon cat-{{ issue.tag }}" style="width:24px;height:24px;font-size:12px">{{ cat_icons.get(issue.tag,'📍') }}</span>
+                {{ issue.tag.title() }}
+              </div>
+            </td>
+            <td class="truncate" style="max-width:200px">{{ issue.description[:60] }}...</td>
+            <td>
+              {% if issue.status == 'resolved' %}
+                <span class="gov-response fast">✅ Resolved</span>
+              {% elif issue.status == 'in_progress' %}
+                <span class="gov-response medium">▶ In Progress</span>
+              {% elif issue.status == 'acknowledged' %}
+                <span class="gov-response medium">✓ Acknowledged</span>
+              {% elif issue.status == 'escalated' %}
+                <span class="gov-response slow">🚨 Escalated</span>
+              {% else %}
+                <span class="gov-response slow">⏸ No Action</span>
+              {% endif %}
+            </td>
+            <td>
+              <span class="sla-pill sla-{{ issue.get('sla_state','healthy')|replace('_','-') }}" style="font-size:10px">
+                <span class="sla-dot"></span>
+                {% if issue.get('sla_state') == 'breached' %}OVERDUE
+                {% else %}{{ issue.get('remaining_hours',0)|round(0)|int }}h{% endif %}
+              </span>
+            </td>
+            <td onclick="event.stopPropagation()">
+              {% if issue.status == 'open' %}
+              <button class="quick-btn quick-btn-prog" onclick="commitIssue({{ issue.id }}, this)">Commit</button>
+              {% elif issue.status == 'escalated' %}
+              <button class="quick-btn" style="background:var(--amber-soft);color:var(--amber)"
+                      onclick="ngoDeEscalate({{ issue.id }}, this)">↩ De-esc</button>
+              {% else %}
+              <span style="font-size:11px;color:var(--ink-4)">Covered</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+document.querySelectorAll('[data-counter]').forEach(el => animateCounter(el, parseInt(el.dataset.counter) || 0));
+
+async function commitIssue(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const r = await fetch('/ngo/commit', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ issue_id: id, volunteers: 2, eta: '48h', note: 'NGO coordination commitment' })
+    });
+    const d = await r.json();
+    if (d.ok) { Toast.success(`Committed to #AP-${id}`); btn.textContent = '✓'; }
+    else throw new Error();
+  } catch { btn.textContent = '✕'; btn.disabled = false; Toast.error('Commit failed'); }
+}
+
+async function ngoDeEscalate(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const r = await fetch('/ngo/api/deescalate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, note: 'NGO team can resolve — requested de-escalation' })
+    });
+    const d = await r.json();
+    if (d.ok) { Toast.success(`#AP-${id} de-escalated`); setTimeout(() => location.reload(), 700); }
+    else throw new Error();
+  } catch { btn.textContent = '✕'; btn.disabled = false; Toast.error('De-escalation failed'); }
+}
+</script>
+{% endblock %}

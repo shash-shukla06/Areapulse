@@ -1,0 +1,264 @@
+{% extends "base.html" %}
+
+{% block body_class %}ngo-mode{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ngo.css') }}">
+{% endblock %}
+
+{% block body %}
+<div class="app-shell">
+
+  {# ── SIDEBAR ─────────────────────────────────────────────────── #}
+  <aside class="sidebar" id="sidebar">
+
+    {# Logo + Role pill #}
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark" >A</div>
+      <div>
+        <div class="sidebar-wordmark">Area<span>Pulse</span></div>
+        <div class="sidebar-role-pill" style="background:var(--ngo-soft);color:var(--ngo);border-color:var(--ngo-mid)">🌿 NGO Partner</div>
+      </div>
+    </div>
+
+    {# User info #}
+    <div class="sidebar-user">
+      <div class="avatar" style="background:var(--ngo);color:#fff">{{ cu.avatar }}</div>
+      <div>
+        <div class="sidebar-user-name">{{ cu.name }}</div>
+        <div class="sidebar-user-dept">{{ cu.dept }}</div>
+      </div>
+    </div>
+
+    {# Search trigger #}
+    <div class="sidebar-search" id="sidebar-search" onclick="document.getElementById('cmdpal-backdrop').classList.add('open');document.getElementById('cmdpal-input').focus()">
+      <div class="sidebar-search-input">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span>Quick search...</span>
+        <span class="sidebar-search-kbd">⌘K</span>
+      </div>
+    </div>
+
+    {# Navigation #}
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('ngo_dashboard') }}" class="nav-item {% if request.endpoint == 'ngo_dashboard' %}active{% endif %}" data-label="Dashboard">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span class="nav-label">Dashboard</span>
+      </a>
+      <a href="{{ url_for('ngo_opportunities') }}" class="nav-item {% if request.endpoint == 'ngo_opportunities' %}active{% endif %}" data-label="Opportunities">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span class="nav-label">Opportunities</span>
+        <span class="nav-badge" id="sidebar-opps-badge">—</span>
+      </a>
+      <a href="{{ url_for('ngo_projects') }}" class="nav-item {% if request.endpoint == 'ngo_projects' %}active{% endif %}" data-label="Active Projects">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        <span class="nav-label">Active Projects</span>
+      </a>
+      <a href="{{ url_for('ngo_impact') }}" class="nav-item {% if request.endpoint == 'ngo_impact' %}active{% endif %}" data-label="Impact">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        <span class="nav-label">Impact</span>
+      </a>
+      <a href="{{ url_for('ngo_map') }}" class="nav-item {% if request.endpoint == 'ngo_map' %}active{% endif %}" data-label="Field Map">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>
+        <span class="nav-label">Field Map</span>
+      </a>
+      <a href="{{ url_for('ngo_analytics') }}" class="nav-item {% if request.endpoint == 'ngo_analytics' %}active{% endif %}" data-label="Analytics">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        <span class="nav-label">Analytics</span>
+      </a>
+      <a href="{{ url_for('ngo_ai_assistant') }}" class="nav-item {% if request.endpoint == 'ngo_ai_assistant' %}active{% endif %}" data-label="AI Advisor">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/></svg>
+        <span class="nav-label">AI Advisor</span>
+      </a>
+      <a href="{{ url_for('ngo_reports') }}" class="nav-item {% if request.endpoint == 'ngo_reports' %}active{% endif %}" data-label="Donor Reports">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <span class="nav-label">Donor Reports</span>
+      </a>
+      <a href="{{ url_for('ngo_gov_coordination') }}" class="nav-item {% if request.endpoint == 'ngo_gov_coordination' %}active{% endif %}" data-label="Govt Coordination">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span class="nav-label">Govt Coordination</span>
+      </a>
+      <a href="{{ url_for('ngo_notifications') }}" class="nav-item {% if request.endpoint == 'ngo_notifications' %}active{% endif %}" data-label="Notifications">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="nav-label">Notifications</span>
+        <span class="nav-badge" id="sidebar-notif-badge">—</span>
+      </a>
+    </nav>
+
+    {# Bottom #}
+    <div class="sidebar-bottom">
+      <a href="{{ url_for('ngo_settings') }}" class="nav-item {% if request.endpoint == 'ngo_settings' %}active{% endif %}" data-label="Settings">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="nav-label">Settings</span>
+      </a>
+      <a href="{{ url_for('auth_logout') }}" class="nav-item" style="color:var(--red)" data-label="Sign Out">
+        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <span class="nav-label">Sign Out</span>
+      </a>
+      <div class="sidebar-powered">Powered by AreaPulse AI</div>
+      <button class="sidebar-collapse-btn" id="sidebar-collapse-btn">
+        <svg class="collapse-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        <span>Collapse</span>
+      </button>
+    </div>
+  </aside>
+
+  {# ── TOPBAR ───────────────────────────────────────────────────── #}
+  <header class="topbar" id="topbar">
+    <div class="topbar-left">
+      <button class="topbar-hamburger" id="topbar-hamburger">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+      <nav class="breadcrumb">
+        <span>NGO Portal</span>
+        <span class="breadcrumb-sep">›</span>
+        <span class="breadcrumb-current">{% block page_title %}Dashboard{% endblock %}</span>
+      </nav>
+    </div>
+    <div class="topbar-center">
+      <div class="topbar-search" id="topbar-search" onclick="document.getElementById('cmdpal-backdrop').classList.add('open');document.getElementById('cmdpal-input').focus()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span>Search opportunities, areas...</span>
+        <span class="topbar-search-kbd">⌘K</span>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <div class="topbar-pill">
+        <span class="dot" style="background:var(--ngo)"></span>
+        <span id="topbar-clock">—</span>
+      </div>
+      <div class="topbar-pill">
+        <span>🌿 NGO</span>
+      </div>
+      <a href="{{ url_for('ngo_notifications') }}" class="topbar-icon-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        <span class="topbar-notif-badge" id="topbar-notif-badge" style="display:none;background:var(--ngo)">0</span>
+      </a>
+      
+    </div>
+  </header>
+
+  {# ── MAIN CONTENT ─────────────────────────────────────────────── #}
+  <main class="main-content" id="main-content">
+    {% block content %}{% endblock %}
+  </main>
+
+  {# ── MOBILE BOTTOM NAV ────────────────────────────────────────── #}
+  <nav class="mobile-nav">
+    <a href="{{ url_for('ngo_dashboard') }}" class="mobile-nav-item {% if request.endpoint == 'ngo_dashboard' %}active{% endif %}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Home
+    </a>
+    <a href="{{ url_for('ngo_opportunities') }}" class="mobile-nav-item {% if request.endpoint == 'ngo_opportunities' %}active{% endif %}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Opps
+    </a>
+    <a href="{{ url_for('ngo_map') }}" class="mobile-nav-item {% if request.endpoint == 'ngo_map' %}active{% endif %}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/></svg>
+      Map
+    </a>
+    <a href="{{ url_for('ngo_impact') }}" class="mobile-nav-item {% if request.endpoint == 'ngo_impact' %}active{% endif %}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      Impact
+    </a>
+    <a href="{{ url_for('ngo_ai_assistant') }}" class="mobile-nav-item {% if request.endpoint == 'ngo_ai_assistant' %}active{% endif %}">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7h1a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1h-1v1a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-1H2a1 1 0 0 1-1-1v-3a1 1 0 0 1 1-1h1a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 10 4a2 2 0 0 1 2-2z"/></svg>
+      AI
+    </a>
+  </nav>
+
+</div>{# end app-shell #}
+
+{% block page_scripts %}{% endblock %}
+
+{# ── PERSISTENT VOICE FAB ─────────────────────────────────────── #}
+<div id="voice-fab" style="
+  position:fixed;bottom:80px;right:20px;z-index:9999;
+  display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+">
+  <div id="voice-fab-tip" style="
+    display:none;background:var(--bg-surface);border:1px solid var(--border);
+    border-radius:var(--r-md);padding:8px 12px;font-size:11px;font-weight:600;
+    color:var(--ink-2);box-shadow:var(--sh-md);white-space:nowrap;
+    animation:fadeIn .2s ease;
+  ">🎤 Voice AI — speak your command</div>
+  <button id="voice-fab-btn" onclick="toggleVoiceFAB()" title="Voice AI (Ctrl+Shift+V)" style="
+    width:52px;height:52px;border-radius:50%;
+    background:var(--accent);color:#fff;border:none;
+    font-size:22px;box-shadow:var(--sh-lg);cursor:pointer;
+    transition:transform var(--ease-spring),box-shadow var(--ease-ui),background var(--ease-ui);
+    display:flex;align-items:center;justify-content:center;
+  ">🎤</button>
+</div>
+
+<script src="{{ url_for('static', filename='js/voice.js') }}"></script>
+<script>
+let _voiceFABAssistant = null;
+let _voiceFABActive = false;
+
+function toggleVoiceFAB() {
+  const btn = document.getElementById('voice-fab-btn');
+  const tip = document.getElementById('voice-fab-tip');
+  _voiceFABActive = !_voiceFABActive;
+  if (_voiceFABActive) {
+    // Try to init voice
+    if (!_voiceFABAssistant) {
+      try {
+        _voiceFABAssistant = new AreaPulseVoiceAssistant('{{ cu.role }}', (transcript) => {
+          // Route voice to AI assistant page with the query
+          window.location.href = '/{{ cu.role }}/ai-assistant?q=' + encodeURIComponent(transcript);
+        });
+      } catch(e) {
+        Toast.warning('Voice not available. Use https:// or localhost.');
+        _voiceFABActive = false;
+        return;
+      }
+    }
+    _voiceFABAssistant.start();
+    btn.style.background = 'var(--red)';
+    btn.style.transform = 'scale(1.12)';
+    btn.innerHTML = '🔴';
+    tip.style.display = 'block';
+    Toast.info('Listening... speak your command');
+  } else {
+    if (_voiceFABAssistant) _voiceFABAssistant.stop();
+    btn.style.background = 'var(--accent)';
+    btn.style.transform = 'scale(1)';
+    btn.innerHTML = '🎤';
+    tip.style.display = 'none';
+  }
+}
+
+// Keyboard shortcut
+document.addEventListener('keydown', (e) => {
+  if (e.ctrlKey && e.shiftKey && e.key === 'V') { e.preventDefault(); toggleVoiceFAB(); }
+});
+
+// Pulse animation on load to draw attention (once)
+setTimeout(() => {
+  const btn = document.getElementById('voice-fab-btn');
+  if (!btn) return;
+  btn.style.animation = 'voice-pulse 1.4s ease-in-out 3';
+  setTimeout(() => { btn.style.animation = ''; }, 5000);
+}, 2000);
+</script>
+
+<script>
+  fetch('/ngo/api/notifications')
+    .then(r => r.json())
+    .then(d => {
+      const count = d.unread || 0;
+      const badge = document.getElementById('topbar-notif-badge');
+      const sb = document.getElementById('sidebar-notif-badge');
+      if (count > 0 && badge) { badge.textContent = count; badge.style.display = 'flex'; }
+      if (sb) sb.textContent = count || '';
+    }).catch(() => {});
+
+  // Opportunities count
+  fetch('/ngo/api/opportunities')
+    .then(r => r.json())
+    .then(d => {
+      const sb = document.getElementById('sidebar-opps-badge');
+      if (sb) sb.textContent = (d.total || 0);
+    }).catch(() => {});
+</script>
+{% endblock %}

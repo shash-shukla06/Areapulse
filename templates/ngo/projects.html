@@ -1,0 +1,89 @@
+{% extends "base_ngo.html" %}
+{% block title %}Active Projects — AreaPulse NGO Portal{% endblock %}
+{% block page_title %}Active Projects{% endblock %}
+
+{% block content %}
+<div class="page-body stagger-children">
+
+  <div class="section-header reveal">
+    <div>
+      <div class="section-title">Active Projects</div>
+      <div class="section-sub">Issues your team has committed to — track progress and mark completion</div>
+    </div>
+    <a href="{{ url_for('ngo_opportunities') }}" class="btn btn-primary" style="background:var(--ngo)">+ Find More →</a>
+  </div>
+
+  {% if projects %}
+  <div class="grid-2 reveal">
+    {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+    {% for issue in projects %}
+    <div class="project-card">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</span>
+        <div style="flex:1;min-width:0">
+          <div class="project-card-title truncate">#AP-{{ issue.id }} · {{ issue.area }}</div>
+          <div class="project-card-meta">{{ issue.tag.title() }} · {{ issue.status.replace('_',' ').title() }}</div>
+        </div>
+        <span class="sla-pill sla-{{ issue.get('sla_state','healthy')|replace('_','-') }}" style="font-size:10px">
+          <span class="sla-dot"></span>
+          {% if issue.get('sla_state') == 'breached' %}OVERDUE
+          {% else %}{{ issue.get('remaining_hours',0)|round(0)|int }}h{% endif %}
+        </span>
+      </div>
+      <p style="font-size:12px;color:var(--ink-3);margin-bottom:12px;line-height:1.5">{{ issue.description[:80] }}...</p>
+
+      {# Progress bar #}
+      {% set pct = [issue.get('sla_pct_used',0)|round(0)|int, 100]|min %}
+      <div class="project-progress">
+        <div class="project-progress-bar">
+          <div class="project-progress-fill" style="width:{{ pct }}%;background:{{ 'var(--red)' if pct > 75 else ('var(--amber)' if pct > 50 else 'var(--ngo)') }}"></div>
+        </div>
+        <div class="project-progress-label">
+          <span>{{ pct }}% SLA used</span>
+          <span>{{ issue.get('remaining_hours',0)|round(0)|int }}h left</span>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;margin-top:12px">
+        <button class="btn btn-ghost btn-sm" style="flex:1" onclick="window.location='{{ url_for('ngo_issue_detail', issue_id=issue.id) }}'">Detail →</button>
+        <button class="btn btn-primary btn-sm" style="flex:1;background:var(--ngo)" onclick="markDone({{ issue.id }}, this)">✅ Mark Done</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% else %}
+  <div class="card reveal">
+    <div class="empty-state" style="padding:60px">
+      <div style="font-size:48px">🌱</div>
+      <h3>No active projects yet</h3>
+      <p>Browse opportunities and commit to issues to start tracking your projects here.</p>
+      <a href="{{ url_for('ngo_opportunities') }}" class="btn btn-primary" style="background:var(--ngo);margin-top:16px">🔍 Browse Opportunities →</a>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+async function markDone(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    const r = await fetch('/gov/update-status', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id, status: 'resolved', note: 'Resolved by NGO team' })
+    });
+    const d = await r.json();
+    if (d.ok) {
+      Toast.success(`#AP-${id} marked resolved!`);
+      setTimeout(() => location.reload(), 800);
+    } else throw new Error('Failed');
+  } catch (e) {
+    Toast.error('Update failed');
+    btn.textContent = '✅ Mark Done'; btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

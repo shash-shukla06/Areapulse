@@ -1,0 +1,42 @@
+{% extends "base_gov.html" %}
+{% block title %}Settings — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block content %}
+<div class="page-body">
+  <div class="section-title reveal" style="margin-bottom:24px">Account Settings</div>
+  <div class="grid-60-40 reveal">
+    <div class="flex-col gap-24">
+      <div class="card">
+        <div class="card-header"><div class="card-title">Profile</div></div>
+        <div class="flex gap-12 items-center" style="margin-bottom:16px">
+          <div class="avatar avatar-lg">{{cu.avatar}}</div>
+          <div><div style="font-size:16px;font-weight:700">{{cu.name}}</div><div style="font-size:13px;color:var(--ink-3)">{{cu.dept}}</div></div>
+        </div>
+        <div class="input-group"><label class="input-label">Display Name</label><input class="input" value="{{cu.name}}" data-autosave="display_name"></div>
+        <div class="input-group"><label class="input-label">Department</label><input class="input" value="{{cu.dept}}" data-autosave="dept" readonly style="opacity:.6"></div>
+      </div>
+      <div class="card">
+        <div class="card-header"><div class="card-title">Preferences</div></div>
+        <div class="flex items-center justify-between" style="padding:10px 0;border-bottom:1px solid var(--border)">
+          <div><div style="font-size:13px;font-weight:500">Dark Mode</div><div style="font-size:11px;color:var(--ink-3)">Switch to dark theme</div></div>
+          <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" style="opacity:0;width:0;height:0" onchange="setTheme(this.checked?'dark':'light')" {% if '' %}checked{% endif %}><span style="position:absolute;cursor:pointer;inset:0;background:var(--border);border-radius:24px;transition:background .2s"></span></label>
+        </div>
+        <div class="flex items-center justify-between" style="padding:10px 0">
+          <div><div style="font-size:13px;font-weight:500">SLA Breach Alerts</div><div style="font-size:11px;color:var(--ink-3)">Browser notifications for breaches</div></div>
+          <label style="position:relative;display:inline-block;width:44px;height:24px"><input type="checkbox" checked data-autosave="sla_alerts"><span style="position:absolute;cursor:pointer;inset:0;background:var(--accent);border-radius:24px;transition:background .2s"></span></label>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">Account Info</div></div>
+      <div class="flex-col gap-12">
+        <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Username</div><div style="font-weight:600">{{cu.username}}</div></div>
+        <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Role</div><div><span class="badge badge-gov">Government Officer</span></div></div>
+        <div><div style="font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px">Issue Categories</div><div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px">{% for t in cu.tags %}<span class="badge badge-honey" style="font-size:11px">{{t}}</span>{% endfor %}</div></div>
+      </div>
+      <div class="divider"></div>
+      <a href="{{ url_for('auth_logout') }}" class="btn btn-danger w-full" style="justify-content:center">Sign Out</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

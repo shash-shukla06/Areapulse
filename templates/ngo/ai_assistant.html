@@ -1,0 +1,104 @@
+{% extends "base_ngo.html" %}
+{% block title %}AI Advisor — AreaPulse NGO Portal{% endblock %}
+{% block page_title %}AI Advisor{% endblock %}
+
+{% block content %}
+<div class="page-body" style="padding-bottom:0;height:calc(100vh - var(--topbar-h));display:flex;flex-direction:column">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-shrink:0">
+    <div>
+      <div style="font-size:20px;font-weight:700;color:var(--ink)">🌿 AI Field Advisor</div>
+      <div style="font-size:13px;color:var(--ink-3);margin-top:2px">Powered by Groq Llama 3.3 · Knows your focus areas and active opportunities</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" id="voice-toggle" onclick="toggleVoice()">🎤 Voice</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearChat()">🗑 Clear</button>
+    </div>
+  </div>
+
+  <div class="grid-40-60" style="flex:1;min-height:0;gap:20px">
+
+    {# Chat panel #}
+    <div class="ai-chat-panel" style="height:100%;max-height:calc(100vh - 180px)">
+      <div class="ai-chat-header">
+        <div class="ai-avatar" style="background:linear-gradient(135deg,var(--ngo),var(--ngo-mid))">🌿</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">AreaPulse AI</div>
+          <div style="font-size:11px;color:var(--ink-3)">NGO Field Advisor · Groq Llama 3.3</div>
+        </div>
+        <div style="margin-left:auto">
+          <span class="badge badge-ngo" style="font-size:10px">● Live</span>
+        </div>
+      </div>
+
+      <div class="ai-messages" id="ai-messages"></div>
+
+      {# NGO-specific shortcuts #}
+      <div class="ai-shortcuts">
+        {% for shortcut, label in [
+          ('Which area has the most unresolved issues in my focus categories?','📍 Hotspot'),
+          ('How many citizens would be impacted if I resolved the top 5 issues?','👥 Impact Est.'),
+          ('Draft a field deployment plan for this week','📋 Deploy Plan'),
+          ('Generate a one-paragraph donor impact statement','📄 Donor Brief'),
+          ('Which issues have been open longest in my focus area?','⏳ Oldest'),
+        ] %}
+        <button class="ai-shortcut" data-shortcut="{{ shortcut }}" style="border-color:var(--ngo-mid);color:var(--ngo)">
+          {{ label }}
+        </button>
+        {% endfor %}
+      </div>
+
+      <div class="ai-chat-input">
+        <textarea class="ai-chat-textarea" id="ai-input" rows="1"
+                  placeholder="Ask about opportunities, impact, deployment strategies..."></textarea>
+        <button id="ai-voice-btn" class="btn btn-icon btn-secondary" title="Voice input (Ctrl+Shift+V)">🎤</button>
+        <button id="ai-send-btn" class="btn btn-icon btn-primary" style="background:var(--ngo)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    {# Workspace panel #}
+    <div style="background:var(--bg-subtle);border-radius:var(--r-lg);border:1px solid var(--border);overflow:auto;max-height:calc(100vh - 180px)">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg-surface);border-radius:var(--r-lg) var(--r-lg) 0 0">
+        <span style="font-size:13px;font-weight:700;color:var(--ink-2)">🖥 Workspace</span>
+        <span style="font-size:12px;color:var(--ink-4)">AI renders maps, reports & analyses here</span>
+      </div>
+      <div id="ai-workspace" style="padding:20px;min-height:300px">
+        <div class="empty-state">
+          <div style="font-size:40px">🌿</div>
+          <h3>Field Workspace</h3>
+          <p>Ask the AI to find hotspots, estimate impact, plan deployment, or generate donor reports.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/voice.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai-assistant.js') }}"></script>
+<script>
+let voiceOn = false;
+const aiAssistant = new AIAssistant('ngo', 'ai-messages', 'ai-workspace');
+window.aiAssistant = aiAssistant;
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  aiAssistant.setVoiceMode(voiceOn);
+  const btn = document.getElementById('voice-toggle');
+  btn.textContent = voiceOn ? '🎤 ON' : '🎤 Voice';
+  btn.style.background = voiceOn ? 'var(--ngo)' : '';
+  btn.style.color       = voiceOn ? '#fff' : '';
+}
+function clearChat() {
+  document.getElementById('ai-messages').innerHTML = '';
+  document.getElementById('ai-workspace').innerHTML = `<div class="empty-state"><div style="font-size:40px">🌿</div><h3>Field Workspace</h3><p>Ask the AI to find hotspots, estimate impact, or generate reports.</p></div>`;
+  aiAssistant.history = [];
+}
+</script>
+{% endblock %}

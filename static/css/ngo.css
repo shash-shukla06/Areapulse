@@ -1,0 +1,299 @@
+/* ═══════════════════════════════════════════════════════════════
+   NGO PORTAL STYLES — ngo.css
+   ═══════════════════════════════════════════════════════════════ */
+
+body.ngo-mode {
+  --accent:      #3D6B52;
+  --accent-deep: #2A4D3A;
+  --accent-soft: #E0EDE4;
+  --accent-mid:  #A8CDB8;
+}
+
+/* Impact hero numbers */
+.impact-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: var(--ngo);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.impact-divider {
+  width: 1px;
+  height: 48px;
+  background: var(--border);
+}
+
+/* Opportunity match score */
+.match-score {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.match-score-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ngo);
+}
+.match-score-label {
+  font-size: 10px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  font-weight: 600;
+}
+
+/* Gov response time indicator */
+.gov-response {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+}
+.gov-response.slow   { color: var(--red);   }
+.gov-response.medium { color: var(--amber); }
+.gov-response.fast   { color: var(--green); }
+
+/* NGO project card */
+.project-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  transition: transform var(--ease-spring), box-shadow var(--ease-ui);
+}
+.project-card:hover { transform: translateY(-3px); box-shadow: var(--sh-md); }
+.project-card-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.project-card-meta  { font-size: 12px; color: var(--ink-3); margin-top: 4px; }
+.project-progress {
+  margin-top: 12px;
+}
+.project-progress-bar {
+  background: var(--bg-subtle);
+  border-radius: var(--r-full);
+  height: 8px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.project-progress-fill {
+  height: 100%;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--ngo), var(--ngo-mid));
+  transition: width 1s var(--ease-out);
+}
+.project-progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+/* NGO leaderboard */
+.leaderboard-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--r-md);
+  transition: background var(--ease-ui);
+}
+.leaderboard-item:hover { background: var(--bg-hover); }
+.leaderboard-rank {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-4);
+  width: 28px;
+  text-align: center;
+}
+.leaderboard-rank.rank-1 { color: #C9A227; }
+.leaderboard-rank.rank-2 { color: #9E9E9E; }
+.leaderboard-rank.rank-3 { color: #9C6B1D; }
+.leaderboard-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--ink); }
+.leaderboard-score {
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ngo);
+}
+.leaderboard-label { font-size: 10px; color: var(--ink-3); }
+
+/* Partner NGO card */
+.partner-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all var(--ease-ui);
+}
+.partner-card:hover {
+  border-color: var(--ngo-mid);
+  background: var(--ngo-soft);
+  transform: translateX(4px);
+}
+.partner-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--ngo-soft);
+  color: var(--ngo);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.partner-name  { font-size: 13px; font-weight: 600; color: var(--ink); }
+.partner-focus { font-size: 11px; color: var(--ink-3); }
+.partner-area  { font-size: 11px; color: var(--ngo); font-weight: 500; }
+
+/* Impact timeline */
+.impact-timeline-item {
+  display: flex;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.impact-timeline-item:last-child { border-bottom: none; }
+.impact-timeline-photo {
+  width: 80px;
+  height: 60px;
+  border-radius: var(--r-md);
+  background: var(--bg-subtle);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.impact-timeline-photo img { width: 100%; height: 100%; object-fit: cover; }
+.impact-timeline-title { font-size: 14px; font-weight: 600; color: var(--ink); }
+.impact-timeline-meta  { font-size: 12px; color: var(--ink-3); margin-top: 2px; }
+.impact-timeline-stat  {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ngo);
+  margin-top: 6px;
+}
+.impact-verified { font-size: 11px; color: var(--green); font-weight: 500; }
+
+/* NGO notification types */
+.notif-opportunity .notif-icon-wrap { background: var(--ngo-soft); color: var(--ngo); }
+.notif-ack         .notif-icon-wrap { background: var(--green-soft); color: var(--green); }
+.notif-partner     .notif-icon-wrap { background: var(--blue-soft); color: var(--blue); }
+.notif-report      .notif-icon-wrap { background: var(--purple-soft); color: var(--purple); }
+
+/* NGO map */
+.ngo-map-pin-focus { border-radius: 50%; animation: map-glow 2s ease-in-out infinite; }
+.ngo-focus-overlay {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  background: var(--bg-surface);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--ngo-mid);
+  box-shadow: var(--sh-lg);
+  padding: 14px;
+  width: 220px;
+}
+.ngo-focus-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ngo);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 8px;
+}
+
+/* Donor report preview */
+.donor-report-preview {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 24px;
+}
+.donor-report-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 2px solid var(--ngo);
+  margin-bottom: 16px;
+}
+.donor-report-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.donor-report-body { font-size: 13px; color: var(--ink-2); line-height: 1.8; }
+.donor-report-stat-row {
+  display: flex;
+  gap: 20px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+  margin: 12px 0;
+}
+.donor-report-stat-num {
+  font-family: 'Inter', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--ngo);
+}
+.donor-report-stat-label { font-size: 12px; color: var(--ink-3); }
+
+/* NGO commitment modal */
+.volunteer-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.volunteer-count-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: background var(--ease-ui);
+}
+.volunteer-count-btn:hover { background: var(--bg-hover); }
+.volunteer-count {
+  font-family: 'Inter', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--ink);
+  min-width: 40px;
+  text-align: center;
+}
+
+/* Settings focus tags */
+.focus-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--r-full);
+  border: 1.5px solid var(--border);
+  background: var(--bg-surface);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all var(--ease-ui);
+}
+.focus-tag:hover { border-color: var(--ngo-mid); color: var(--ngo); background: var(--ngo-soft); }
+.focus-tag.active { background: var(--ngo); color: #fff; border-color: var(--ngo); }
+.focus-tag-icon { font-size: 14px; }

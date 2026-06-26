@@ -1,0 +1,42 @@
+{% extends "base_gov.html" %}
+{% block title %}Reports — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}Reports{% endblock %}
+{% block content %}
+<div class="page-body stagger-children">
+  <div class="section-header reveal"><div><div class="section-title">Report Builder</div><div class="section-sub">Generate, export, and share civic intelligence reports</div></div></div>
+  <div class="grid-3 reveal">
+    {% for icon, title, desc, rtype in [('📊','SLA Summary','Compliance and breach analysis','sla'),('📍','Area Report','Issue density by neighbourhood','area'),('🏢','Department Report','Performance by department','dept'),('📈','Trend Report','7-day issue trend analysis','trend'),('🤝','NGO Coordination','NGO activity and commitments','ngo'),('🤖','AI Custom Report','AI-generated insight report','ai')] %}
+    <div class="report-type-card" onclick="generateReport('{{rtype}}')">
+      <div class="report-type-icon">{{icon}}</div>
+      <div class="report-type-name">{{title}}</div>
+      <div style="font-size:11px;color:var(--ink-3);margin-top:4px">{{desc}}</div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="card reveal" id="report-output" style="min-height:200px">
+    <div class="empty-state"><div style="font-size:36px">📄</div><h3>Select a report type above</h3><p>Your report will appear here and can be exported as PDF or CSV.</p></div>
+  </div>
+</div>
+{% endblock %}
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/export.js') }}"></script>
+<script>
+async function generateReport(type) {
+  const el = document.getElementById('report-output');
+  el.innerHTML = '<div class="loading-dots" style="padding:40px;justify-content:center"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div><span style="margin-left:8px;color:var(--ink-3)">Generating report...</span></div>';
+  if (type === 'ai') {
+    try {
+      const res = await fetch('/gov/ai-chat', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:'Generate a comprehensive issue report with key insights, top problem areas, and recommendations. Format it clearly.',history:[]})});
+      let text = '';
+      const reader = res.body.getReader(); const dec = new TextDecoder();
+      el.innerHTML = '<div style="padding:20px"><div style="font-size:15px;font-weight:700;margin-bottom:12px">🤖 AI Custom Report</div><div id="ai-report-text" style="font-size:13px;line-height:1.8;color:var(--ink-2)"></div><div style="margin-top:16px;display:flex;gap:8px"><a href="/gov/api/export-pdf?type=ai" class="btn btn-primary btn-sm" target="_blank">⬇ PDF</a><a href="/gov/api/export-csv" class="btn btn-secondary btn-sm">📊 CSV</a></div></div>';
+      const textEl = document.getElementById('ai-report-text');
+      while(true){const{done,value}=await reader.read();if(done)break;const chunk=dec.decode(value,{stream:true});chunk.split('\n').forEach(l=>{if(l.startsWith('data: ')){try{const d=JSON.parse(l.slice(6));text+=d.content||'';textEl.innerHTML=text.replace(/\n/g,'<br>');}catch{}}});}
+    } catch(e){el.innerHTML=`<div style="padding:20px;color:var(--red)">Error: ${e.message}</div>`;}
+    return;
+  }
+  await new Promise(r=>setTimeout(r,800));
+  el.innerHTML=`<div style="padding:20px"><div style="font-size:15px;font-weight:700;margin-bottom:12px">📊 ${type.toUpperCase()} Report Generated</div><p style="font-size:13px;color:var(--ink-2)">Report is ready. Export using the buttons below.</p><div style="margin-top:16px;display:flex;gap:8px"><a href="/gov/api/export-pdf?type=${type}" class="btn btn-primary btn-sm" target="_blank">⬇ Download PDF</a><a href="/gov/api/export-csv" class="btn btn-secondary btn-sm">📊 CSV</a></div></div>`;
+}
+</script>
+{% endblock %}

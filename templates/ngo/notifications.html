@@ -1,0 +1,41 @@
+{% extends "base_ngo.html" %}
+{% block title %}Notifications — AreaPulse NGO Portal{% endblock %}
+{% block page_title %}Notifications{% endblock %}
+{% block content %}
+<div class="page-body">
+  <div class="section-header reveal">
+    <div class="section-title">Notifications</div>
+    <button class="btn btn-ghost btn-sm" onclick="Toast.success('All marked read')">✓ Mark all read</button>
+  </div>
+  <div class="card reveal" id="notif-list">
+    <div class="loading-dots" style="padding:30px;justify-content:center">
+      <div class="loading-dot" style="background:var(--ngo)"></div>
+      <div class="loading-dot" style="background:var(--ngo)"></div>
+      <div class="loading-dot" style="background:var(--ngo)"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block page_scripts %}
+<script>
+fetch('/ngo/api/notifications').then(r=>r.json()).then(d=>{
+  const el=document.getElementById('notif-list');
+  const typeColors={opportunity:'ngo',ack:'green',partner:'blue',report:'purple'};
+  if(!d.notifications?.length){
+    el.innerHTML='<div class="empty-state" style="padding:40px"><div style="font-size:36px">🔔</div><h3>No notifications yet</h3><p>Opportunity alerts will appear here when urgent issues match your focus areas.</p></div>';
+    return;
+  }
+  el.innerHTML=d.notifications.map(n=>`
+    <div class="activity-item notif-${n.type}" style="padding:14px 0;border-bottom:1px solid var(--border);cursor:pointer" onclick="window.location='/ngo/issue/${n.issue_id||''}'">
+      <div class="activity-icon notif-icon-wrap" style="background:var(--${typeColors[n.type]||'ngo'}-soft);color:var(--${typeColors[n.type]||'ngo'})">🌿</div>
+      <div class="flex-col gap-4 flex-1">
+        <div style="font-size:13px;font-weight:600">${n.title}</div>
+        <div style="font-size:12px;color:var(--ink-3)">${n.body}</div>
+      </div>
+      ${n.issue_id?`<span class="badge badge-ngo" style="font-size:10px">#AP-${n.issue_id}</span>`:''}
+    </div>`).join('');
+}).catch(()=>{
+  document.getElementById('notif-list').innerHTML='<div class="empty-state"><h3>Could not load notifications</h3></div>';
+});
+</script>
+{% endblock %}

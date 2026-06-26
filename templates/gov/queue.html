@@ -1,0 +1,322 @@
+{% extends "base_gov.html" %}
+{% block title %}Issue Queue — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}Issue Queue{% endblock %}
+
+{% block content %}
+<div class="page-body">
+
+  {# ── FILTER CHIPS ROW ────────────────────────────────────────── #}
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:20px">
+    {# Search #}
+    <div style="flex:1;min-width:200px;max-width:320px;position:relative">
+      <svg style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--ink-4)" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input id="search-input" class="input" style="padding-left:36px;border-radius:var(--r-full)"
+             placeholder="Search issues, areas..." value="{{ filters.q or '' }}"
+             oninput="liveFilter()">
+    </div>
+
+    {# Status chips #}
+    {% for s, label in [('','All'),('open','Open'),('acknowledged','Ack\'d'),('in_progress','In Progress'),('resolved','Resolved'),('escalated','Escalated')] %}
+    <a href="{{ url_for('gov_queue') }}?status={{ s }}{% if filters.tag %}&tag={{ filters.tag }}{% endif %}"
+       class="chip {% if filters.status == s or (not filters.status and not s) %}active{% endif %}">
+      {{ label }}
+    </a>
+    {% endfor %}
+
+    {# Tag filter #}
+    <select id="tag-select" class="input" style="width:auto;padding:7px 12px;border-radius:var(--r-full)"
+            onchange="location.href='{{ url_for('gov_queue') }}?tag='+this.value+'{% if filters.status %}&status={{ filters.status }}{% endif %}'">
+      <option value="">All Categories</option>
+      {% for tag in ['pothole','water','sewage','electricity','streetlight','garbage','traffic','noise','tree','other'] %}
+      <option value="{{ tag }}" {% if filters.tag == tag %}selected{% endif %}>{{ tag.title() }}</option>
+      {% endfor %}
+    </select>
+
+    {# Area filter #}
+    <select id="area-select" class="input" style="width:auto;padding:7px 12px;border-radius:var(--r-full)"
+            onchange="location.href='{{ url_for('gov_queue') }}?area='+this.value">
+      <option value="">All Areas</option>
+      {% for area in areas %}
+      <option value="{{ area }}" {% if filters.area == area %}selected{% endif %}>{{ area }}</option>
+      {% endfor %}
+    </select>
+
+    <a href="{{ url_for('gov_queue') }}" class="btn btn-ghost btn-sm">✕ Clear</a>
+    <button class="btn btn-secondary btn-sm" onclick="ExportEngine.exportCSV(tableData)">📊 Export CSV</button>
+  </div>
+
+  {# ── BULK ACTION BAR ──────────────────────────────────────────── #}
+  <div id="bulk-bar" style="display:none;align-items:center;gap:12px;padding:12px 16px;background:var(--accent-soft);border-radius:var(--r-md);margin-bottom:16px;border:1px solid var(--accent-mid)">
+    <span id="bulk-count" style="font-size:13px;font-weight:600;color:var(--accent)">0 selected</span>
+    <div style="display:flex;gap:8px;margin-left:auto">
+      <button class="btn btn-secondary btn-sm" onclick="bulkAction('acknowledged')">✓ Acknowledge All</button>
+      <button class="btn btn-secondary btn-sm" onclick="bulkAction('in_progress')">▶ Start All</button>
+      <button class="btn btn-primary btn-sm" onclick="bulkAction('resolved')">✅ Resolve All</button>
+      <button class="btn btn-danger btn-sm" onclick="bulkAction('escalated')">🚨 Escalate All</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearSelection()">✕</button>
+    </div>
+  </div>
+
+  {# ── ISSUE TABLE ──────────────────────────────────────────────── #}
+  <div class="data-table-wrap">
+    <div class="data-table-controls">
+      <span class="data-table-count" id="issue-count">
+        <span class="font-display" style="font-size:18px;font-weight:700">{{ issues|length }}</span>
+        issues
+        {% if filters.status or filters.tag or filters.area or filters.q %} (filtered){% endif %}
+      </span>
+      <button class="btn btn-ghost btn-sm" id="select-all-btn" onclick="toggleSelectAll()">☐ Select All</button>
+    </div>
+
+    <div class="data-table" style="overflow-x:auto">
+      <table id="issues-table">
+        <thead>
+          <tr>
+            <th style="width:40px"><input type="checkbox" id="header-checkbox" onchange="toggleSelectAll()"></th>
+            <th onclick="sortTable('id')">Ticket <span class="sort-arrow">↕</span></th>
+            <th onclick="sortTable('area')">Area <span class="sort-arrow">↕</span></th>
+            <th onclick="sortTable('tag')">Category</th>
+            <th>Description</th>
+            <th onclick="sortTable('severity')">Severity</th>
+            <th onclick="sortTable('status')">Status</th>
+            <th onclick="sortTable('sla_state')" class="sorted">SLA <span class="sort-arrow asc">↕</span></th>
+            <th>Upvotes</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="issues-tbody">
+          {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+          {% set status_colors = {'open':'blue','acknowledged':'honey','in_progress':'amber','resolved':'green','escalated':'red'} %}
+          {% set sev_colors = {'high':'red','medium':'amber','low':'green'} %}
+          {% for issue in issues %}
+          <tr class="issue-row" data-issue-id="{{ issue.id }}" data-status="{{ issue.status }}"
+              data-search="{{ ((issue.description or '') + ' ' + (issue.area or '')) | lower }}"
+              onclick="openIssueDrawer({{ issue.id }})">
+            <td onclick="event.stopPropagation()">
+              <input type="checkbox" class="issue-checkbox" value="{{ issue.id }}" onchange="updateSelection()">
+            </td>
+            <td>
+              <span style="font-family:'DM Sans',sans-serif;font-weight:700;color:var(--accent)">#AP-{{ issue.id }}</span>
+            </td>
+            <td style="font-weight:500">{{ issue.area }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px">
+                <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag, '📍') }}</span>
+                {{ issue.tag.title() }}
+              </div>
+            </td>
+            <td style="max-width:240px" class="truncate">{{ issue.description[:80] }}...</td>
+            <td><span class="badge badge-{{ sev_colors.get(issue.severity, 'blue') }}">{{ issue.severity.title() }}</span></td>
+            <td>
+              <span class="badge badge-{{ status_colors.get(issue.status, 'blue') }} status-pill">
+                {{ issue.status.replace('_',' ').title() }}
+              </span>
+            </td>
+            <td>
+              <span class="sla-pill sla-{{ issue.get('sla_state','healthy') | replace('_','-') }}"
+                    data-sla-deadline="{{ issue.get('sla_due_at', 0) }}">
+                <span class="sla-dot"></span>
+                <span class="sla-time">
+                  {% if issue.get('sla_state') == 'breached' %}OVERDUE +{{ issue.get('sla_overdue_hours',0) | round(1) }}h
+                  {% else %}{{ issue.get('remaining_hours',0) | round(0) | int }}h left{% endif %}
+                </span>
+              </span>
+            </td>
+            <td>
+              <div style="display:flex;align-items:center;gap:4px">
+                <span style="font-family:'DM Sans',sans-serif;font-weight:700">{{ issue.upvotes or 0 }}</span>
+                {% if (issue.upvotes or 0) >= 25 %}<span class="crowd-badge">🔥 Hot</span>{% endif %}
+              </div>
+            </td>
+            <td onclick="event.stopPropagation()">
+              <div class="td-actions">
+                <button class="quick-btn quick-btn-ack" onclick="quickStatus({{ issue.id }},'acknowledged',this)">ACK</button>
+                <button class="quick-btn quick-btn-prog" onclick="quickStatus({{ issue.id }},'in_progress',this)">▶</button>
+                <button class="quick-btn quick-btn-done" onclick="quickStatus({{ issue.id }},'resolved',this)">✓</button>
+                <button class="quick-btn quick-btn-esc" onclick="quickStatus({{ issue.id }},'escalated',this)">🚨</button>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="10">
+            <div class="empty-state"><div style="font-size:32px">🎉</div><h3>No issues match your filters</h3></div>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+{# ── ISSUE DETAIL DRAWER ────────────────────────────────────────── #}
+<div class="drawer-backdrop" id="issue-drawer-backdrop"></div>
+<div class="drawer" id="issue-drawer">
+  <div class="drawer-header">
+    <div class="drawer-title" id="drawer-title">Issue Detail</div>
+    <button class="drawer-close" onclick="Drawer.close('issue-drawer')">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-tabs" data-panels="drawer-panels">
+    <div class="drawer-tab active" data-tab="overview">Overview</div>
+    <div class="drawer-tab" data-tab="timeline">Timeline</div>
+    <div class="drawer-tab" data-tab="actions">Actions</div>
+    <div class="drawer-tab" data-tab="ngos">NGOs</div>
+  </div>
+  <div class="drawer-body" id="drawer-body">
+    <div class="loading-dots" style="padding:20px">
+      <div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>
+    </div>
+  </div>
+  <div class="drawer-footer">
+    <button class="btn btn-secondary btn-sm" onclick="Drawer.close('issue-drawer')">Close</button>
+    <a id="drawer-fullpage-link" href="#" class="btn btn-ghost btn-sm">Full detail →</a>
+    <button class="btn btn-primary btn-sm" id="drawer-resolve-btn" onclick="">✓ Mark Resolved</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/export.js') }}"></script>
+<script>
+// Build tableData for CSV export
+const tableData = [
+  {% for issue in issues %}
+  {id:'{{ issue.id }}',area:'{{ issue.area }}',tag:'{{ issue.tag }}',
+   description:'{{ (issue.description or '')[:60]|replace("'","\\'") }}',
+   severity:'{{ issue.severity }}',status:'{{ issue.status }}',
+   upvotes:{{ issue.upvotes or 0 }},
+   timestamp:{{ issue.timestamp or 0 }}},
+  {% endfor %}
+];
+
+// Helper functions for status/severity display
+function statusColor(s) {
+  return {open:'blue',acknowledged:'honey',in_progress:'amber',resolved:'green',escalated:'red'}[s]||'blue';
+}
+function severityColor(s) {
+  return {high:'red',medium:'amber',low:'green'}[s]||'blue';
+}
+function formatStatus(s) {
+  return (s||'').replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+}
+
+// Live search filter
+function liveFilter() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  document.querySelectorAll('.issue-row').forEach(row => {
+    row.style.display = (!q || row.dataset.search.includes(q)) ? '' : 'none';
+  });
+  updateCount();
+}
+
+function updateCount() {
+  const visible = document.querySelectorAll('.issue-row:not([style*="display: none"])').length;
+  document.getElementById('issue-count').innerHTML =
+    `<span class="font-display" style="font-size:18px;font-weight:700">${visible}</span> issues`;
+}
+
+// Selection
+let selected = new Set();
+function updateSelection() {
+  selected.clear();
+  document.querySelectorAll('.issue-checkbox:checked').forEach(cb => selected.add(cb.value));
+  const bar = document.getElementById('bulk-bar');
+  bar.style.display = selected.size > 0 ? 'flex' : 'none';
+  document.getElementById('bulk-count').textContent = `${selected.size} selected`;
+}
+function clearSelection() {
+  document.querySelectorAll('.issue-checkbox').forEach(cb => cb.checked = false);
+  selected.clear();
+  document.getElementById('bulk-bar').style.display = 'none';
+}
+function toggleSelectAll() {
+  const all = document.querySelectorAll('.issue-checkbox');
+  const allChecked = [...all].every(cb => cb.checked);
+  all.forEach(cb => cb.checked = !allChecked);
+  updateSelection();
+}
+async function bulkAction(status) {
+  if (!selected.size) return;
+  try {
+    await API.issues.bulkUpdate([...selected], status);
+    Toast.success(`${selected.size} issues → ${status.replace('_',' ')}`);
+    setTimeout(() => location.reload(), 800);
+  } catch (e) { Toast.error('Bulk update failed'); }
+}
+
+// Quick single status
+async function quickStatus(id, status, btn) {
+  btn.textContent = '...';
+  btn.disabled = true;
+  try {
+    await API.issues.updateStatus(id, status, '');
+    Toast.success(`#AP-${id} → ${status.replace('_',' ')}`);
+    const row = document.querySelector(`[data-issue-id="${id}"]`);
+    if (row) {
+      const pill = row.querySelector('.status-pill');
+      if (pill) { pill.textContent = formatStatus(status); pill.className = `badge badge-${statusColor(status)} status-pill`; }
+    }
+    btn.textContent = '✓';
+  } catch(e) { btn.textContent = '✕'; btn.disabled = false; }
+}
+
+// Drawer
+async function openIssueDrawer(id) {
+  Drawer.open('issue-drawer');
+  document.getElementById('drawer-fullpage-link').href = `/gov/issue/${id}`;
+  document.getElementById('drawer-resolve-btn').onclick = () => quickStatus(id,'resolved',document.getElementById('drawer-resolve-btn'));
+
+  try {
+    const data = await API.issues.get(id);
+    const issue = data;
+    const catIcons = {pothole:'🕳',water:'💧',sewage:'🚰',electricity:'⚡',streetlight:'💡',garbage:'🗑',traffic:'🚦',noise:'🔊',tree:'🌳',other:'📍'};
+    document.getElementById('drawer-title').textContent = `#AP-${issue.id} · ${(issue.tag||'').toUpperCase()} · ${issue.area}`;
+    document.getElementById('drawer-body').innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span class="badge badge-${statusColor(issue.status)}">${formatStatus(issue.status)}</span>
+          <span class="badge badge-${severityColor(issue.severity)}">${(issue.severity||'').toUpperCase()}</span>
+          <span class="sla-pill sla-${(issue.sla_state||'healthy').replace('_','-')}">${issue.sla_state?.replace('_',' ').toUpperCase() || 'HEALTHY'}</span>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:6px">Description</div>
+          <p style="font-size:13px;color:var(--ink-2);line-height:1.6">${issue.description || ''}</p>
+        </div>
+        <div class="grid-2">
+          <div><div style="font-size:11px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em">Area</div><div style="font-weight:600">${issue.area||''}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em">Category</div><div style="font-weight:600">${catIcons[issue.tag]||'📍'} ${(issue.tag||'').charAt(0).toUpperCase()+(issue.tag||'').slice(1)}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em">Upvotes</div><div style="font-family:'DM Sans',sans-serif;font-size:20px;font-weight:700">${issue.upvotes||0}</div></div>
+          <div><div style="font-size:11px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em">SLA Hours</div><div style="font-weight:600">${issue.sla_hours||'N/A'}h limit</div></div>
+        </div>
+        ${issue.landmark ? `<div><div style="font-size:11px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em">Landmark</div><div>${issue.landmark}</div></div>` : ''}
+        ${issue.contact  ? `<div><div style="font-size:11px;color:var(--ink-3);margin-bottom:2px;text-transform:uppercase;letter-spacing:.05em">Contact</div><div>${issue.contact}</div></div>` : ''}
+        ${issue.image    ? `<img src="${issue.image}" style="width:100%;border-radius:10px;margin-top:8px">` : ''}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <button class="btn btn-secondary btn-sm" onclick="quickStatus(${issue.id},'acknowledged',this)">✓ Acknowledge</button>
+          <button class="btn btn-secondary btn-sm" onclick="quickStatus(${issue.id},'in_progress',this)">▶ In Progress</button>
+          <button class="btn btn-primary btn-sm" onclick="quickStatus(${issue.id},'resolved',this)">✅ Resolve</button>
+          <button class="btn btn-danger btn-sm" onclick="quickStatus(${issue.id},'escalated',this)">🚨 Escalate</button>
+          ${issue.status === 'escalated' ? `<button class="btn btn-secondary btn-sm" onclick="deEscalate(${issue.id},this)" style="border-color:var(--amber);color:var(--amber)">↩ De-escalate</button>` : ''}
+        </div>
+      </div>`;
+  } catch (e) {
+    document.getElementById('drawer-body').innerHTML = `<div style="color:var(--red);padding:20px">Failed to load: ${e.message}</div>`;
+  }
+}
+
+async function deEscalate(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    await API.issues.deescalate(id, 'Manually de-escalated');
+    Toast.success(`#AP-${id} de-escalated → In Progress`);
+    btn.textContent = '✓ Done';
+    setTimeout(() => location.reload(), 800);
+  } catch(e) {
+    Toast.error('De-escalation failed');
+    btn.textContent = '↩ De-escalate'; btn.disabled = false;
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+{% block title %}Sign In — AreaPulse Portal{% endblock %}
+{% block body_class %}{% endblock %}
+
+{% block extra_css %}
+<style>
+.login-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: var(--bg-base);
+}
+/* Left panel — visual */
+.login-visual {
+  background: linear-gradient(145deg, #1A1208 0%, #1E3A5F 40%, #3D6B52 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 50px;
+  position: relative;
+  overflow: hidden;
+}
+.login-visual::before {
+  content: '';
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(196,123,43,.15) 0%, transparent 70%);
+  top: -100px;
+  right: -100px;
+}
+.login-visual::after {
+  content: '';
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(61,107,82,.25) 0%, transparent 70%);
+  bottom: -50px;
+  left: -50px;
+}
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 48px;
+  position: relative;
+  z-index: 1;
+}
+.login-brand-mark {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #C47B2B, #F5D9A0);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-family:'DM Sans',sans-serif;
+  font-size: 28px; font-weight: 700; color: #fff;
+  box-shadow: 0 8px 24px rgba(196,123,43,.4);
+}
+.login-brand-text {
+  color: #fff;
+}
+.login-brand-name {
+  font-family:'DM Sans',sans-serif;
+  font-size: 28px; font-weight: 700;
+}
+.login-brand-tagline {
+  font-size: 12px; color: rgba(255,255,255,.6);
+  letter-spacing: .04em;
+}
+.login-visual-stats {
+  display: flex; gap: 32px; position: relative; z-index: 1;
+  margin-bottom: 40px;
+}
+.login-stat { text-align: center; }
+.login-stat-num {
+  font-family:'DM Sans',sans-serif;
+  font-size: 36px; font-weight: 700; color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.login-stat-label { font-size: 11px; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .06em; margin-top: 2px; }
+.login-visual-quote {
+  max-width: 340px; text-align: center;
+  font-size: 15px; color: rgba(255,255,255,.75);
+  line-height: 1.7; position: relative; z-index: 1;
+  font-style: italic;
+}
+.login-visual-quote::before { content: '"'; font-size: 40px; color: rgba(196,123,43,.5); line-height: .5; display: block; margin-bottom: 8px; }
+
+/* Right panel — form */
+.login-form-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 50px;
+  background: var(--bg-surface);
+}
+.login-form-inner {
+  width: 100%;
+  max-width: 400px;
+}
+.login-form-title {
+  font-family:'DM Sans',sans-serif;
+  font-size: 28px; font-weight: 700; color: var(--ink);
+  margin-bottom: 6px;
+}
+.login-form-sub { font-size: 14px; color: var(--ink-3); margin-bottom: 32px; }
+
+/* Tab switcher */
+.login-tabs {
+  display: grid; grid-template-columns: 1fr 1fr;
+  background: var(--bg-subtle); border-radius: 12px; padding: 4px;
+  margin-bottom: 28px; gap: 4px;
+}
+.login-tab {
+  padding: 10px 16px;
+  border-radius: 9px;
+  font-size: 14px; font-weight: 500;
+  color: var(--ink-3); cursor: pointer;
+  transition: all 200ms ease;
+  text-align: center;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.login-tab:hover { color: var(--ink); background: var(--bg-hover); }
+.login-tab.active {
+  background: var(--bg-surface);
+  color: var(--accent); font-weight: 700;
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+.login-tab.active.gov  { color: var(--gov); }
+.login-tab.active.ngo  { color: var(--ngo); }
+body.gov-tab .login-tab.active { --accent: var(--gov); }
+body.ngo-tab .login-tab.active { --accent: var(--ngo); }
+
+.login-form { display: flex; flex-direction: column; gap: 16px; }
+.login-field label {
+  display: block; font-size: 12px; font-weight: 600;
+  color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em;
+  margin-bottom: 6px;
+}
+.login-input {
+  width: 100%; padding: 12px 16px;
+  border: 1.5px solid var(--border); border-radius: 12px;
+  background: var(--bg-base); color: var(--ink); font-size: 15px;
+  outline: none; transition: border-color 200ms, box-shadow 200ms;
+}
+.login-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--bg-surface);
+}
+.pin-input-row {
+  display: flex; gap: 8px; width: 100%;
+}
+.pin-digit {
+  flex: 1; min-width: 0; padding: 12px 4px;
+  border: 1.5px solid var(--border); border-radius: 10px;
+  background: var(--bg-base); color: var(--ink);
+  font-size: 20px; font-weight: 700;
+  text-align: center; outline: none;
+  transition: border-color 200ms, box-shadow 200ms;
+  font-family:'DM Sans',sans-serif;
+  box-sizing: border-box;
+}
+.pin-digit:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.login-submit {
+  width: 100%; padding: 13px 24px;
+  background: var(--gov); color: #fff;
+  border: none; border-radius: 12px;
+  font-size: 15px; font-weight: 700;
+  cursor: pointer;
+  transition: transform 200ms, box-shadow 200ms, background 200ms;
+  margin-top: 8px;
+}
+.login-submit:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(30,58,95,.3); background: #152C47; }
+.login-submit:active { transform: scale(.98); }
+.login-submit.ngo-submit { background: var(--ngo); }
+.login-submit.ngo-submit:hover { background: var(--ngo-mid); box-shadow: 0 6px 20px rgba(61,107,82,.3); }
+.login-error {
+  padding: 10px 14px;
+  background: var(--red-soft); color: var(--red);
+  border-radius: 8px; font-size: 13px; font-weight: 500;
+  border-left: 3px solid var(--red);
+}
+.demo-hint {
+  margin-top: 20px;
+  padding: 14px;
+  background: var(--bg-subtle);
+  border-radius: 10px;
+  font-size: 12px; color: var(--ink-3);
+  line-height: 1.7;
+}
+.demo-hint strong { color: var(--ink-2); }
+
+@media (max-width: 768px) {
+  .login-shell { grid-template-columns: 1fr; }
+  .login-visual { display: none; }
+  .login-form-panel { padding: 32px 20px; }
+  .login-form-inner { max-width: 100%; }
+  .pin-input-row { gap: 6px; }
+  .pin-digit { font-size: 18px; padding: 10px 2px; }
+}
+@media (max-width: 400px) {
+  .login-form-panel { padding: 24px 16px; }
+  .pin-digit { font-size: 16px; padding: 10px 0; }
+}
+</style>
+{% endblock %}
+
+{% block body %}
+<div class="login-shell">
+
+  {# ── LEFT: Visual Panel ──────────────────────────── #}
+  <div class="login-visual">
+    <div class="login-brand">
+      <div class="login-brand-mark">A</div>
+      <div class="login-brand-text">
+        <div class="login-brand-name">AreaPulse</div>
+        <div class="login-brand-tagline">Civic Intelligence Platform</div>
+      </div>
+    </div>
+
+    <div class="login-visual-stats">
+      <div class="login-stat">
+        <div class="login-stat-num">141</div>
+        <div class="login-stat-label">Active Issues</div>
+      </div>
+      <div class="login-stat">
+        <div class="login-stat-num">36</div>
+        <div class="login-stat-label">Delhi Areas</div>
+      </div>
+      <div class="login-stat">
+        <div class="login-stat-num">16</div>
+        <div class="login-stat-label">NGO Partners</div>
+      </div>
+    </div>
+
+    <div class="login-visual-quote">
+      Real-time civic intelligence for the officers and organisations who fix Delhi.
+    </div>
+  </div>
+
+  {# ── RIGHT: Form Panel ───────────────────────────── #}
+  <div class="login-form-panel">
+    <div class="login-form-inner animate-fadeUp">
+      <div class="login-form-title">Welcome back</div>
+      <div class="login-form-sub">Sign in to your AreaPulse portal account.</div>
+
+      {# Role tabs #}
+      <div class="login-tabs">
+        <div class="login-tab gov active" id="tab-gov" onclick="switchTab('gov')">
+          ⚖ Government
+        </div>
+        <div class="login-tab ngo" id="tab-ngo" onclick="switchTab('ngo')">
+          🌿 NGO Partner
+        </div>
+      </div>
+
+      {% if error %}
+      <div class="login-error">{{ error }}</div>
+      {% endif %}
+
+      <form class="login-form" method="POST" action="{{ url_for('auth_login') }}">
+        <input type="hidden" name="_tab" id="hidden-tab" value="gov">
+
+        <div class="login-field">
+          <label>Username</label>
+          <input class="login-input" type="text" name="username" id="username-input"
+                 placeholder="gov_rmc" autocomplete="username" required
+                 style="font-family:'DM Sans',sans-serif; font-size: 16px; letter-spacing: .02em;">
+        </div>
+
+        <div class="login-field">
+          <label>Security PIN</label>
+          <div class="pin-input-row" id="pin-row">
+            <input class="pin-digit" type="password" maxlength="1" id="p0" autocomplete="off">
+            <input class="pin-digit" type="password" maxlength="1" id="p1" autocomplete="off">
+            <input class="pin-digit" type="password" maxlength="1" id="p2" autocomplete="off">
+            <input class="pin-digit" type="password" maxlength="1" id="p3" autocomplete="off">
+          </div>
+          <input type="hidden" name="pin" id="pin-hidden">
+        </div>
+
+        <button type="submit" class="login-submit" id="submit-btn">
+          Enter Government Portal →
+        </button>
+      </form>
+
+      <div class="demo-hint">
+        <strong>Demo credentials:</strong><br>
+        Gov: <code>gov_rmc</code> / <code>gov_water</code> / <code>gov_electricity</code> / <code>gov_traffic</code><br>
+        NGO: <code>ngo_sanitation</code> / <code>ngo_water</code> / <code>ngo_civic</code> / <code>ngo_power</code><br>
+        PIN for all: <strong>0000</strong>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let currentTab = 'gov';
+
+// PIN digit auto-advance
+const digits = ['p0','p1','p2','p3'];
+digits.forEach((id, i) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', () => {
+    if (el.value && i < 3) document.getElementById(digits[i+1]).focus();
+    assemblePin();
+  });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !el.value && i > 0) {
+      document.getElementById(digits[i-1]).focus();
+    }
+  });
+});
+
+function assemblePin() {
+  const pin = digits.map(id => document.getElementById(id).value).join('');
+  document.getElementById('pin-hidden').value = pin;
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  document.getElementById('tab-gov').classList.toggle('active', tab === 'gov');
+  document.getElementById('tab-ngo').classList.toggle('active', tab === 'ngo');
+  document.getElementById('hidden-tab').value = tab;
+
+  const userInput = document.getElementById('username-input');
+  const submitBtn = document.getElementById('submit-btn');
+
+  if (tab === 'gov') {
+    userInput.placeholder = 'gov_rmc';
+    submitBtn.textContent = 'Enter Government Portal →';
+    submitBtn.className   = 'login-submit';
+  } else {
+    userInput.placeholder = 'ngo_sanitation';
+    submitBtn.textContent = 'Enter NGO Portal →';
+    submitBtn.className   = 'login-submit ngo-submit';
+  }
+  userInput.focus();
+}
+
+// Auto-fill first digit for demo
+document.getElementById('p0').addEventListener('paste', (e) => {
+  const data = e.clipboardData.getData('text').slice(0, 4);
+  data.split('').forEach((c, i) => {
+    if (digits[i]) document.getElementById(digits[i]).value = c;
+  });
+  assemblePin();
+  e.preventDefault();
+});
+</script>
+{% endblock %}

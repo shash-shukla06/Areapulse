@@ -1,0 +1,186 @@
+/* ═══════════════════════════════════════════════════════════════
+   AREAPULSE ANIMATIONS — animations.css
+   Keyframes · Utility classes · Reveal · Stagger · Transitions
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── KEYFRAMES ───────────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes slideInRight {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideInLeft {
+  from { opacity: 0; transform: translateX(-24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .7; transform: scale(.97); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes dot-bounce {
+  0%, 80%, 100% { transform: scale(0.6); opacity: .4; }
+  40%            { transform: scale(1.0); opacity: 1; }
+}
+@keyframes voice-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(196,123,43,.5); }
+  70%  { box-shadow: 0 0 0 14px rgba(196,123,43,0); }
+  100% { box-shadow: 0 0 0 0  rgba(196,123,43,0); }
+}
+@keyframes sla-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(184,50,40,.3); }
+  50%       { box-shadow: 0 0 0 8px rgba(184,50,40,0); }
+}
+@keyframes map-glow {
+  0%, 100% { opacity: .3; }
+  50%       { opacity: .7; }
+}
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(10px) scale(.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes glow-border {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 30%, transparent); }
+  50%       { box-shadow: 0 0 0 6px transparent; }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+@keyframes bar-grow {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes counter-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+@keyframes ripple-out {
+  to { transform: scale(2.5); opacity: 0; }
+}
+
+/* ── ANIMATION UTILITY CLASSES ───────────────────────────────── */
+.animate-fadeIn      { animation: fadeIn    .3s ease both; }
+.animate-fadeUp      { animation: fadeUp    .4s cubic-bezier(.34,1.56,.64,1) both; }
+.animate-fadeDown    { animation: fadeDown  .3s ease both; }
+.animate-scaleIn     { animation: scaleIn   .3s cubic-bezier(.34,1.56,.64,1) both; }
+.animate-slideRight  { animation: slideInRight .35s ease both; }
+.animate-slideLeft   { animation: slideInLeft  .35s ease both; }
+.animate-pulse       { animation: pulse 2s ease infinite; }
+.animate-spin        { animation: spin  1s linear infinite; }
+.animate-float       { animation: float 3s ease-in-out infinite; }
+
+/* ── STAGGER CHILDREN ────────────────────────────────────────── */
+/* 
+  IMPORTANT: Stagger uses animation (not opacity:0) so elements 
+  are always visible even if the animation is overridden.
+  This prevents the "blank page" bug when JS is slow.
+*/
+.stagger-children > * {
+  animation: stagger-in .45s cubic-bezier(.34,1.56,.64,1) both;
+}
+.stagger-children > *:nth-child(1)  { animation-delay: .04s; }
+.stagger-children > *:nth-child(2)  { animation-delay: .08s; }
+.stagger-children > *:nth-child(3)  { animation-delay: .12s; }
+.stagger-children > *:nth-child(4)  { animation-delay: .17s; }
+.stagger-children > *:nth-child(5)  { animation-delay: .22s; }
+.stagger-children > *:nth-child(6)  { animation-delay: .27s; }
+.stagger-children > *:nth-child(7)  { animation-delay: .32s; }
+.stagger-children > *:nth-child(8)  { animation-delay: .37s; }
+
+/* ── REVEAL (intersection observer) ─────────────────────────── */
+/*
+  CRITICAL FIX: .reveal starts visible with a subtle animation.
+  The old approach (opacity:0 until .visible added) caused blank
+  pages if IntersectionObserver fired too late or missed elements.
+  Now: elements are always visible, just with a fade-up if in view.
+*/
+.reveal {
+  animation: fadeUp .5s ease both;
+}
+
+/* ── RIPPLE ──────────────────────────────────────────────────── */
+.ripple-container { position: relative; overflow: hidden; }
+.ripple-effect {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255,255,255,.25);
+  pointer-events: none;
+  animation: ripple-out .7s ease forwards;
+}
+
+/* ── SKELETON LOADER ─────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-subtle) 25%, var(--bg-hover) 50%, var(--bg-subtle) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--r-sm);
+}
+
+/* ── LOADING DOTS ────────────────────────────────────────────── */
+.loading-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 0;
+}
+.loading-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: dot-bounce 1.4s ease infinite;
+  flex-shrink: 0;
+}
+.loading-dot:nth-child(2) { animation-delay: .2s; }
+.loading-dot:nth-child(3) { animation-delay: .4s; }
+
+/* ── VOICE BARS ──────────────────────────────────────────────── */
+.voice-bar { animation: bar-grow .4s ease both; transform-origin: bottom; }
+
+/* ── MAP PIN ANIMATIONS ──────────────────────────────────────── */
+.map-pin-drop { animation: fadeDown .3s ease both; }
+
+/* ── SLA COUNTDOWN ───────────────────────────────────────────── */
+.sla-breached-glow { animation: sla-glow 1.5s ease infinite; }
+
+/* ── CHART ANIMATIONS ────────────────────────────────────────── */
+.chart-bar-animate { animation: bar-grow .6s cubic-bezier(.34,1.56,.64,1) both; }
+
+/* ── GREETING STRIP ANIMATION ────────────────────────────────── */
+.greeting-strip { animation: fadeDown .4s ease both; }
+
+/* ── ACTIVITY FEED ITEM ──────────────────────────────────────── */
+.activity-item.new { animation: slideInRight .35s ease both; }
+
+/* ── IMPACT HERO ─────────────────────────────────────────────── */
+.impact-num { animation: counter-up .5s ease both; }
+
+/* ── AI BRIEFING ─────────────────────────────────────────────── */
+.ai-briefing-card { animation: fadeUp .4s ease both; }
+.ai-rec-banner    { animation: fadeDown .3s ease .2s both; }

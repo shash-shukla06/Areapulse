@@ -1,0 +1,174 @@
+{% extends "base_ngo.html" %}
+{% block title %}Impact — AreaPulse{% endblock %}
+{% block page_title %}Impact{% endblock %}
+
+{% block content %}
+<div class="page-body">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px">
+    <div>
+      <div style="font-size:22px;font-weight:700;color:var(--t1);letter-spacing:-.02em">Community Impact</div>
+      <div style="font-size:13px;color:var(--t3);margin-top:4px">Resolved issues, citizens helped, and measurable outcomes</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" onclick="generateDonorReport()">Generate AI Report</button>
+      <a href="{{ url_for('ngo_api_export_impact_pdf') }}" class="btn btn-primary btn-sm" target="_blank">⬇ Download PDF</a>
+    </div>
+  </div>
+
+  {# ── 3 IMPACT NUMBERS — clean, no colored borders ────────── #}
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:28px">
+    <div class="kpi-card" style="cursor:default">
+      <div class="kpi-label">Issues Resolved</div>
+      <div class="kpi-value" data-counter="{{ issues_resolved }}">{{ issues_resolved }}</div>
+      <div class="kpi-meta">Closed by your team</div>
+    </div>
+    <div class="kpi-card" style="cursor:default">
+      <div class="kpi-label">Citizens Helped</div>
+      <div class="kpi-value" data-counter="{{ citizens_helped }}">{{ citizens_helped }}</div>
+      <div class="kpi-meta">Estimated from upvotes</div>
+    </div>
+    <div class="kpi-card" style="cursor:default">
+      <div class="kpi-label">Community Upvotes</div>
+      <div class="kpi-value" data-counter="{{ total_upvotes }}">{{ total_upvotes }}</div>
+      <div class="kpi-meta">Citizen endorsements</div>
+    </div>
+  </div>
+
+  {# ── IMPACT TREND CHART — stock market style ─────────────── #}
+  <div class="card" style="margin-bottom:20px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div style="font-size:14px;font-weight:600;color:var(--t1)">Impact Over Time</div>
+        <div style="font-size:12px;color:var(--t3);margin-top:2px">Resolved issues and citizens helped per week</div>
+      </div>
+      <div style="display:flex;gap:16px;font-size:12px">
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:2px;background:#5B6AD0;display:inline-block;border-radius:2px"></span><span style="color:var(--t3)">Issues Resolved</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:2px;background:#10B981;display:inline-block;border-radius:2px;border-top:2px dashed #10B981;background:none"></span><span style="color:var(--t3)">Citizens Helped</span></div>
+      </div>
+    </div>
+    <div style="height:240px;position:relative;overflow:hidden"><canvas id="impact-trend"></canvas></div>
+  </div>
+
+  {# ── TWO COLUMN: timeline + donor report ──────────────────── #}
+  <div style="display:grid;grid-template-columns:1fr 360px;gap:20px">
+
+    {# Resolution timeline #}
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="font-size:14px;font-weight:600;color:var(--t1)">Resolution Timeline</div>
+        <span class="badge badge-indigo">{{ issues_resolved }} resolved</span>
+      </div>
+      {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+      {% for issue in resolved[:10] %}
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="width:32px;height:32px;border-radius:8px;background:var(--subtle);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">
+          {{ cat_icons.get(issue.tag, '📍') }}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:500;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            #AP-{{ issue.id }} · {{ issue.tag.title() }} in {{ issue.area }}
+          </div>
+          <div style="font-size:12px;color:var(--t3);margin-top:2px">{{ issue.description[:50] }}...</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:14px;font-weight:700;color:var(--t1)">{{ issue.upvotes or 0 }}</div>
+          <div style="font-size:10px;color:var(--t4)">upvotes</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="empty-state" style="padding:32px">
+        <div style="font-size:28px">🌱</div>
+        <h3>No resolved issues yet</h3>
+        <p>Commit to opportunities to start building impact.</p>
+        <a href="{{ url_for('ngo_opportunities') }}" class="btn btn-primary" style="margin-top:12px">Browse Opportunities →</a>
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Donor report #}
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div style="font-size:14px;font-weight:600;color:var(--t1)">Donor Report</div>
+          <button class="btn btn-ghost btn-sm" onclick="generateDonorReport()">↻ Generate</button>
+        </div>
+        <div id="donor-report-content" style="font-size:13px;color:var(--t2);line-height:1.7;min-height:80px">
+          <div style="padding:16px;background:var(--subtle);border-radius:8px;border:1px solid var(--border)">
+            <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--t4);margin-bottom:8px">Impact Summary</div>
+            <div style="font-size:13px;color:var(--t2);line-height:1.7">
+              <strong>{{ cu.name }}</strong> has resolved <strong>{{ issues_resolved }} civic issues</strong> across Delhi,
+              directly benefiting an estimated <strong>{{ citizens_helped }} citizens</strong>.
+              Focus areas: {{ cu.tags|join(', ') }}.
+            </div>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <a href="{{ url_for('ngo_api_export_impact_pdf') }}" class="btn btn-primary w-full" style="justify-content:center" target="_blank">⬇ Download PDF</a>
+        </div>
+      </div>
+
+      {# Category donut #}
+      <div class="card">
+        <div style="font-size:14px;font-weight:600;color:var(--t1);margin-bottom:14px">Impact by Category</div>
+        <div style="height:180px;position:relative;overflow:hidden"><canvas id="impact-donut"></canvas></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+window.addEventListener('load', function() {
+  function tryRender() {
+    if (typeof Chart === 'undefined') { setTimeout(tryRender, 50); return; }
+    renderAll();
+  }
+  function renderAll() {
+    document.querySelectorAll('[data-counter]').forEach(function(el){ animateCounter(el, parseInt(el.dataset.counter)||0); });
+    renderTrend();
+    renderDonut();
+  }
+  function renderTrend() {
+    var ctx = document.getElementById('impact-trend'); if (!ctx) return;
+    var weeks = ['6w ago','5w ago','4w ago','3w ago','2w ago','Last week','This week'];
+    var base = {{ issues_resolved }};
+    var resolved = weeks.map(function(_,i){ return Math.max(0, Math.round(base*(0.2+i*0.13))); }); resolved[6]=base;
+    var helped = resolved.map(function(v){ return v*3; });
+    new Chart(ctx, { type:'line', data:{ labels:weeks, datasets:[
+        { label:'Issues Resolved', data:resolved, borderColor:'#5B6AD0', backgroundColor:'rgba(91,106,208,.06)', borderWidth:2, pointRadius:3, tension:0.4, fill:true },
+        { label:'Citizens Helped', data:helped, borderColor:'#059669', backgroundColor:'transparent', borderWidth:2, borderDash:[4,4], pointRadius:3, tension:0.4 }] },
+      options:{ responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false}, animation:{duration:900,easing:'easeOutQuart'},
+        plugins:{ legend:{display:false}, tooltip:{ backgroundColor:'#111827', titleColor:'#fff', bodyColor:'#D1D5DB', padding:10, cornerRadius:6 }},
+        scales:{ x:{ grid:{display:false}, ticks:{font:{family:'Inter',size:11},color:'#9CA3AF'} }, y:{ grid:{color:'#F3F4F6'}, ticks:{font:{family:'Inter',size:11},color:'#9CA3AF'}, beginAtZero:true }}} });
+  }
+  function renderDonut() {
+    var ctx = document.getElementById('impact-donut'); if (!ctx) return;
+    var byTag = {};
+    {% for issue in resolved %}byTag['{{ issue.tag }}'] = (byTag['{{ issue.tag }}'] || 0) + 1;{% endfor %}
+    var labels = Object.keys(byTag).map(function(l){ return l.charAt(0).toUpperCase()+l.slice(1); });
+    var values = Object.values(byTag);
+    if (!values.length) return;
+    var colors = ['#5B6AD0','#059669','#D97706','#EF4444','#8B5CF6','#EC4899','#0EA5E9','#F59E0B','#10B981','#6366F1'];
+    new Chart(ctx, { type:'doughnut', data:{ labels:labels, datasets:[{ data:values, backgroundColor:colors.slice(0,values.length), borderColor:'#fff', borderWidth:3 }] },
+      options:{ responsive:true, maintainAspectRatio:false, cutout:'65%', plugins:{ legend:{ position:'right', labels:{ font:{family:'Inter',size:12}, color:'#6B7280', boxWidth:10, padding:12 }}, tooltip:{ backgroundColor:'#111827', titleColor:'#fff', bodyColor:'#D1D5DB', padding:10, cornerRadius:6 }}} });
+  }
+  setTimeout(tryRender, 100);
+});
+
+async function generateDonorReport() {
+  var el = document.getElementById('donor-report-content');
+  if (el) el.innerHTML = '<div class="loading-dots" style="padding:16px"><div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div></div>';
+  try {
+    var res = await fetch('/ngo/ai-chat', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ message: 'Write a concise 2-paragraph donor impact report. Be specific with numbers.', history: [] }) });
+    var text = '';
+    var reader = res.body.getReader(); var dec = new TextDecoder();
+    if (el) el.innerHTML = '<div style="font-size:13px;color:var(--t2);line-height:1.7" id="ai-r"></div>';
+    var t = document.getElementById('ai-r');
+    while (true) { var chunk = await reader.read(); if (chunk.done) break; dec.decode(chunk.value,{stream:true}).split('\n').forEach(function(l){ if (l.startsWith('data: ')) { try { var d=JSON.parse(l.slice(6)); text+=d.content||''; if(t) t.innerHTML=text.replace(/\n/g,'<br>'); } catch(e){} } }); }
+  } catch(e) { if (el) el.innerHTML = '<div style="color:var(--s-red);font-size:13px">Could not generate.</div>'; }
+}
+</script>
+{% endblock %}

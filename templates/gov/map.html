@@ -1,0 +1,112 @@
+{% extends "base_gov.html" %}
+{% block title %}Live Map — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}Live Map{% endblock %}
+
+{% block extra_css %}
+<style>
+.map-page { height: calc(100vh - var(--topbar-h)); position: relative; overflow: hidden; }
+.full-map  { width: 100%; height: 100%; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="map-page">
+  <div id="full-map" class="full-map"></div>
+
+  {# Floating filter panel #}
+  <div class="map-filter-panel" id="filter-panel">
+    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-2);margin-bottom:10px">Filter Issues</div>
+
+    <div class="input-group">
+      <label class="input-label">Category</label>
+      <select class="input" id="map-tag-filter" onchange="applyMapFilter()" style="padding:7px 10px">
+        <option value="">All</option>
+        {% for tag in ['pothole','water','sewage','electricity','streetlight','garbage','traffic','noise','tree','other'] %}
+        <option>{{ tag }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">SLA State</label>
+      <select class="input" id="map-sla-filter" onchange="applyMapFilter()" style="padding:7px 10px">
+        <option value="">All</option>
+        <option>breached</option>
+        <option>critical</option>
+        <option>at_risk</option>
+        <option>healthy</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Severity</label>
+      <select class="input" id="map-sev-filter" onchange="applyMapFilter()" style="padding:7px 10px">
+        <option value="">All</option>
+        <option>high</option>
+        <option>medium</option>
+        <option>low</option>
+      </select>
+    </div>
+    <button class="btn btn-secondary w-full btn-sm" onclick="resetFilter()">✕ Clear Filters</button>
+
+    <div class="divider"></div>
+
+    {# Legend #}
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);margin-bottom:8px">SLA Legend</div>
+    {% for label, color in [('Healthy','#3D6B52'),('At Risk','#C07018'),('Critical','#B83228'),('Breached','#9B2A6E')] %}
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:12px">
+      <span style="width:10px;height:10px;border-radius:50%;background:{{ color }};display:inline-block;flex-shrink:0"></span>
+      {{ label }}
+    </div>
+    {% endfor %}
+  </div>
+
+  {# FAB bar #}
+  <div class="map-fab-bar">
+    <button class="btn btn-secondary btn-sm" onclick="MapEngine.loadWardBoundaries(mapInstance)" title="Ward boundaries">🏘 Wards</button>
+    <button class="btn btn-secondary btn-sm" id="heatmap-btn" onclick="toggleHeatmap()" title="Toggle heatmap">🌡 Heatmap</button>
+    <button class="btn btn-secondary btn-sm" onclick="mapInstance.setView([28.6139,77.2090],11)" title="Reset view">🎯 Reset</button>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('filter-panel').style.display='block'">⚙ Filters</button>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script>
+const ALL_ISSUES = {{ issues_json | safe }};
+let mapInstance = null;
+let issueLayer  = null;
+let heatLayer   = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  mapInstance = MapEngine.initMap('full-map', {zoom:11});
+  if (mapInstance) {
+    issueLayer = MapEngine.renderIssues(mapInstance, ALL_ISSUES, 'gov');
+  }
+});
+
+function applyMapFilter() {
+  const tag = document.getElementById('map-tag-filter').value;
+  const sla = document.getElementById('map-sla-filter').value;
+  const sev = document.getElementById('map-sev-filter').value;
+
+  let filtered = ALL_ISSUES;
+  if (tag) filtered = filtered.filter(i => i.tag === tag);
+  if (sla) filtered = filtered.filter(i => i.sla_state === sla);
+  if (sev) filtered = filtered.filter(i => i.severity === sev);
+
+  issueLayer = MapEngine.renderIssues(mapInstance, filtered, 'gov', issueLayer);
+  Toast.info(`Showing ${filtered.length} issues`);
+}
+
+function resetFilter() {
+  ['map-tag-filter','map-sla-filter','map-sev-filter'].forEach(id => document.getElementById(id).value = '');
+  issueLayer = MapEngine.renderIssues(mapInstance, ALL_ISSUES, 'gov', issueLayer);
+}
+
+function toggleHeatmap() {
+  heatLayer = MapEngine.toggleHeatmap(mapInstance, ALL_ISSUES, heatLayer);
+  const btn = document.getElementById('heatmap-btn');
+  btn.textContent = heatLayer ? '🌡 Hide Heat' : '🌡 Heatmap';
+}
+</script>
+{% endblock %}

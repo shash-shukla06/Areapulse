@@ -1,0 +1,200 @@
+{% extends "base_gov.html" %}
+{% block title %}SLA Board — AreaPulse{% endblock %}
+{% block page_title %}SLA Board{% endblock %}
+
+{% block content %}
+<div class="page-body">
+
+  {# ── HEADER ───────────────────────────────────────────────── #}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px">
+    <div>
+      <div style="font-size:22px;font-weight:700">SLA Board</div>
+      <div style="font-size:14px;color:var(--ink-3);margin-top:4px">Track resolution deadlines across all open issues</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-secondary" onclick="location.reload()">↻ Refresh</button>
+      <a href="{{ url_for('gov_queue') }}?status=escalated" class="btn btn-secondary" style="color:var(--red);border-color:var(--red-soft)">🚨 View Escalated</a>
+    </div>
+  </div>
+
+  {# ── 4 STATUS COUNTS — horizontal, compact ─────────────────── #}
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px">
+    {% for lane, color, icon, label in [
+      ('healthy','green','✓','Healthy'),
+      ('at_risk','amber','⚠','At Risk'),
+      ('critical','red','🔴','Critical'),
+      ('breached','magenta','💥','Breached')
+    ] %}
+    <div style="background:var(--bg-surface);border:1px solid var(--border);border-top:3px solid var(--{{ color }});border-radius:var(--r-lg);padding:18px 20px;display:flex;align-items:center;gap:14px">
+      <div style="font-size:28px;font-weight:800;color:var(--{{ color }});font-variant-numeric:tabular-nums">{{ lanes[lane]|length }}</div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--{{ color }})">{{ icon }} {{ label }}</div>
+        <div style="font-size:12px;color:var(--ink-4);margin-top:2px">{{ lanes[lane]|length }} issue{{ 's' if lanes[lane]|length != 1 }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── SLA NORMS REFERENCE ──────────────────────────────────── #}
+  <div class="card" style="margin-bottom:28px;padding:16px 24px">
+    <div style="font-size:13px;font-weight:700;color:var(--ink-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:10px">SLA Limits</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+      {% for tag, h in sla_hours.items() %}
+      <span style="display:inline-flex;align-items:center;gap:5px;padding:5px 12px;background:var(--bg-subtle);border-radius:var(--r-full);font-size:13px">
+        {{ cat_icons.get(tag,'📍') }} <strong>{{ tag.title() }}</strong> <span style="color:var(--ink-3)">{{ h }}h</span>
+      </span>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── ISSUES LIST — only non-empty sections shown ──────────── #}
+  {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+
+  {# BREACHED — always shown first, most urgent #}
+  {% if lanes.breached %}
+  <div class="card" style="margin-bottom:20px;border-top:3px solid var(--magenta)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span class="sla-dot" style="background:var(--magenta);width:10px;height:10px;border-radius:50%"></span>
+      <span style="font-size:16px;font-weight:700;color:var(--magenta)">💥 Breached — {{ lanes.breached|length }} issues overdue</span>
+    </div>
+    {% for issue in lanes.breached %}
+    <div class="urgent-row" onclick="window.location='{{ url_for('gov_issue_detail', issue_id=issue.id) }}'">
+      <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#AP-{{ issue.id }} · {{ issue.area }}</div>
+        <div style="font-size:13px;color:var(--ink-3);margin-top:2px">{{ issue.tag.title() }} · {{ issue.severity }}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:15px;font-weight:800;color:var(--magenta)">+{{ issue.sla_overdue_hours|round(1) }}h</div>
+        <div style="font-size:11px;color:var(--ink-4)">overdue</div>
+      </div>
+      <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+        <button class="quick-btn quick-btn-esc" onclick="escalateIssue({{ issue.id }},this)">🚨</button>
+        {% if issue.status == 'escalated' %}
+        <button class="quick-btn" style="background:var(--amber-soft);color:var(--amber)" onclick="deEscalateIssue({{ issue.id }},this)">↩</button>
+        {% endif %}
+        <button class="quick-btn quick-btn-prog" onclick="quickStatus({{ issue.id }},'in_progress',this)">▶</button>
+        <button class="quick-btn quick-btn-done" onclick="quickStatus({{ issue.id }},'resolved',this)">✓</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# CRITICAL #}
+  {% if lanes.critical %}
+  <div class="card" style="margin-bottom:20px;border-top:3px solid var(--red)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span class="sla-dot" style="background:var(--red);width:10px;height:10px;border-radius:50%"></span>
+      <span style="font-size:16px;font-weight:700;color:var(--red)">🔴 Critical — {{ lanes.critical|length }} issues</span>
+    </div>
+    {% for issue in lanes.critical %}
+    <div class="urgent-row" onclick="window.location='{{ url_for('gov_issue_detail', issue_id=issue.id) }}'">
+      <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#AP-{{ issue.id }} · {{ issue.area }}</div>
+        <div style="font-size:13px;color:var(--ink-3);margin-top:2px">{{ issue.tag.title() }} · {{ issue.severity }}</div>
+      </div>
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-size:15px;font-weight:800;color:var(--red)">{{ issue.get('remaining_hours',0)|round(0)|int }}h left</div>
+      </div>
+      <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+        <button class="quick-btn quick-btn-esc" onclick="escalateIssue({{ issue.id }},this)">🚨</button>
+        <button class="quick-btn quick-btn-prog" onclick="quickStatus({{ issue.id }},'in_progress',this)">▶</button>
+        <button class="quick-btn quick-btn-done" onclick="quickStatus({{ issue.id }},'resolved',this)">✓</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# AT RISK #}
+  {% if lanes.at_risk %}
+  <div class="card" style="margin-bottom:20px;border-top:3px solid var(--amber)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      <span class="sla-dot" style="background:var(--amber);width:10px;height:10px;border-radius:50%"></span>
+      <span style="font-size:16px;font-weight:700;color:var(--amber)">⚠ At Risk — {{ lanes.at_risk|length }} issues</span>
+    </div>
+    {% for issue in lanes.at_risk %}
+    <div class="urgent-row" onclick="window.location='{{ url_for('gov_issue_detail', issue_id=issue.id) }}'">
+      <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#AP-{{ issue.id }} · {{ issue.area }}</div>
+        <div style="font-size:13px;color:var(--ink-3);margin-top:2px">{{ issue.tag.title() }}</div>
+      </div>
+      <div style="font-size:15px;font-weight:700;color:var(--amber)">{{ issue.get('remaining_hours',0)|round(0)|int }}h left</div>
+      <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+        <button class="quick-btn quick-btn-prog" onclick="quickStatus({{ issue.id }},'in_progress',this)">▶</button>
+        <button class="quick-btn quick-btn-done" onclick="quickStatus({{ issue.id }},'resolved',this)">✓</button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {# HEALTHY — show collapsed summary, not full list #}
+  <div class="card" style="border-top:3px solid var(--green)">
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span class="sla-dot" style="background:var(--green);width:10px;height:10px;border-radius:50%"></span>
+        <span style="font-size:16px;font-weight:700;color:var(--green)">✓ Healthy — {{ lanes.healthy|length }} issues on track</span>
+      </div>
+      {% if lanes.healthy %}
+      <button onclick="toggleHealthy()" id="healthy-toggle-btn" class="btn btn-ghost btn-sm">Show ↓</button>
+      {% endif %}
+    </div>
+    <div id="healthy-list" style="display:none;margin-top:16px">
+      {% for issue in lanes.healthy %}
+      <div class="urgent-row" onclick="window.location='{{ url_for('gov_issue_detail', issue_id=issue.id) }}'">
+        <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#AP-{{ issue.id }} · {{ issue.area }}</div>
+          <div style="font-size:13px;color:var(--ink-3)">{{ issue.tag.title() }}</div>
+        </div>
+        <div style="font-size:14px;color:var(--green)">{{ issue.get('remaining_hours',0)|round(0)|int }}h left</div>
+      </div>
+      {% else %}
+      <div style="font-size:14px;color:var(--ink-3);padding:12px 0">No healthy issues.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+function toggleHealthy() {
+  const list = document.getElementById('healthy-list');
+  const btn  = document.getElementById('healthy-toggle-btn');
+  const open = list.style.display !== 'none';
+  list.style.display = open ? 'none' : 'block';
+  btn.textContent = open ? 'Show ↓' : 'Hide ↑';
+}
+async function quickStatus(id, status, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    await API.issues.updateStatus(id, status, '');
+    Toast.success(`#AP-${id} → ${status.replace('_',' ')}`);
+    setTimeout(() => location.reload(), 700);
+  } catch(e) { btn.textContent = '✕'; btn.disabled = false; Toast.error('Failed'); }
+}
+async function escalateIssue(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    await API.issues.escalate(id, 'manual');
+    Toast.success(`#AP-${id} escalated`);
+    setTimeout(() => location.reload(), 700);
+  } catch(e) { btn.textContent = '✕'; btn.disabled = false; }
+}
+async function deEscalateIssue(id, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    await API.issues.deescalate(id, 'De-escalated from SLA board');
+    Toast.success(`#AP-${id} de-escalated`);
+    setTimeout(() => location.reload(), 700);
+  } catch(e) { btn.textContent = '✕'; btn.disabled = false; }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,282 @@
+{% extends "base_gov.html" %}
+{% block title %}Dashboard — AreaPulse{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-body">
+
+  {# ── GREETING ─────────────────────────────────────────────── #}
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:28px">
+    <div>
+      <div style="font-size:22px;font-weight:700;color:var(--ink)">Good morning, {{ cu.name }} 👋</div>
+      <div style="font-size:14px;color:var(--ink-3);margin-top:4px">{{ cu.dept }} &nbsp;·&nbsp; {{ open_count }} issues need attention today</div>
+    </div>
+    <div style="display:flex;gap:10px">
+      <a href="{{ url_for('gov_queue') }}" class="btn btn-secondary">View Queue</a>
+      <a href="{{ url_for('gov_ai_assistant') }}" class="btn btn-primary">🤖 AI Copilot</a>
+    </div>
+  </div>
+
+  {# ── 3 KPI CARDS — equal, clean, no sparkline clutter ────── #}
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:28px">
+
+    <div class="stat-card" style="border-top:3px solid var(--red)" onclick="window.location='{{ url_for('gov_sla') }}'">
+      <div class="stat-label" style="color:var(--red)">SLA Breached</div>
+      <div class="stat-number" style="color:var(--red)" data-counter="{{ breached_count }}">{{ breached_count }}</div>
+      <div class="stat-trend" style="color:var(--red);margin-top:8px">⚠ Immediate action required</div>
+    </div>
+
+    <div class="stat-card" onclick="window.location='{{ url_for('gov_queue') }}'">
+      <div class="stat-label">Total Open</div>
+      <div class="stat-number" data-counter="{{ open_count }}">{{ open_count }}</div>
+      <div class="stat-trend up" style="margin-top:8px">Active issues in your dept</div>
+    </div>
+
+    <div class="stat-card" style="border-top:3px solid var(--green)" onclick="window.location='{{ url_for('gov_queue') }}?status=resolved'">
+      <div class="stat-label" style="color:var(--green)">Resolved</div>
+      <div class="stat-number" style="color:var(--green)" data-counter="{{ resolved_count }}">{{ resolved_count }}</div>
+      <div class="stat-trend up" style="color:var(--green);margin-top:8px">✓ Closed this period</div>
+    </div>
+
+  </div>
+
+  {# ── AI BRIEFING ──────────────────────────────────────────── #}
+  <div class="card" style="margin-bottom:28px;border-left:4px solid var(--gov)">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <span style="font-size:18px">✨</span>
+      <span style="font-size:15px;font-weight:700">AI Morning Briefing</span>
+      <span class="badge badge-gov" style="margin-left:auto">Groq Llama</span>
+    </div>
+    <div id="ai-briefing-text" style="font-size:14px;color:var(--ink-2);line-height:1.8;min-height:40px">
+      <div class="loading-dots">
+        <div class="loading-dot"></div><div class="loading-dot"></div><div class="loading-dot"></div>
+        <span style="font-size:13px;color:var(--ink-3);margin-left:8px">Analysing your issues...</span>
+      </div>
+    </div>
+  </div>
+
+  {# ── ESCALATION TOGGLE ────────────────────────────────────── #}
+  <div class="card" style="margin-bottom:28px;padding:18px 24px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div>
+        <div style="font-size:15px;font-weight:700">🚨 Escalation Mode</div>
+        <div style="font-size:13px;color:var(--ink-3);margin-top:3px">{{ breached_count }} issues breached SLA — show them now</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span id="esc-label" style="font-size:13px;color:var(--ink-3)">Off</span>
+        <button id="esc-toggle" onclick="toggleEscalation()" style="width:52px;height:28px;border-radius:14px;border:none;cursor:pointer;background:var(--border);position:relative;transition:background .2s">
+          <span id="esc-thumb" style="position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 4px rgba(0,0,0,.2)"></span>
+        </button>
+        <a href="{{ url_for('gov_sla') }}" class="btn btn-secondary btn-sm">SLA Board →</a>
+      </div>
+    </div>
+    <div id="gov-escalation-panel" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border)">
+      {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+      {% for issue in urgent[:6] %}
+      <div class="urgent-row" onclick="window.location='{{ url_for('gov_issue_detail', issue_id=issue.id) }}'">
+        <span class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</span>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">#AP-{{ issue.id }} — {{ issue.description[:60] }}...</div>
+          <div style="font-size:13px;color:var(--ink-3);margin-top:2px">{{ issue.area }} · {{ issue.tag }}</div>
+        </div>
+        <span class="sla-pill sla-{{ issue.sla_state|replace('_','-') }}">
+          <span class="sla-dot"></span>+{{ issue.sla_overdue_hours|round(1) }}h overdue
+        </span>
+        <button class="quick-btn quick-btn-done" onclick="event.stopPropagation();quickResolve({{ issue.id }},this)">✓ Resolve</button>
+      </div>
+      {% else %}
+      <div style="font-size:14px;color:var(--green)">✅ No breached issues right now.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── URGENT QUEUE (full width, clean list) ────────────────── #}
+  <div class="card" style="margin-bottom:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div>
+        <div style="font-size:17px;font-weight:700">⚡ Urgent Issues</div>
+        <div style="font-size:13px;color:var(--ink-3);margin-top:2px">Sorted by SLA breach severity</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="badge badge-red">{{ sla_summary.breached or 0 }} Breached</span>
+        <span class="badge badge-amber">{{ sla_summary.critical or 0 }} Critical</span>
+        <a href="{{ url_for('gov_queue') }}" class="btn btn-ghost btn-sm">View all →</a>
+      </div>
+    </div>
+    {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+    {% for issue in urgent %}
+    <div class="urgent-row" onclick="window.location='{{ url_for('gov_issue_detail', issue_id=issue.id) }}'">
+      <div class="category-icon cat-{{ issue.tag }}">{{ cat_icons.get(issue.tag,'📍') }}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+          #AP-{{ issue.id }} — {{ issue.description[:65] }}...
+        </div>
+        <div style="font-size:13px;color:var(--ink-3);margin-top:3px">{{ issue.area }} &nbsp;·&nbsp; {{ issue.tag.title() }} &nbsp;·&nbsp; {{ issue.severity.title() }}</div>
+      </div>
+      <span class="sla-pill sla-{{ issue.sla_state|replace('_','-') }}">
+        <span class="sla-dot"></span>
+        {% if issue.sla_state == 'breached' %}+{{ issue.sla_overdue_hours|round(1) }}h overdue
+        {% else %}{{ issue.get('remaining_hours',0)|round(0)|int }}h left{% endif %}
+      </span>
+      <div style="display:flex;gap:6px">
+        <button class="quick-btn quick-btn-prog" onclick="event.stopPropagation();quickStatus({{ issue.id }},'in_progress',this)">▶ Start</button>
+        <button class="quick-btn quick-btn-done" onclick="event.stopPropagation();quickStatus({{ issue.id }},'resolved',this)">✓ Done</button>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty-state" style="padding:32px">
+      <div style="font-size:36px">✅</div>
+      <h3>No urgent issues</h3>
+      <p>All SLA deadlines are on track.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── SLA OVERVIEW + MAP side by side ─────────────────────── #}
+  <div style="display:grid;grid-template-columns:1fr 2fr;gap:20px;margin-bottom:28px">
+
+    {# SLA Compliance — simple stat breakdown, no broken chart #}
+    <div class="card">
+      <div style="font-size:17px;font-weight:700;margin-bottom:20px">SLA Status</div>
+      {% for state, color, label, count in [
+        ('healthy','green','✓ Healthy', sla_summary.healthy or 0),
+        ('at_risk','amber','⚠ At Risk', sla_summary.at_risk or 0),
+        ('critical','red','🔴 Critical', sla_summary.critical or 0),
+        ('breached','magenta','💥 Breached', sla_summary.breached or 0),
+      ] %}
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="sla-dot" style="background:var(--{{ color }});width:10px;height:10px;border-radius:50%;display:inline-block;flex-shrink:0"></span>
+          <span style="font-size:14px;font-weight:500">{{ label }}</span>
+        </div>
+        <span style="font-size:22px;font-weight:800;color:var(--{{ color }});font-variant-numeric:tabular-nums">{{ count }}</span>
+      </div>
+      {% endfor %}
+      <div style="margin-top:16px">
+        <a href="{{ url_for('gov_sla') }}" class="btn btn-secondary w-full" style="justify-content:center;font-size:14px">Open SLA Board →</a>
+      </div>
+    </div>
+
+    {# Live Map #}
+    <div class="card" style="padding:0;overflow:hidden">
+      <div style="padding:18px 24px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:17px;font-weight:700">Live Issue Map</div>
+        <a href="{{ url_for('gov_map') }}" class="btn btn-ghost btn-sm">Full Map →</a>
+      </div>
+      <div id="mini-map" style="height:280px"></div>
+    </div>
+
+  </div>
+
+  {# ── CATEGORY BREAKDOWN — simple table, no chart ──────────── #}
+  <div class="card" style="margin-bottom:28px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <div style="font-size:17px;font-weight:700">Issues by Category</div>
+      <a href="{{ url_for('gov_analytics') }}" class="btn btn-ghost btn-sm">Full Analytics →</a>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0">
+      {% set cat_icons = {'pothole':'🕳','water':'💧','sewage':'🚰','electricity':'⚡','streetlight':'💡','garbage':'🗑','traffic':'🚦','noise':'🔊','tree':'🌳','other':'📍'} %}
+      {% set max_count = by_tag.values()|max if by_tag else 1 %}
+      {% for tag, count in by_tag.items() %}
+      <div style="display:flex;align-items:center;gap:14px;padding:12px 0;border-bottom:1px solid var(--border);cursor:pointer"
+           onclick="window.location='{{ url_for('gov_queue') }}?tag={{ tag }}'">
+        <span class="category-icon cat-{{ tag }}" style="flex-shrink:0">{{ cat_icons.get(tag,'📍') }}</span>
+        <span style="font-size:14px;font-weight:500;width:110px;flex-shrink:0">{{ tag.title() }}</span>
+        <div style="flex:1;height:10px;background:var(--bg-subtle);border-radius:var(--r-full);overflow:hidden">
+          <div style="height:100%;background:var(--gov);border-radius:var(--r-full);opacity:.7;width:{{ [(count/max_count*100)|round(1),100]|min }}%;transition:width .5s ease"></div>
+        </div>
+        <span style="font-size:16px;font-weight:700;min-width:32px;text-align:right;font-variant-numeric:tabular-nums">{{ count }}</span>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--ink-4)" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── RECENT ACTIVITY ──────────────────────────────────────── #}
+  <div class="card">
+    <div style="font-size:17px;font-weight:700;margin-bottom:20px">Recent Activity</div>
+    {% for issue in recent %}
+    <div class="activity-item">
+      <div class="activity-icon" style="background:var(--{{ 'green' if issue.status == 'resolved' else ('red' if issue.status == 'escalated' else 'blue') }}-soft);color:var(--{{ 'green' if issue.status == 'resolved' else ('red' if issue.status == 'escalated' else 'blue') }})">
+        {{ '✓' if issue.status == 'resolved' else ('🚨' if issue.status == 'escalated' else '📋') }}
+      </div>
+      <div style="flex:1">
+        <span style="font-weight:600">{{ issue.tag.title() }}</span> in {{ issue.area }}
+        <span style="color:var(--ink-3)"> — {{ issue.status.replace('_',' ').title() }}</span>
+      </div>
+      <div style="font-size:13px;color:var(--ink-4)">{{ (loop.index * 15) }}m ago</div>
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/realtime.js') }}"></script>
+<script src="{{ url_for('static', filename='js/export.js') }}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Animate counters
+  document.querySelectorAll('[data-counter]').forEach(el => {
+    animateCounter(el, parseInt(el.dataset.counter) || 0);
+  });
+
+  // Map — deferred so page paints first
+  setTimeout(async () => {
+    const map = MapEngine.initMap('mini-map', { zoom: 11 });
+    if (map) {
+      try {
+        const resp = await fetch('/gov/api/issues?limit=100');
+        const data = await resp.json();
+        MapEngine.renderIssues(map, (data.issues||[]).filter(i=>i.lat&&i.lng), 'gov');
+      } catch(e) {}
+    }
+  }, 200);
+
+  // AI Briefing — deferred
+  setTimeout(async () => {
+    try {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 12000);
+      const res  = await fetch('/gov/api/ai-briefing', {method:'POST',headers:{'Content-Type':'application/json'},body:'{}',signal:ctrl.signal});
+      const data = await res.json();
+      document.getElementById('ai-briefing-text').innerHTML = data.briefing || 'AI briefing not available.';
+    } catch(e) {
+      document.getElementById('ai-briefing-text').innerHTML = 'AI briefing unavailable. Set GROQ_API_KEY for live insights.';
+    }
+  }, 800);
+
+  RealtimeEngine.init('gov');
+});
+
+async function quickStatus(id, status, btn) {
+  btn.textContent = '...'; btn.disabled = true;
+  try {
+    await API.issues.updateStatus(id, status, '');
+    Toast.success(`#AP-${id} → ${status.replace('_',' ')}`);
+    btn.textContent = '✓';
+    setTimeout(() => location.reload(), 800);
+  } catch(e) { btn.textContent = '✕'; btn.disabled = false; Toast.error('Update failed'); }
+}
+
+async function quickResolve(id, btn) { quickStatus(id, 'resolved', btn); }
+
+// Escalation toggle
+let escOn = false;
+function toggleEscalation() {
+  escOn = !escOn;
+  const btn   = document.getElementById('esc-toggle');
+  const thumb = document.getElementById('esc-thumb');
+  const label = document.getElementById('esc-label');
+  const panel = document.getElementById('gov-escalation-panel');
+  if (btn)   btn.style.background = escOn ? 'var(--red)' : 'var(--border)';
+  if (thumb) thumb.style.left     = escOn ? '27px' : '3px';
+  if (label) { label.textContent  = escOn ? 'On' : 'Off'; label.style.color = escOn ? 'var(--red)' : 'var(--ink-3)'; }
+  if (panel) panel.style.display  = escOn ? 'block' : 'none';
+  if (escOn) Toast.warning('Escalation mode — breached issues shown below');
+}
+</script>
+{% endblock %}

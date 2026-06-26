@@ -1,0 +1,108 @@
+{% extends "base_gov.html" %}
+{% block title %}AI Copilot — AreaPulse Gov Portal{% endblock %}
+{% block page_title %}AI Copilot{% endblock %}
+
+{% block content %}
+<div class="page-body" style="padding-bottom:0;height:calc(100vh - var(--topbar-h));display:flex;flex-direction:column">
+
+  {# Header #}
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-shrink:0">
+    <div>
+      <div style="font-size:20px;font-weight:700;color:var(--ink)">🤖 AI Copilot</div>
+      <div style="font-size:13px;color:var(--ink-3);margin-top:2px">Powered by Groq Llama 3.3 · Aware of your live issue data</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-secondary btn-sm" id="voice-toggle" onclick="toggleVoice()">🎤 Voice Mode</button>
+      <button class="btn btn-ghost btn-sm" onclick="clearChat()">🗑 Clear</button>
+    </div>
+  </div>
+
+  {# Split layout #}
+  <div class="grid-40-60" style="flex:1;min-height:0;gap:20px">
+
+    {# Chat panel (left, 40%) #}
+    <div class="ai-chat-panel" style="height:100%;max-height:calc(100vh - 180px)">
+      <div class="ai-chat-header">
+        <div class="ai-avatar">✨</div>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">AreaPulse AI</div>
+          <div style="font-size:11px;color:var(--ink-3)">Government Copilot · Groq Llama 3.3</div>
+        </div>
+        <div style="margin-left:auto">
+          <span class="badge badge-green" style="font-size:10px">● Live</span>
+        </div>
+      </div>
+
+      <div class="ai-messages" id="ai-messages"></div>
+
+      {# Quick shortcut chips #}
+      <div class="ai-shortcuts">
+        {% for shortcut, label in [
+          ('Summarize all breached SLA issues','🚨 Breaches'),
+          ('Which area has the most complaints this week?','📍 Hotspot'),
+          ('Draft a WhatsApp message for issue AP-1001','📱 WhatsApp'),
+          ('Give me a resolution rate trend analysis','📊 Trend'),
+          ('List all high-severity open issues','⚠ High Sev'),
+        ] %}
+        <button class="ai-shortcut" data-shortcut="{{ shortcut }}">
+          {{ label }}
+        </button>
+        {% endfor %}
+      </div>
+
+      <div class="ai-chat-input">
+        <textarea class="ai-chat-textarea" id="ai-input" rows="1"
+                  placeholder="Ask about issues, SLA status, ward analysis..."></textarea>
+        <button id="ai-voice-btn" class="btn btn-icon btn-secondary" title="Voice input (Ctrl+Shift+V)">🎤</button>
+        <button id="ai-send-btn" class="btn btn-primary btn-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
+    </div>
+
+    {# Workspace panel (right, 60%) #}
+    <div style="background:var(--bg-subtle);border-radius:var(--r-lg);border:1px solid var(--border);overflow:auto;max-height:calc(100vh - 180px)">
+      <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:var(--bg-surface);border-radius:var(--r-lg) var(--r-lg) 0 0">
+        <span style="font-size:13px;font-weight:700;color:var(--ink-2)">🖥 Workspace</span>
+        <span style="font-size:12px;color:var(--ink-4)">AI renders maps, charts & reports here</span>
+      </div>
+      <div id="ai-workspace" style="padding:20px;min-height:300px">
+        <div class="empty-state">
+          <div style="font-size:40px">🗺</div>
+          <h3>Workspace</h3>
+          <p>Ask the AI to show a map, generate a chart, or draft a WhatsApp message — it will appear here.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script src="{{ url_for('static', filename='js/charts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/map.js') }}"></script>
+<script src="{{ url_for('static', filename='js/voice.js') }}"></script>
+<script src="{{ url_for('static', filename='js/ai-assistant.js') }}"></script>
+<script>
+let voiceOn = false;
+const aiAssistant = new AIAssistant('gov', 'ai-messages', 'ai-workspace');
+window.aiAssistant = aiAssistant;
+
+function toggleVoice() {
+  voiceOn = !voiceOn;
+  aiAssistant.setVoiceMode(voiceOn);
+  const btn = document.getElementById('voice-toggle');
+  btn.textContent  = voiceOn ? '🎤 Voice ON' : '🎤 Voice Mode';
+  btn.style.background = voiceOn ? 'var(--accent)' : '';
+  btn.style.color  = voiceOn ? '#fff' : '';
+  Toast.info(voiceOn ? 'Voice mode enabled' : 'Voice mode disabled');
+}
+function clearChat() {
+  document.getElementById('ai-messages').innerHTML = '';
+  document.getElementById('ai-workspace').innerHTML = `<div class="empty-state"><div style="font-size:40px">🗺</div><h3>Workspace</h3><p>Ask the AI to show a map, chart, or draft a message.</p></div>`;
+  aiAssistant.history = [];
+}
+</script>
+{% endblock %}
