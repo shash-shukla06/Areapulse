@@ -18,98 +18,13 @@ except ImportError:
 # ── DATABASE: import from existing AreaPulse project ─────────
 # Try to import from the parent AreaPulse directory first,
 # then fall back to bundled stub if not found.
-_parent_dir = os.path.join(os.path.dirname(__file__), '..', 'Areapulse')
-if os.path.isdir(_parent_dir):
-    sys.path.insert(0, _parent_dir)
-
-try:
-    from database import (
-        init_db, get_issues, get_issue_by_id, update_issue_status,
-        get_all_ngos, escalate_issue, get_issues_for_gov,
-        SLA_HOURS, CROWD_ESCALATION_THRESHOLD,
-    )
-    _DB_AVAILABLE = True
-    print('[portal] ✓ Connected to AreaPulse database module')
-except ImportError:
-    _DB_AVAILABLE = False
-    print('[portal] ⚠ AreaPulse database not found — using demo stub data')
-
-    # ── STUB DATA for standalone demo ────────────────────────
-    _STUB_ISSUES = [
-        {'id': 1001, 'area': 'Rohini', 'tag': 'pothole', 'severity': 'high',
-         'description': 'Large pothole on Sector 7 main road', 'status': 'open',
-         'upvotes': 28, 'timestamp': time.time() - 3600*5, 'lat': 28.7493, 'lng': 77.1000,
-         'user_name': 'priya', 'assigned_to': None, 'image': None},
-        {'id': 1002, 'area': 'Karol Bagh', 'tag': 'water', 'severity': 'high',
-         'description': 'Water supply contaminated near metro exit', 'status': 'acknowledged',
-         'upvotes': 41, 'timestamp': time.time() - 3600*30, 'lat': 28.6520, 'lng': 77.1904,
-         'user_name': 'arjun', 'assigned_to': 'gov_water', 'image': None},
-        {'id': 1003, 'area': 'Lajpat Nagar', 'tag': 'electricity', 'severity': 'medium',
-         'description': 'Streetlights out for 3 days near Central Market', 'status': 'in_progress',
-         'upvotes': 15, 'timestamp': time.time() - 3600*50, 'lat': 28.5700, 'lng': 77.2373,
-         'user_name': 'meera', 'assigned_to': 'gov_electricity', 'image': None},
-        {'id': 1004, 'area': 'Chandni Chowk', 'tag': 'garbage', 'severity': 'medium',
-         'description': 'Overflowing bins near Fatehpuri mosque', 'status': 'open',
-         'upvotes': 8, 'timestamp': time.time() - 3600*80, 'lat': 28.6507, 'lng': 77.2334,
-         'user_name': 'rohit', 'assigned_to': None, 'image': None},
-        {'id': 1005, 'area': 'Dwarka', 'tag': 'sewage', 'severity': 'high',
-         'description': 'Sewage overflow on Sector 10 road', 'status': 'open',
-         'upvotes': 33, 'timestamp': time.time() - 3600*20, 'lat': 28.5921, 'lng': 77.0460,
-         'user_name': 'kavita', 'assigned_to': None, 'image': None},
-        {'id': 1006, 'area': 'Vasant Kunj', 'tag': 'tree', 'severity': 'high',
-         'description': 'Fallen tree blocking main road after storm', 'status': 'escalated',
-         'upvotes': 52, 'timestamp': time.time() - 3600*10, 'lat': 28.5200, 'lng': 77.1569,
-         'user_name': 'sanjay', 'assigned_to': None, 'image': None},
-        {'id': 1007, 'area': 'Saket', 'tag': 'traffic', 'severity': 'low',
-         'description': 'Signal at Select City Walk broken since yesterday', 'status': 'resolved',
-         'upvotes': 6, 'timestamp': time.time() - 3600*100, 'lat': 28.5245, 'lng': 77.2066,
-         'user_name': 'neha', 'assigned_to': 'gov_traffic', 'image': None},
-        {'id': 1008, 'area': 'Pitampura', 'tag': 'pothole', 'severity': 'medium',
-         'description': 'Potholes near community centre', 'status': 'open',
-         'upvotes': 12, 'timestamp': time.time() - 3600*60, 'lat': 28.7100, 'lng': 77.1279,
-         'user_name': 'deepak', 'assigned_to': None, 'image': None},
-    ]
-    SLA_HOURS = {
-        'sewage': 24, 'electricity': 24, 'traffic': 24, 'noise': 24,
-        'water': 48, 'streetlight': 48, 'garbage': 72, 'other': 120,
-        'pothole': 168, 'tree': 168,
-    }
-    CROWD_ESCALATION_THRESHOLD = 25
-
-    def init_db(): pass
-    def get_issues(tag=None, status=None, limit=300):
-        r = list(_STUB_ISSUES)
-        if tag:    r = [i for i in r if i.get('tag') == tag]
-        if status: r = [i for i in r if i.get('status') == status]
-        return r[:limit]
-    def get_issue_by_id(iid):
-        for i in _STUB_ISSUES:
-            if int(i['id']) == int(iid): return i
-        return None
-    def update_issue_status(iid, status, updated_by='gov', note=''):
-        for i in _STUB_ISSUES:
-            if int(i['id']) == int(iid):
-                i['status'] = status
-                return i
-        return None
-    def get_all_ngos():
-        return [
-            {'id':1,'name':'Delhi Green Mission','focus':'Sanitation','tag':'garbage','rating':4.6,'area':'Rohini','phone':'011-27551234','email':'contact@delhigreen.org','lat':28.75,'lng':77.10,'issues_resolved':34},
-            {'id':2,'name':'Jal Seva Trust','focus':'Water & Sewage','tag':'water','rating':4.7,'area':'Hauz Khas','phone':'011-26960001','email':'help@jalseva.org','lat':28.54,'lng':77.22,'issues_resolved':28},
-            {'id':3,'name':'Road Safety India','focus':'Roads','tag':'pothole','rating':4.4,'area':'Dwarka','phone':'011-28567890','email':'info@roadsafetyindia.in','lat':28.59,'lng':77.05,'issues_resolved':19},
-        ]
-    def escalate_issue(iid, reason='sla_breach'):
-        for i in _STUB_ISSUES:
-            if int(i['id']) == int(iid):
-                i['status'] = 'escalated'
-                i['escalated'] = True
-                return True
-        return False
-    def get_issues_for_gov(user, tags=None):
-        r = get_issues()
-        if tags: r = [i for i in r if i.get('tag') in tags]
-        return r
-
+# ── DATABASE ──────────────────────────────────────────────────────────────────
+from database import (
+    init_db, get_issues, get_issue_by_id, update_issue_status,
+    get_all_ngos, escalate_issue, get_issues_for_gov,
+    SLA_HOURS, CROWD_ESCALATION_THRESHOLD,
+)
+_DB_AVAILABLE = True
 
 # ── MODULES ──────────────────────────────────────────────────
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'modules'))
@@ -935,6 +850,22 @@ def ngo_api_export_impact_pdf():
 @app.route('/api/health')
 def api_health():
     return jsonify({'ok': True, 'db': _DB_AVAILABLE, 'ts': time.time()})
+
+@app.route('/api/health/db')
+def api_health_db():
+    """Warmup endpoint — keeps Render + Neon connection alive."""
+    from database import _state
+    db_ok = False
+    if _state.get('mode') == 'postgres':
+        try:
+            with _state['pg_pool'].connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT 1")
+                    cur.fetchone()
+            db_ok = True
+        except Exception:
+            db_ok = False
+    return jsonify({'ok': True, 'db': db_ok, 'mode': _state.get('mode'), 'ts': time.time()})
 
 
 @app.route('/api/settings', methods=['POST'])
