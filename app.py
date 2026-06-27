@@ -118,7 +118,6 @@ def gov_dashboard():
     sla_summary  = get_sla_summary(open_issues)
     urgent       = sorted([i for i in open_issues if i.get('sla_state') in ('breached','critical')],
                           key=lambda x: x.get('sla_overdue_hours', 0), reverse=True)[:8]
-    briefing     = gov_briefing(open_issues)
 
     # Category breakdown
     by_tag = {}
@@ -131,7 +130,7 @@ def gov_dashboard():
 
     return render_template('gov/dashboard.html',
         issues=open_issues, urgent=urgent, sla_summary=sla_summary,
-        briefing=briefing, by_tag=by_tag, recent=recent,
+        briefing=None, by_tag=by_tag, recent=recent,
         total=len(my_issues), open_count=len(open_issues),
         resolved_count=len([i for i in my_issues if i.get('status')=='resolved']),
         breached_count=sla_summary.get('breached', 0),
