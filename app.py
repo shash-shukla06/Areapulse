@@ -33,6 +33,8 @@ from sla_engine    import annotate_issues, get_sla_summary, calc_sla, format_rem
 from ai_engine     import chat, chat_stream, gov_briefing, ngo_recommend
 from export_engine import export_pdf_summary, export_excel
 
+
+
 # ── APP ───────────────────────────────────────────────────────
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'areapulse-portal-dev-2026')
@@ -40,13 +42,21 @@ MAPTILER_KEY   = os.environ.get('MAPTILER_KEY', '')
 
 init_db()
 
+_issues_cache = {'data': None, 'ts': 0.0}
+_ISSUES_CACHE_TTL = 45  #seconds
 
 # ─────────────────────────────────────────────────────────────
 #  HELPERS
 # ─────────────────────────────────────────────────────────────
 def _get_issues_annotated(tag=None, status=None, limit=300):
-    issues = get_issues(tag=tag, status=status, limit=limit)
-    return annotate_issues(issues)
+    now = time.time()
+    if _issues_cache['data'] is None or (now - _issues_cache['ts']) > _ISSUES_CACHE_TTL:
+        _issues_cache['data'] = annotate_issues(get_issues(limit=300))
+        _issues_cache['ts'] = now
+    issues = _issues_cache['data']
+    if tag:    issues = [i for i in issues if i.get('tag') == tag]
+    if status: issues = [i for i in issues if i.get('status') == status]
+    return issues[:limit]
 
 
 def _portal_ctx():
@@ -341,6 +351,7 @@ def gov_update_status():
         return jsonify({'error': 'id and status required'}), 400
 
     result = update_issue_status(int(issue_id), new_status, updated_by=u['username'], note=note)
+    _issues_cache['data'] = None  # invalidate cache
     if result is None:
         return jsonify({'error': 'Update failed or invalid status'}), 400
 
@@ -753,6 +764,7 @@ def ngo_commit():
     result = update_issue_status(int(issue_id), 'in_progress',
                                  updated_by=u['username'],
                                  note=f"NGO {u['name']} committed. Volunteers: {volunteers}. ETA: {eta}. {note}")
+    _issues_cache['data'] = None  # invalidate cache
     return jsonify({'ok': result is not None})
 
 
