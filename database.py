@@ -210,10 +210,15 @@ def _pg_row_to_issue(row):
 # ─────────────────────────────────────────────────────────────────────────────
 def get_issues(tag=None, status=None, limit=300):
     if _state['mode'] == 'postgres':
+        # Use cache for unfiltered queries (the common case for dashboards)
+        if tag is None and status is None:
+            cached = _get_cached_issues()
+            if cached is not None:
+                return cached[:limit]
+
         try:
             with _state['pg_pool'].connection() as conn:
                 with conn.cursor() as cur:
-                    params = []
                     if tag and status:
                         q = "SELECT * FROM issues WHERE tag=%s AND status=%s ORDER BY timestamp DESC LIMIT %s"
                         params = [tag, status, limit]
@@ -231,13 +236,19 @@ def get_issues(tag=None, status=None, limit=300):
                     if not rows:
                         return []
                     if hasattr(rows[0], '_asdict'):
-                        return [_pg_row_to_issue(r) for r in rows]
-                    cols = [d.name for d in cur.description]
-                    return [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))})
-                            for row in rows]
+                        results = [_pg_row_to_issue(r) for r in rows]
+                    else:
+                        cols = [d.name for d in cur.description]
+                        results = [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))})
+                                   for row in rows]
+                    # Cache unfiltered full results
+                    if tag is None and status is None:
+                        _set_cached_issues(results)
+                    return results
         except Exception as e:
             print(f'[database] get_issues failed: {e}')
             return []
+
 
     if _state['mode'] == 'firebase':
         cached = _get_cached_issues()
