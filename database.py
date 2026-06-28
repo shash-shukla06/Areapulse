@@ -109,17 +109,20 @@ def init_db():
     if dsn and _PG_OK:
         try:
             _state['pg_pool'] = ConnectionPool(
-    dsn, min_size=1, max_size=4, open=True,
-    reconnect_timeout=5,
-    kwargs={
-        "connect_timeout": 10,
-        "keepalives": 1,
-        "keepalives_idle": 30,
-        "keepalives_interval": 5,
-        "keepalives_count": 3,
-    },
-    configure=_ensure_pg_schema,
-)
+                dsn,
+                min_size=1,
+                max_size=4,
+                open=True,
+                reconnect_timeout=5,
+                kwargs={
+                    "connect_timeout": 10,
+                    "keepalives": 1,
+                    "keepalives_idle": 30,
+                    "keepalives_interval": 5,
+                    "keepalives_count": 3,
+                },
+                configure=_ensure_pg_schema,
+            )
             _state['mode'] = 'postgres'
             print('[database] ✓ Postgres connected — sharing AreaPulse database')
             return
