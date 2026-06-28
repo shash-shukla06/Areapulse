@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const map = MapEngine.initMap('mini-map', { zoom: 11 });
     if (map) {
       try {
-        const resp = await fetch('/gov/api/issues?limit=100');
+        const resp = await fetch('/gov/api/issues?limit=100&fields=map');
         const data = await resp.json();
         MapEngine.renderIssues(map, (data.issues||[]).filter(i=>i.lat&&i.lng), 'gov');
       } catch(e) {}
