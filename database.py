@@ -109,9 +109,17 @@ def init_db():
     if dsn and _PG_OK:
         try:
             _state['pg_pool'] = ConnectionPool(
-                dsn, min_size=1, max_size=5, open=True,
-                configure=_ensure_pg_schema,
-            )
+    dsn, min_size=1, max_size=4, open=True,
+    reconnect_timeout=5,
+    kwargs={
+        "connect_timeout": 10,
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 5,
+        "keepalives_count": 3,
+    },
+    configure=_ensure_pg_schema,
+)
             _state['mode'] = 'postgres'
             print('[database] ✓ Postgres connected — sharing AreaPulse database')
             return
@@ -247,7 +255,19 @@ def get_issues(tag=None, status=None, limit=300):
                     return results
         except Exception as e:
             print(f'[database] get_issues failed: {e}')
-            return []
+            _invalidate_cache()
+            # try once more with a fresh connection
+            try:
+                _state['pg_pool'].check()
+                with _state['pg_pool'].connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute("SELECT * FROM issues ORDER BY timestamp DESC LIMIT %s", [limit])
+                        rows = cur.fetchall()
+                        cols = [d.name for d in cur.description]
+                        return [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))}) for row in rows]
+            except Exception as e2:
+                print(f'[database] get_issues retry also failed: {e2}')
+                return []
 
 
     if _state['mode'] == 'firebase':
