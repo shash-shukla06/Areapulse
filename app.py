@@ -322,9 +322,31 @@ def gov_api_issues():
     tag    = request.args.get('tag') or None
     status = request.args.get('status') or None
     limit  = min(int(request.args.get('limit', 300)), 500)
+    fields = request.args.get('fields') or None   # add this
+
     issues = _get_issues_annotated(tag=tag, status=status, limit=limit)
     if u['tags'] and not tag:
         issues = [i for i in issues if i.get('tag') in u['tags']]
+
+    # If map mode, return only what the map pins need
+    if fields == 'map':
+        issues = [
+            {
+                'id':        i['id'],
+                'lat':       i.get('lat'),
+                'lng':       i.get('lng'),
+                'tag':       i.get('tag'),
+                'area':      i.get('area'),
+                'status':    i.get('status'),
+                'severity':  i.get('severity'),
+                'upvotes':   i.get('upvotes', 0),
+                'timestamp': i.get('timestamp', 0),
+                'sla_state': i.get('sla_state', 'healthy'),
+                'description': (i.get('description') or '')[:80],
+            }
+            for i in issues if i.get('lat') and i.get('lng')
+        ]
+
     return jsonify({'issues': issues, 'total': len(issues)})
 
 
