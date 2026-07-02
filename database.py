@@ -99,16 +99,17 @@ def init_db():
     if dsn and _PG_OK:
         try:
             # Phase 6 pool tuning — prevent Neon connection exhaustion:
-            # min_size=0 so idle workers don't hold connections (Neon suspends idle compute)
+            
+            # min_size=1 keeps one warm connection so pool is never fully empty after Neon idle
             # max_size=3 so 2 Gunicorn workers = max 6 total connections (well under Neon limit)
-            # timeout=10 so failures surface in 10s instead of 30s (faster error, less pile-up)
-            # max_idle=30 releases idle connections after 30s (prevents stale connection storms)
+            # timeout=15 gives enough time for Neon compute to wake up after idle suspension
+            # max_idle=60 releases extra connections after 60s to reduce Neon load
             _state['pg_pool'] = ConnectionPool(
                 dsn,
-                min_size=0, max_size=3,
+                min_size=1, max_size=3,
                 open=True,
-                timeout=10,
-                max_idle=30,
+                timeout=15,
+                max_idle=60,
                 configure=_ensure_pg_schema,
             )
             _state['mode'] = 'postgres'
