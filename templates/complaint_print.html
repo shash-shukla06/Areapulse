@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Complaint #AP-{{ issue.id }} · {{ subject }}</title>
+<style>
+  /* Print-first design — formal Indian govt complaint letter */
+  @page {
+    size: A4;
+    margin: 18mm 18mm 22mm 18mm;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 11.5pt;
+    line-height: 1.55;
+    color: #000;
+    background: #fff;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 30px 40px;
+  }
+
+  /* Top action bar — hidden in print */
+  .actions {
+    display:flex; gap:10px; justify-content:flex-end;
+    margin-bottom:30px; padding-bottom:14px; border-bottom:1px dashed #999;
+  }
+  .btn {
+    padding:9px 20px; font-family:'Inter', system-ui, sans-serif;
+    font-size:11pt; font-weight:600; cursor:pointer;
+    border:1px solid #1976d2; background:#1976d2; color:#fff;
+    text-decoration:none;
+  }
+  .btn.outline { background:#fff; color:#1976d2; }
+  .btn:hover { filter:brightness(0.92); }
+  @media print { .actions { display:none; } body { padding:0; max-width:none; } }
+
+  /* Letterhead */
+  .letterhead {
+    border-bottom: 3px double #000;
+    padding-bottom: 14px;
+    margin-bottom: 22px;
+    display:flex; justify-content:space-between; align-items:flex-end;
+  }
+  .lh-brand {
+    font-family: 'Inter', sans-serif;
+    font-size: 22pt; font-weight: 800;
+    letter-spacing: 2px; text-transform:uppercase;
+    line-height: 1;
+  }
+  .lh-brand-dot { display:inline-block; width:10px; height:10px; background:#1976d2; border-radius:50%; vertical-align:middle; margin-right:8px; }
+  .lh-tagline {
+    font-family: 'Inter', sans-serif;
+    font-size: 8pt; letter-spacing: 1.5px; color:#555; text-transform:uppercase;
+    margin-top: 4px;
+  }
+  .lh-ref {
+    font-family: 'Inter', sans-serif;
+    font-size: 9pt; color:#444; text-align:right; line-height:1.6;
+  }
+  .lh-ref strong { color:#000; font-size:10.5pt; }
+
+  /* Heading row */
+  .meta-row {
+    display: flex; justify-content: space-between;
+    font-family: 'Inter', sans-serif; font-size: 10pt;
+    margin-bottom: 26px; color:#222;
+  }
+
+  /* Recipient block */
+  .recipient {
+    margin-bottom: 24px;
+    font-family: 'Inter', sans-serif; font-size: 11pt; line-height:1.45;
+  }
+  .recipient-label {
+    font-size:9pt; text-transform:uppercase; letter-spacing:1.5px; color:#666;
+    margin-bottom:4px; font-weight:600;
+  }
+  .recipient-name { font-weight:700; font-size:12pt; }
+  .recipient-dept { color:#333; font-style:italic; }
+  .recipient-email { color:#1976d2; font-family:'Courier New', monospace; }
+
+  /* Subject */
+  .subject {
+    font-family: 'Inter', sans-serif;
+    font-size: 12pt; font-weight: 700;
+    background: #f3f6fa; border-left: 4px solid #1976d2;
+    padding: 11px 16px; margin-bottom: 22px;
+  }
+  .subject-label { font-size:9pt; color:#666; text-transform:uppercase; letter-spacing:1.5px; font-weight:600; display:block; margin-bottom:3px; }
+
+  /* Body */
+  .body-text { white-space: pre-wrap; margin-bottom: 30px; text-align: justify; }
+
+  /* Evidence box */
+  .evidence {
+    border: 1px solid #ccc; background:#fafbfc;
+    padding: 14px 18px; margin-bottom: 26px;
+    font-family: 'Inter', sans-serif; font-size: 10.5pt;
+  }
+  .evidence-title {
+    font-weight:700; font-size:11pt; margin-bottom:8px;
+    text-transform:uppercase; letter-spacing:1px; color:#1a2733;
+    border-bottom:1px solid #ddd; padding-bottom:6px;
+  }
+  .evidence dl { display:grid; grid-template-columns:140px 1fr; gap:5px 12px; }
+  .evidence dt { font-weight:600; color:#555; }
+  .evidence dd { color:#000; }
+
+  .evidence-photo {
+    max-width:100%; max-height:280px; margin-top:10px;
+    border:1px solid #ccc; display:block;
+  }
+
+  /* SLA pill */
+  .sla {
+    display:inline-block; padding:2px 8px;
+    font-family:'Inter', sans-serif; font-size:9.5pt; font-weight:700;
+    border-radius:2px;
+  }
+  .sla.overdue { background:#ffe9e9; color:#c62828; border:1px solid #ef5350; }
+  .sla.soon    { background:#fff4e0; color:#e65100; border:1px solid #fb8c00; }
+  .sla.safe    { background:#e8f5e9; color:#2e7d32; border:1px solid #66bb6a; }
+  .sla.resolved{ background:#e3f2fd; color:#1565c0; border:1px solid #64b5f6; }
+
+  /* Signature block */
+  .signature {
+    margin-top: 36px;
+    font-family: 'Inter', sans-serif; font-size: 11pt;
+  }
+  .signature-line { border-top:1px solid #000; padding-top:5px; width:240px; }
+
+  /* Footer */
+  .footer {
+    margin-top: 36px; padding-top: 14px;
+    border-top: 1px solid #ccc;
+    font-family: 'Inter', sans-serif; font-size: 8.5pt;
+    color:#666; display:flex; justify-content:space-between;
+  }
+  .footer a { color:#1976d2; text-decoration:none; }
+</style>
+</head>
+<body>
+
+<div class="actions">
+  <a href="javascript:window.history.back()" class="btn outline">← Back</a>
+  <button class="btn" onclick="window.print()">⇩ Save as PDF / Print</button>
+</div>
+
+<div class="letterhead">
+  <div>
+    <div class="lh-brand"><span class="lh-brand-dot"></span>AREAPULSE</div>
+    <div class="lh-tagline">Citizen Civic Complaint System · Delhi NCR</div>
+  </div>
+  <div class="lh-ref">
+    <div><strong>Ref:</strong> #AP-{{ issue.id }}</div>
+    <div>Date: {{ today }}</div>
+    {% if issue.area %}<div>Area: {{ issue.area }}</div>{% endif %}
+  </div>
+</div>
+
+<div class="meta-row">
+  <span>From: <strong>{{ citizen }}</strong></span>
+  {% if issue.contact %}<span>Contact: {{ issue.contact }}</span>{% endif %}
+</div>
+
+<div class="recipient">
+  <div class="recipient-label">To,</div>
+  <div class="recipient-name">{{ authority.name }}</div>
+  {% if authority.email %}<div class="recipient-email">{{ authority.email }}</div>{% endif %}
+</div>
+
+<div class="subject">
+  <span class="subject-label">Subject</span>
+  {{ subject }}
+</div>
+
+<div class="body-text">{{ body_text }}</div>
+
+<div class="evidence">
+  <div class="evidence-title">Complaint Details</div>
+  <dl>
+    <dt>Reference ID</dt>      <dd>#AP-{{ issue.id }}</dd>
+    <dt>Category</dt>          <dd>{{ (issue.tag or 'Other')|capitalize }}</dd>
+    <dt>Severity</dt>          <dd>{{ (issue.severity or 'Medium')|capitalize }}</dd>
+    <dt>Reported on</dt>       <dd>{{ today }}</dd>
+    {% if issue.area %}<dt>Area</dt><dd>{{ issue.area }}</dd>{% endif %}
+    {% if issue.landmark %}<dt>Landmark</dt><dd>{{ issue.landmark }}</dd>{% endif %}
+    {% if issue.lat and issue.lng %}<dt>GPS</dt><dd>{{ "%.5f"|format(issue.lat) }}, {{ "%.5f"|format(issue.lng) }}</dd>{% endif %}
+    <dt>Community upvotes</dt> <dd>{{ issue.upvotes or 0 }}</dd>
+    <dt>Status</dt>            <dd>
+      {{ (issue.status or 'Open')|capitalize }}
+      {% if sla.sla_state == 'overdue' %}
+        &nbsp;<span class="sla overdue">⚠ Overdue by {{ sla.sla_overdue_hours }} hrs · SLA breached</span>
+      {% elif sla.sla_state == 'soon' %}
+        &nbsp;<span class="sla soon">⏱ Due soon · {{ sla.sla_hours }}-hour SLA</span>
+      {% elif sla.sla_state == 'resolved' %}
+        &nbsp;<span class="sla resolved">✓ Resolved</span>
+      {% else %}
+        &nbsp;<span class="sla safe">Within {{ sla.sla_hours }}-hour SLA window</span>
+      {% endif %}
+    </dd>
+  </dl>
+  {% if issue.image %}<img class="evidence-photo" src="{{ issue.image }}" alt="Issue photo evidence"/>{% endif %}
+</div>
+
+<div class="signature">
+  <div class="signature-line">Yours sincerely,</div>
+  <div style="margin-top:4px"><strong>{{ citizen }}</strong></div>
+  {% if issue.contact %}<div style="color:#666; font-size:10pt">{{ issue.contact }}</div>{% endif %}
+</div>
+
+<div class="footer">
+  <span>Generated by AreaPulse · A citizen-facing civic accountability platform</span>
+  <span>areapulse.app</span>
+</div>
+
+<script>
+  // Auto-trigger print dialog when arrived via ?print=1 (used by the in-app button)
+  if (new URLSearchParams(location.search).get('print') === '1') {
+    setTimeout(() => window.print(), 350);
+  }
+</script>
+</body>
+</html>

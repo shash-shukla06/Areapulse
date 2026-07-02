@@ -1,0 +1,2 @@
+# This directory holds locally-uploaded issue images in dev mode (storage_service local provider).
+# In production, images go to Cloudflare R2 or S3 and this directory is unused.
