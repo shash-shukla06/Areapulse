@@ -98,18 +98,25 @@ def init_db():
     # ── Attempt 1: PostgreSQL ──────────────────────────
     if dsn and _PG_OK:
         try:
-            # Phase 6 pool tuning — prevent Neon connection exhaustion:
-            
-            # min_size=1 keeps one warm connection so pool is never fully empty after Neon idle
-            # max_size=3 so 2 Gunicorn workers = max 6 total connections (well under Neon limit)
-            # timeout=15 gives enough time for Neon compute to wake up after idle suspension
-            # max_idle=60 releases extra connections after 60s to reduce Neon load
+            # Pool tuning — keepalives prevent SSL/TCP dead connections from
+            # going undetected (the ssl/tls alert bad record mac error).
+            # TCP keepalives probe the Neon connection every 30s and detect
+            # failures within 15s (5s interval × 3 probes), so the pool
+            # discards dead connections before a request tries to use them.
             _state['pg_pool'] = ConnectionPool(
                 dsn,
                 min_size=1, max_size=3,
                 open=True,
                 timeout=15,
                 max_idle=60,
+                reconnect_timeout=5,
+                kwargs={
+                    "connect_timeout": 10,
+                    "keepalives":       1,
+                    "keepalives_idle":  30,
+                    "keepalives_interval": 5,
+                    "keepalives_count": 3,
+                },
                 configure=_ensure_pg_schema,
             )
             _state['mode'] = 'postgres'
@@ -484,7 +491,28 @@ def get_issues(tag=None, status=None, limit=300):
                     return results
         except Exception as e:
             print(f'[database] Postgres get_issues failed: {e}')
-            return []
+            # Retry once — pool.check() discards any bad connections and
+            # opens a fresh one. Recovers from ssl/tls dead-connection errors
+            # without the caller ever seeing an empty result.
+            try:
+                _state['pg_pool'].check()
+                with _state['pg_pool'].connection() as conn:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT * FROM issues ORDER BY timestamp DESC LIMIT %s",
+                            [limit],
+                        )
+                        rows = cur.fetchall()
+                        if not rows:
+                            return []
+                        if hasattr(rows[0], '_asdict'):
+                            return [_pg_row_to_issue(r) for r in rows]
+                        cols = [d.name for d in cur.description]
+                        return [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))})
+                                for row in rows]
+            except Exception as e2:
+                print(f'[database] Postgres get_issues retry also failed: {e2}')
+                return []
 
     # ── Firebase (cached) ──────────────────────────────
     if _state['mode'] == 'firebase':
