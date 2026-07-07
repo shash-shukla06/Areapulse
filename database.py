@@ -109,7 +109,6 @@ def init_db():
                 open=True,
                 timeout=15,
                 max_idle=60,
-                reconnect_timeout=5,
                 kwargs={
                     "connect_timeout": 10,
                     "keepalives":       1,
