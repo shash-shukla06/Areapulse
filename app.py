@@ -795,8 +795,36 @@ def report_api():
 
 
 # ═══════════════════════════════════════════════════════
-#  FIRESTORE HEALTH CHECK (renamed to db-health for generality)
+#  POSTGRES & FIRESTORE HEALTH CHECK (renamed to db-health for generality)
 # ═══════════════════════════════════════════════════════
+
+@app.route('/api/health/db')
+def api_health_db():
+    """
+    Lightweight Postgres liveness check.
+    Used by UptimeRobot to keep the Neon connection pool warm.
+    Returns 200 if the pool can execute SELECT 1, 500 otherwise.
+    """
+    from database import _state
+    import time as _t
+    if _state.get('mode') != 'postgres' or not _state.get('pg_pool'):
+        return jsonify({'ok': True, 'mode': _state.get('mode', 'unknown'),
+                        'note': 'not postgres — no DB check needed'}), 200
+    try:
+        t0 = _t.time()
+        with _state['pg_pool'].connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT 1")
+                cur.fetchone()
+        return jsonify({
+            'ok':           True,
+            'mode':         'postgres',
+            'roundtrip_ms': round((_t.time() - t0) * 1000, 1),
+        }), 200
+    except Exception as e:
+        return jsonify({'ok': False, 'error': f'{type(e).__name__}: {e}'}), 500
+
+
 @app.route('/api/health/firestore')
 def firestore_health():
     """Round-trip DB write+read test, plus counts of all collections."""
@@ -854,7 +882,6 @@ def firestore_health():
         info['status'] = 'error'
         info['error']  = f'{type(e).__name__}: {e}'
         return jsonify(info), 500
-
 
 @app.route('/upvote/<int:issue_id>', methods=['POST'])
 def upvote_api(issue_id):

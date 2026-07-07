@@ -103,13 +103,15 @@ def init_db():
             # TCP keepalives probe the Neon connection every 30s and detect
             # failures within 15s (5s interval × 3 probes), so the pool
             # discards dead connections before a request tries to use them.
+            # reconnect_timeout is left at default (300s) so the pool's
+            # background worker has 5 full minutes to restore connections
+            # after a Neon hiccup — never set this below connect_timeout.
             _state['pg_pool'] = ConnectionPool(
                 dsn,
                 min_size=1, max_size=3,
                 open=True,
                 timeout=15,
                 max_idle=60,
-                reconnect_timeout=5,
                 kwargs={
                     "connect_timeout": 10,
                     "keepalives":       1,
