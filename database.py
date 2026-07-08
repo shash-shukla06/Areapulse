@@ -457,64 +457,44 @@ def get_issues(tag=None, status=None, limit=300):
     """List issues — postgres → firebase (cached) → memory."""
     # ── Postgres ───────────────────────────────────────
     if _state['mode'] == 'postgres':
-        try:
-            with _state['pg_pool'].connection() as conn:
-                with conn.cursor() as cur:
-                    params = []
-                    q = ("SELECT * FROM issues ORDER BY timestamp DESC LIMIT %s")
-                    params.append(limit)
-                    if tag and status:
-                        q = ("SELECT * FROM issues WHERE tag = %s AND status = %s "
-                             "ORDER BY timestamp DESC LIMIT %s")
-                        params = [tag, status, limit]
-                    elif tag:
-                        q = ("SELECT * FROM issues WHERE tag = %s "
-                             "ORDER BY timestamp DESC LIMIT %s")
-                        params = [tag, limit]
-                    elif status:
-                        q = ("SELECT * FROM issues WHERE status = %s "
-                             "ORDER BY timestamp DESC LIMIT %s")
-                        params = [status, limit]
-                    cur.execute(q, params)
-                    rows = cur.fetchall()
-                    # Use RealDictRow or fallback
-                    if rows and hasattr(rows[0], '_asdict'):
-                        results = [_pg_row_to_issue(r) for r in rows]
-                    elif hasattr(cur, 'description') and cur.description:
-                        cols = [d.name for d in cur.description]
-                        results = []
-                        for row in rows:
-                            rdict = {}
-                            for i, col in enumerate(cols):
-                                rdict[col] = row[i] if i < len(row) else None
-                            results.append(_pg_row_to_issue(rdict))
-                    else:
-                        results = []
-                    return results
-        except Exception as e:
-            print(f'[database] Postgres get_issues failed: {e}')
-            # Retry once — pool.check() discards any bad connections and
-            # opens a fresh one. Recovers from ssl/tls dead-connection errors
-            # without the caller ever seeing an empty result.
+        last_error = None
+        for attempt in range(2):
             try:
-                _state['pg_pool'].check()
                 with _state['pg_pool'].connection() as conn:
                     with conn.cursor() as cur:
-                        cur.execute(
-                            "SELECT * FROM issues ORDER BY timestamp DESC LIMIT %s",
-                            [limit],
-                        )
+                        params = []
+                        if tag and status:
+                            q = ("SELECT * FROM issues WHERE tag=%s AND status=%s "
+                                 "ORDER BY timestamp DESC LIMIT %s")
+                            params = [tag, status, limit]
+                        elif tag:
+                            q = ("SELECT * FROM issues WHERE tag=%s "
+                                 "ORDER BY timestamp DESC LIMIT %s")
+                            params = [tag, limit]
+                        elif status:
+                            q = ("SELECT * FROM issues WHERE status=%s "
+                                 "ORDER BY timestamp DESC LIMIT %s")
+                            params = [status, limit]
+                        else:
+                            q = "SELECT * FROM issues ORDER BY timestamp DESC LIMIT %s"
+                            params = [limit]
+                        cur.execute(q, params)
                         rows = cur.fetchall()
-                        if not rows:
-                            return []
-                        if hasattr(rows[0], '_asdict'):
+                        if rows and hasattr(rows[0], '_asdict'):
                             return [_pg_row_to_issue(r) for r in rows]
-                        cols = [d.name for d in cur.description]
-                        return [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))})
-                                for row in rows]
-            except Exception as e2:
-                print(f'[database] Postgres get_issues retry also failed: {e2}')
-                return []
+                        elif cur.description:
+                            cols = [d.name for d in cur.description]
+                            return [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))})
+                                    for row in rows]
+                        return []
+            except psycopg.Error as e:
+                last_error = e
+                print(f'[database] get_issues attempt {attempt+1}/2 failed: {type(e).__name__}: {e}')
+                if attempt == 0:
+                    time.sleep(0.5)
+                    continue
+        print(f'[database] get_issues failed after retry: {last_error}')
+        return []
 
     # ── Firebase (cached) ──────────────────────────────
     if _state['mode'] == 'firebase':

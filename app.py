@@ -800,29 +800,53 @@ def report_api():
 
 @app.route('/api/health/db')
 def api_health_db():
-    """
-    Lightweight Postgres liveness check.
-    Used by UptimeRobot to keep the Neon connection pool warm.
-    Returns 200 if the pool can execute SELECT 1, 500 otherwise.
-    """
+    """Lightweight PostgreSQL health check.
+    Used by UptimeRobot to keep the Neon database warm."""
     from database import _state
-    import time as _t
-    if _state.get('mode') != 'postgres' or not _state.get('pg_pool'):
-        return jsonify({'ok': True, 'mode': _state.get('mode', 'unknown'),
-                        'note': 'not postgres — no DB check needed'}), 200
+    import traceback
+    print("\n" + "=" * 70)
+    print("[HEALTH] Starting PostgreSQL health check")
+    print("=" * 70)
+    print(f"[HEALTH] Mode              : {_state.get('mode')}")
+    print(f"[HEALTH] Pool Exists       : {_state.get('pg_pool') is not None}")
+    if _state.get('mode') != 'postgres':
+        print("[HEALTH] Not running in PostgreSQL mode")
+        print("=" * 70)
+        return jsonify({"ok": True, "mode": _state.get("mode", "unknown"),
+                        "message": "Not using PostgreSQL"}), 200
+    if not _state.get('pg_pool'):
+        print("[HEALTH] PostgreSQL pool is None")
+        print("=" * 70)
+        return jsonify({"ok": False, "error": "PostgreSQL pool not initialized"}), 500
     try:
-        t0 = _t.time()
+        t0 = time.time()
+        print("[HEALTH] Requesting connection from pool...")
         with _state['pg_pool'].connection() as conn:
+            print("[HEALTH] ✓ Connection acquired")
+            print(f"[HEALTH] Connection object : {conn}")
             with conn.cursor() as cur:
+                print("[HEALTH] ✓ Cursor opened")
+                print("[HEALTH] Executing SELECT 1 ...")
                 cur.execute("SELECT 1")
-                cur.fetchone()
-        return jsonify({
-            'ok':           True,
-            'mode':         'postgres',
-            'roundtrip_ms': round((_t.time() - t0) * 1000, 1),
-        }), 200
+                result = cur.fetchone()
+                print(f"[HEALTH] Query Result : {result}")
+        elapsed = round((time.time() - t0) * 1000, 2)
+        print(f"[HEALTH] Roundtrip : {elapsed} ms")
+        print("[HEALTH] SUCCESS")
+        print("=" * 70)
+        return jsonify({"ok": True, "mode": "postgres",
+                        "roundtrip_ms": elapsed, "result": result[0]}), 200
     except Exception as e:
-        return jsonify({'ok': False, 'error': f'{type(e).__name__}: {e}'}), 500
+        print("\n" + "!" * 70)
+        print("[HEALTH] DATABASE HEALTH CHECK FAILED")
+        print("!" * 70)
+        print(f"Exception Type : {type(e).__name__}")
+        print(f"Exception      : {e}")
+        print("\nFull Traceback:\n")
+        traceback.print_exc()
+        print("!" * 70)
+        return jsonify({"ok": False, "mode": "postgres",
+                        "exception_type": type(e).__name__, "error": str(e)}), 500
 
 
 @app.route('/api/health/firestore')
