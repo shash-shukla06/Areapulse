@@ -764,7 +764,7 @@ def report_api():
         f = request.files['image']
         if f and f.filename:
             raw = f.read()
-            if 0 < len(raw) < 2 * 1024 * 1024:
+            if 0 < len(raw) < 10 * 1024 * 1024:
                 image_mime  = f.mimetype or 'image/jpeg'
                 image_b64   = base64.b64encode(raw).decode()
                 image_data  = f'data:{image_mime};base64,{image_b64}'
