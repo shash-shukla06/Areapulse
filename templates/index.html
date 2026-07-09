@@ -9,6 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
+
 :root {
   /* FR24-accurate palette (sampled from real Flightradar24 UI) */
   --bg:        #1c1f25;   /* main backdrop, slightly warm dark */
@@ -39,7 +40,12 @@ button, input, select, textarea { font-family:inherit; }
   font-size:9px !important; border:none !important; padding:2px 6px !important;
 }
 .leaflet-control-attribution a { color:var(--accent) !important; }
-
+.tut-highlight {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 0 8px rgba(248,192,35,0.25) !important;
+  border-radius: 6px;
+  z-index: 9998;
+  position: relative;
+}
 /* Marker dots — extra contrast for LIGHT map */
 @keyframes mpulse {
   0%   { transform:scale(0.5); opacity:.9; }
@@ -857,6 +863,7 @@ input, textarea, select { font-size:16px; }
     border:1px solid var(--m-border); border-radius:11px;
     box-shadow:var(--m-shadow); z-index:200;
   }
+
   .m-chip{
     height:28px; min-width:42px; padding:0 10px; border:0; background:transparent;
     color:var(--muted); font-family:'JetBrains Mono',monospace;
@@ -1005,9 +1012,127 @@ input, textarea, select { font-size:16px; }
   .m-chiprow{ display:none; }
 }
 
+
+/* ── Tour spotlight — OUTSIDE all @media blocks ── */
+#_tour-spot {
+  display:none; position:fixed; z-index:99993; pointer-events:none;
+  border-radius:8px;
+  box-shadow: 0 0 0 5000px rgba(0,0,0,0.75);
+  transition: top .35s cubic-bezier(.4,0,.2,1),
+              left .35s cubic-bezier(.4,0,.2,1),
+              width .35s cubic-bezier(.4,0,.2,1),
+              height .35s cubic-bezier(.4,0,.2,1);
+}
+#_tour-tip {
+  display:none; position:fixed; z-index:99999; width:272px;
+  background:var(--bg-2); border:1px solid var(--border-mid);
+  border-radius:12px; padding:20px 20px 16px;
+  box-shadow:0 12px 40px rgba(0,0,0,0.55);
+  transition: top .35s cubic-bezier(.4,0,.2,1), left .35s cubic-bezier(.4,0,.2,1);
+}
+#_tour-arrow {
+  position:absolute; width:11px; height:11px;
+  background:var(--bg-2);
+  border-top:1px solid var(--border-mid);
+  border-left:1px solid var(--border-mid);
+}
+#_tour-overlay { display:none; position:fixed; inset:0; z-index:99990; }
+
+/* ── Map image hover popup ── */
+#map-img-hover {
+  display:none; position:fixed; z-index:8500; pointer-events:none;
+  background:var(--bg-2); border:1px solid var(--border-mid);
+  border-radius:8px; overflow:hidden;
+  box-shadow:0 6px 24px rgba(0,0,0,0.65);
+  width:190px; opacity:0;
+  transition:opacity .15s ease;
+}
+#map-img-hover.visible { opacity:1; }
+#map-img-hover img { width:100%; height:130px; object-fit:cover; display:block; }
+#map-img-hover .hov-label {
+  padding:6px 9px; font-size:9px;
+  font-family:'JetBrains Mono',monospace;
+  letter-spacing:.8px; color:var(--muted); text-transform:uppercase;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
 </style>
 </head>
 <body>
+  
+<div class="modal-overlay" id="login-prompt-modal">
+  <div class="modal" style="max-width:360px;text-align:center;padding:32px 28px">
+    <div style="font-size:40px;margin-bottom:12px">🔐</div>
+    <div style="font-size:17px;font-weight:700;margin-bottom:8px">Sign in to Report</div>
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:24px;line-height:1.6">
+      You need to be signed in to submit a civic report.<br>It takes under 10 seconds.
+    </div>
+    <div style="display:flex;gap:10px">
+      <button onclick="closeModal('login-prompt-modal')"
+        style="flex:1;padding:12px;background:var(--bg-3);border:1px solid var(--border-mid);border-radius:8px;color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer">
+        Cancel
+      </button>
+      <button onclick="window.location.href='/login'"
+        style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:8px;color:#000;font-size:13px;font-weight:700;cursor:pointer">
+        Sign In →
+      </button>
+    </div>
+  </div>
+</div>
+  
+<div class="modal-overlay" id="success-modal" style="z-index:9999">
+  <div class="modal" style="max-width:420px;text-align:center;padding:32px 28px">
+    <div style="font-size:48px;margin-bottom:12px">✅</div>
+    <div style="font-size:20px;font-weight:700;color:var(--accent);letter-spacing:0.5px;margin-bottom:6px">
+      Report Submitted
+    </div>
+    <div style="font-size:13px;color:var(--text-2);margin-bottom:20px">
+      Your civic report has been filed and routed to the right authority.
+    </div>
+
+    
+    <div style="background:var(--bg-3);border:1px solid var(--border-mid);border-radius:10px;padding:14px 20px;margin-bottom:20px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:4px">Report ID</div>
+      <div id="sc-report-id" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--accent)">#AP-—</div>
+      <div id="sc-tag-badge" style="margin-top:6px;font-size:11px;color:var(--text-2)"></div>
+    </div>
+
+
+    <div style="text-align:left;margin-bottom:24px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">What happens next</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <span style="color:var(--accent);font-size:14px;margin-top:1px">①</span>
+          <span style="font-size:12px;color:var(--text-2);line-height:1.5">AI routes your report to the correct government department within seconds</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <span style="color:var(--accent);font-size:14px;margin-top:1px">②</span>
+          <span style="font-size:12px;color:var(--text-2);line-height:1.5">Government officer acknowledges and assigns the issue within the SLA window</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:flex-start">
+          <span style="color:var(--accent);font-size:14px;margin-top:1px">③</span>
+          <span style="font-size:12px;color:var(--text-2);line-height:1.5">You get a WhatsApp update when status changes — if you left a phone number</span>
+        </div>
+      </div>
+    </div>
+
+
+    <div id="sc-points" style="display:inline-block;background:var(--accent-dim);border:1px solid var(--accent);border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:20px">
+      +5 pts earned
+    </div>
+
+   
+    <div style="display:flex;gap:10px">
+      <button onclick="closeModal('success-modal')" 
+        style="flex:1;padding:12px;background:var(--bg-3);border:1px solid var(--border-mid);border-radius:8px;color:var(--text-2);font-size:13px;font-weight:600;cursor:pointer">
+        Close
+      </button>
+      <button onclick="closeModal('success-modal'); window.location.href='/my-reports'"
+        style="flex:1;padding:12px;background:var(--accent);border:none;border-radius:8px;color:#000;font-size:13px;font-weight:700;cursor:pointer">
+        View My Reports →
+      </button>
+    </div>
+  </div>
+</div>
 
 <div id="map"></div>
 
@@ -1160,7 +1285,7 @@ input, textarea, select { font-size:16px; }
   </div>
 </div>
 
-<!-- Bottom toolbar -->
+
 <div class="bottom-toolbar">
   <button class="tool-btn report" onclick="openReportModal()" title="Report Issue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span class="tool-lbl">Report</span></button>
   <button class="tool-btn locate" onclick="locateMe()" title="Locate me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg><span class="tool-lbl">Locate</span></button>
@@ -1205,7 +1330,18 @@ input, textarea, select { font-size:16px; }
     <div class="modal-title">Report Civic Issue</div>
     <div class="fg"><label>Description *</label><textarea id="r-desc" rows="3" placeholder="Describe the issue..."></textarea></div>
     <div class="fg-grid">
-      <div class="fg"><label>Area *</label><select id="r-area"><option value="">Select area…</option></select></div>
+     <div class="fg">
+  <label>Area *
+    <button type="button" id="area-detect-btn" onclick="autoDetectArea()"
+      style="margin-left:8px;padding:2px 8px;font-size:10px;font-family:'JetBrains Mono',monospace;
+             background:var(--bg-3);border:1px solid var(--border-mid);color:var(--muted);
+             cursor:pointer;letter-spacing:.5px">
+      📍 Auto-detect
+    </button>
+    <span id="area-detect-status" style="font-size:10px;color:var(--green);margin-left:6px"></span>
+  </label>
+  <select id="r-area"><option value="">Select area…</option></select>
+</div>
       <div class="fg"><label>Landmark</label><input id="r-landmark" type="text" placeholder="Near Metro, etc."/></div>
     </div>
     <div class="fg"><label>Severity</label>
@@ -1319,8 +1455,15 @@ input, textarea, select { font-size:16px; }
         <div class="about-row"><span class="about-key">Problem</span><span class="about-val">Crowdsourced Civic Issue Reporting · Govt of Jharkhand</span></div>
         <div class="about-row"><span class="about-key">Map</span><span class="about-val">MapTiler tiles · Leaflet</span></div>
         <div class="about-row"><span class="about-key">AI</span><span class="about-val">Groq · Llama-4-Scout</span></div>
-        <div class="about-row"><span class="about-key">Repo</span><a class="about-link" target="_blank" href="https://github.com/GarvChopra/Areapulse-Gemma4">github.com/GarvChopra</a></div>
+        
       </div>
+        <button onclick="closeSettings(); setTimeout(() => _tourStart(true), 450);"
+          style="margin-top:12px;width:100%;padding:10px;background:var(--bg-3);
+                 border:1px solid var(--border-mid);color:var(--text-2);
+                 font-family:'JetBrains Mono',monospace;font-size:10px;
+                 letter-spacing:1px;cursor:pointer;border-radius:4px">
+          TAKE TOUR AGAIN
+        </button>
     </div>
   </div>
 </div>
@@ -1375,6 +1518,32 @@ input, textarea, select { font-size:16px; }
 
 <div class="mobile-backdrop" id="mobile-backdrop" onclick="closeMobilePanels()"></div>
 <div id="toast"></div>
+<div id="_tour-overlay" onclick="_tourSkip()"></div>
+<div id="_tour-spot"></div>
+<div id="_tour-tip">
+  <div id="_tour-arrow"></div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div id="_tour-counter" style="font-family:'JetBrains Mono',monospace;font-size:9px;
+         letter-spacing:1.5px;color:var(--muted)"></div>
+    <button onclick="_tourSkip()" style="background:none;border:none;color:var(--muted);
+            cursor:pointer;font-size:18px;line-height:1;padding:0">×</button>
+  </div>
+  <div id="_tour-title" style="font-size:15px;font-weight:700;margin-bottom:7px;color:var(--text)"></div>
+  <div id="_tour-body"  style="font-size:12.5px;line-height:1.65;color:var(--text-2);margin-bottom:18px"></div>
+  <div id="_tour-dots" style="display:flex;gap:5px;margin-bottom:14px"></div>
+  <div style="display:flex;gap:8px">
+    <button onclick="_tourSkip()" style="flex:1;padding:9px;background:transparent;
+            border:1px solid var(--border-mid);border-radius:7px;
+            color:var(--muted);font-size:11px;cursor:pointer;font-family:'JetBrains Mono',monospace;
+            letter-spacing:.5px">SKIP</button>
+    <button id="_tour-next" onclick="_tourNext()" style="flex:2;padding:9px;
+            background:var(--accent);border:none;border-radius:7px;
+            color:#000;font-size:12px;font-weight:700;cursor:pointer;
+            font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></button>
+  </div>
+</div>
+
+</div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -1761,7 +1930,14 @@ function renderMarkers(issues) {
     if (!i.lat || !i.lng) return;
     const m = L.marker([i.lat, i.lng], { icon: makeIcon(i) });
     m.bindPopup(popupTagHTML(i), { offset:[0,-2], autoPan:false, closeButton:false });
-    m.on('click', () => { map.setView([i.lat, i.lng], 15, { animate:true }); m.openPopup(); });
+    m.on('click',     () => { map.setView([i.lat, i.lng], 15, { animate:true }); m.openPopup(); });
+    m.on('mouseover', (e) => {
+      const mapRect = document.getElementById('map').getBoundingClientRect();
+      const sx = mapRect.left + e.containerPoint.x;
+      const sy = mapRect.top  + e.containerPoint.y;
+      _showImgHover(i.id, i.tag, i.area, sx, sy);
+    });
+    m.on('mouseout',  ()  => _hideImgHover());
     markerLayer.addLayer(m);
   });
 }
@@ -1857,6 +2033,10 @@ async function upvote(id, btn) {
 }
 
 function openReportModal() {
+  if (!CURRENT_USER) {
+    document.getElementById('login-prompt-modal').classList.add('open');
+    return;
+  }
   map.once('click', e => {
     document.getElementById('r-lat').value = e.latlng.lat;
     document.getElementById('r-lng').value = e.latlng.lng;
@@ -1902,6 +2082,53 @@ async function aiAnalyzeImage() {
     showToast('AI classified the issue');
   } catch(e) { result.style.display='block'; result.textContent = '⚠ Network error'; btn.disabled=false; btn.textContent = 'Try again'; }
 }
+async function autoDetectArea() {
+  const btn    = document.getElementById('area-detect-btn');
+  const status = document.getElementById('area-detect-status');
+  if (!navigator.geolocation) return showToast('Geolocation not supported');
+  btn.textContent = '⏳ Detecting...';
+  btn.disabled    = true;
+  status.textContent = '';
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const userLat = pos.coords.latitude;
+    const userLng = pos.coords.longitude;
+    document.getElementById('r-lat').value = userLat;
+    document.getElementById('r-lng').value = userLng;
+    try {
+      const r     = await fetch('/areas');
+      const areas = await r.json();
+      function haversine(lat1, lng1, lat2, lng2) {
+        const R = 6371000;
+        const p1 = lat1*Math.PI/180, p2 = lat2*Math.PI/180;
+        const dp = (lat2-lat1)*Math.PI/180, dl = (lng2-lng1)*Math.PI/180;
+        const a = Math.sin(dp/2)**2 + Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      }
+      let nearest = null, minDist = Infinity;
+      for (const area of areas) {
+        if (!area.lat || !area.lng) continue;
+        const d = haversine(userLat, userLng, area.lat, area.lng);
+        if (d < minDist) { minDist = d; nearest = area; }
+      }
+      if (nearest) {
+        const sel = document.getElementById('r-area');
+        for (const opt of sel.options) {
+          if (opt.value === nearest.name || opt.text === nearest.name) {
+            sel.value = opt.value; break;
+          }
+        }
+        status.textContent = `${nearest.name} ✓`;
+        showToast(`Area auto-set: ${nearest.name}`);
+      } else { showToast('Could not determine area'); }
+    } catch(e) { showToast('Area detection failed'); }
+    btn.textContent = '📍 Auto-detect';
+    btn.disabled    = false;
+  }, () => {
+    showToast('Location access denied');
+    btn.textContent = '📍 Auto-detect';
+    btn.disabled    = false;
+  });
+}
 async function submitReport() {
   const desc = document.getElementById('r-desc').value.trim();
   const area = document.getElementById('r-area').value;
@@ -1911,31 +2138,50 @@ async function submitReport() {
   const lat = document.getElementById('r-lat').value;
   const lng = document.getElementById('r-lng').value;
   const severity = document.getElementById('r-severity').value || 'high';
+
   if (!desc || desc.length < 10) return showToast('Description min 10 chars');
   if (!area) return showToast('Select an area');
+
+ 
+  const btn = document.querySelector('#report-modal .submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'SUBMITTING...';
+
   const fd = new FormData();
   fd.append('user', user); fd.append('area', area); fd.append('description', desc);
   fd.append('severity', severity); fd.append('landmark', landmark); fd.append('contact', contact);
   if (lat) fd.append('lat', lat); if (lng) fd.append('lng', lng);
   const f = document.getElementById('r-image').files[0]; if (f) fd.append('image', f);
+
   try {
     const r = await fetch('/report', { method:'POST', body: fd });
     const d = await r.json();
     if (d.status === 'merged') {
-      // Duplicate detection feedback (transparent to user)
       showToast(d.message || `Added your voice to #AP-${d.merged_with}`, 'warn');
       closeModal('report-modal');
       resetReportForm();
       loadIssues();
     } else if (d.status === 'ok') {
-      showToast(`Reported · +${d.points_earned||5} pts`, 'success');
-      closeModal('report-modal');
-      resetReportForm();
-      loadIssues();
-    } else {
+  
+  document.getElementById('sc-report-id').textContent = `#AP-${d.id}`;
+  document.getElementById('sc-tag-badge').textContent  = TAG_LABELS[d.tag] || d.tag || 'Civic Issue';
+  document.getElementById('sc-points').textContent     = `+${d.points_earned || 5} pts earned`;
+
+  closeModal('report-modal');
+  resetReportForm();
+  loadIssues();
+  document.getElementById('success-modal').classList.add('open');
+}
+     else {
       showToast(d.error || 'Submission failed');
     }
-  } catch(e) { showToast('Network error'); }
+  } catch(e) {
+    showToast('Network error');
+  } finally {
+  
+    btn.disabled = false;
+    btn.textContent = 'SUBMIT REPORT';
+  }
 }
 function resetReportForm() {
   document.getElementById('r-desc').value = '';
@@ -2262,6 +2508,247 @@ if (document.readyState === 'loading') {
 }
 window.addEventListener('load', _initMobileChrome);
 window.addEventListener('pageshow', _initMobileChrome);
+const _STEPS = [
+  {
+    sel:   '.tool-btn.report, #m-fab-report',
+    title: 'Report a civic issue',
+    body:  'Tap this button to report any problem — pothole, broken streetlight, garbage dump. Upload a photo and AI classifies it and routes it to the right government department instantly. No forms needed.',
+  },
+  {
+    sel:   '.leaflet-marker-icon, .leaflet-marker-pane img',
+    title: 'Tap any dot on the map',
+    body:  'Each coloured dot is a real citizen report. Tap any dot like this one to open the full report — photo evidence, status timeline, upvote button, and an AI complaint letter you can send directly to the government.',
+  },
+  {
+    sel:   '#left-panel, .left-panel',
+    title: 'Filter & explore issues',
+    body:  'Toggle issue categories — potholes, water, garbage, electricity. Apply severity and status filters. Switch to heatmap view to see where problems cluster across Delhi.',
+  },
+  {
+    sel:   '#nav-menu-btn',
+    title: 'Open menu for all features',
+    body:  'Tap the menu to access everything — All Issues, My Reports, Community Feed, NGO Directory, and Stats. Inside any issue report you can also draft an AI complaint letter and send it directly to the government authority.',
+  },
+  {
+    sel:   'a[href="/my-reports"], .tb-action[href="/my-reports"]',
+    title: 'Track your reports',
+    body:  'See live status of every issue you submitted. You get WhatsApp updates when your issue is acknowledged or resolved. You can also draft a formal complaint letter from any report.',
+  },
+];
+
+let _ti = 0;
+
+function _tourStart(force) {
+  if (!force && localStorage.getItem('ap_tour_done')) return;
+  localStorage.removeItem('ap_tour_done');
+  _ti = 0;
+  ['_tour-overlay','_tour-spot','_tour-tip'].forEach(id => {
+    document.getElementById(id).style.display = 'block';
+  });
+  _tourRender();
+}
+
+function _tourRender() {
+  const step  = _STEPS[_ti];
+  const total = _STEPS.length;
+
+  document.getElementById('_tour-counter').textContent = `STEP ${_ti+1} OF ${total}`;
+  document.getElementById('_tour-title').textContent   = step.title;
+  document.getElementById('_tour-body').textContent    = step.body;
+  document.getElementById('_tour-next').textContent    = _ti === total-1 ? 'GET STARTED ✓' : 'NEXT →';
+
+  // Step dots
+  document.getElementById('_tour-dots').innerHTML = _STEPS.map((_,i) =>
+    `<div style="width:${i===_ti?18:6}px;height:6px;border-radius:3px;
+     background:${i===_ti?'var(--accent)':'var(--border-mid)'};transition:all .25s"></div>`
+  ).join('');
+
+  // Find target element (try multiple selectors)
+  const el = step.sel.split(',').map(s => document.querySelector(s.trim())).find(e => {
+    if (!e) return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
+
+  if (!el || step.center) {
+    // No spotlight — center the tooltip
+    document.getElementById('_tour-spot').style.display  = 'none';
+    document.getElementById('_tour-arrow').style.display = 'none';
+    const tip = document.getElementById('_tour-tip');
+    tip.style.top       = '50%';
+    tip.style.left      = '50%';
+    tip.style.transform = 'translate(-50%,-50%)';
+  } else {
+    document.getElementById('_tour-spot').style.display  = 'block';
+    document.getElementById('_tour-arrow').style.display = 'block';
+    const tip = document.getElementById('_tour-tip');
+    tip.style.transform = '';
+    _placeSpotlight(el);
+    _placeTip(el);
+  }
+}
+
+function _placeSpotlight(el) {
+  const PAD = 10;
+  const r   = el.getBoundingClientRect();
+  const sp  = document.getElementById('_tour-spot');
+  sp.style.top    = (r.top    - PAD) + 'px';
+  sp.style.left   = (r.left   - PAD) + 'px';
+  sp.style.width  = (r.width  + PAD*2) + 'px';
+  sp.style.height = (r.height + PAD*2) + 'px';
+}
+
+function _placeTip(el) {
+  const PAD  = 10;
+  const GAP  = 18;
+  const TW   = 272;
+  const TH   = 220;
+  const r    = el.getBoundingClientRect();
+  const vw   = window.innerWidth;
+  const vh   = window.innerHeight;
+  const tip  = document.getElementById('_tour-tip');
+  const arr  = document.getElementById('_tour-arrow');
+
+  // Available space in each direction
+  const spBot = vh - r.bottom - PAD - GAP;
+  const spTop = r.top - PAD - GAP;
+  const spRgt = vw - r.right - PAD - GAP;
+  const spLft = r.left - PAD - GAP;
+
+  let pos = 'bottom';
+  if (spBot >= TH)       pos = 'bottom';
+  else if (spTop >= TH)  pos = 'top';
+  else if (spRgt >= TW)  pos = 'right';
+  else if (spLft >= TW)  pos = 'left';
+
+  // Base arrow style
+  const aBase = `position:absolute;width:11px;height:11px;background:var(--bg-2);
+    border-top:1px solid var(--border-mid);border-left:1px solid var(--border-mid);`;
+
+  let top, left;
+
+  if (pos === 'bottom') {
+    top  = r.bottom + PAD + GAP;
+    left = Math.min(Math.max(r.left + r.width/2 - TW/2, 12), vw - TW - 12);
+    // Arrow at top of tooltip pointing up
+    const ax = Math.max(16, Math.min((r.left + r.width/2) - left - 6, TW - 28));
+    arr.style.cssText = aBase + `top:-6px;left:${ax}px;transform:rotate(45deg)`;
+
+  } else if (pos === 'top') {
+    top  = r.top - PAD - GAP - TH;
+    left = Math.min(Math.max(r.left + r.width/2 - TW/2, 12), vw - TW - 12);
+    // Arrow at bottom of tooltip pointing down
+    const ax = Math.max(16, Math.min((r.left + r.width/2) - left - 6, TW - 28));
+    arr.style.cssText = aBase + `bottom:-6px;left:${ax}px;transform:rotate(225deg)`;
+
+  } else if (pos === 'right') {
+    left = r.right + PAD + GAP;
+    top  = Math.min(Math.max(r.top + r.height/2 - TH/2, 12), vh - TH - 12);
+    // Arrow at left of tooltip pointing left
+    const ay = Math.max(16, Math.min((r.top + r.height/2) - top - 6, TH - 28));
+    arr.style.cssText = aBase + `left:-6px;top:${ay}px;transform:rotate(-45deg)`;
+
+  } else {
+    left = r.left - PAD - GAP - TW;
+    top  = Math.min(Math.max(r.top + r.height/2 - TH/2, 12), vh - TH - 12);
+    // Arrow at right of tooltip pointing right
+    const ay = Math.max(16, Math.min((r.top + r.height/2) - top - 6, TH - 28));
+    arr.style.cssText = aBase + `right:-6px;top:${ay}px;transform:rotate(135deg)`;
+  }
+
+  tip.style.top  = Math.max(12, Math.min(top,  vh - TH - 12)) + 'px';
+  tip.style.left = Math.max(12, Math.min(left, vw - TW - 12)) + 'px';
+}
+
+function _tourNext() {
+  if (_ti < _STEPS.length - 1) {
+    _ti++;
+    _tourRender();
+  } else {
+    _tourSkip();
+  }
+}
+
+function _tourSkip() {
+  ['_tour-overlay','_tour-spot','_tour-tip'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  localStorage.setItem('ap_tour_done', '1');
+}
+
+// Reposition on resize
+window.addEventListener('resize', () => {
+  if (document.getElementById('_tour-tip').style.display !== 'none') _tourRender();
+});
+
+setTimeout(_tourStart, 1500);
+
+// ── Map image hover preview ────────────────────────────────────────────────
+const _imgCache = {};
+let   _hoverTimer = null;
+
+function _showImgHover(id, tag, area, sx, sy) {
+  clearTimeout(_hoverTimer);
+  _hoverTimer = setTimeout(async () => {
+    // Check cache first — if null, no image exists for this issue
+    if (_imgCache[id] === null) return;
+
+    const popup = document.getElementById('map-img-hover');
+    const img   = document.getElementById('map-hover-img');
+    const label = document.getElementById('map-hover-label');
+
+    label.textContent = `${(TAG_LABELS[tag]||tag||'Issue').toUpperCase()} · ${(area||'').toUpperCase()}`;
+
+    // Position near cursor, keep inside viewport
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const x  = Math.min(sx + 16, vw - 210);
+    const y  = Math.min(sy - 160, vh - 175);
+    popup.style.left = Math.max(8, x) + 'px';
+    popup.style.top  = Math.max(8, y) + 'px';
+    popup.style.display = 'block';
+
+    // Load image if not cached
+    if (_imgCache[id] === undefined) {
+      _imgCache[id] = 'loading';
+      try {
+        const r = await fetch(`/issue/${id}/image`);
+        if (r.ok && r.status !== 204) {
+          const blob = await r.blob();
+          _imgCache[id] = URL.createObjectURL(blob);
+        } else {
+          _imgCache[id] = null; // No image
+          popup.style.display = 'none';
+          return;
+        }
+      } catch {
+        _imgCache[id] = null;
+        popup.style.display = 'none';
+        return;
+      }
+    }
+
+    if (_imgCache[id] && _imgCache[id] !== 'loading') {
+      img.src = _imgCache[id];
+      popup.classList.add('visible');
+    } else if (_imgCache[id] === null) {
+      popup.style.display = 'none';
+    }
+  }, 180);
+}
+
+function _hideImgHover() {
+  clearTimeout(_hoverTimer);
+  const popup = document.getElementById('map-img-hover');
+  popup.classList.remove('visible');
+  setTimeout(() => { popup.style.display = 'none'; }, 150);
+}
 </script>
+
+
+<!-- Map image hover popup -->
+<div id="map-img-hover">
+  <img id="map-hover-img" alt="Issue photo" />
+  <div class="hov-label" id="map-hover-label"></div>
+</div>
 </body>
 </html>

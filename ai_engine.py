@@ -532,10 +532,11 @@ def is_duplicate_image(
                     best_dist, best_match = d, stored
             except Exception:
                 continue
-        is_dup = best_dist <= threshold
+       # AFTER:
+        is_dup = bool(best_dist <= threshold)       
         return {
             'is_duplicate': is_dup,
-            'distance':     best_dist if best_match else None,
+            'distance':     int(best_dist) if best_match else None, 
             'matched_hash': best_match if is_dup else None,
         }
     except Exception:

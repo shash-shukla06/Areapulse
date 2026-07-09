@@ -670,6 +670,46 @@ def auth_google_callback():
 #  - Single bulk escalation UPDATE instead of N individual connection checkouts
 #  - SLA annotation in pure Python (no DB calls)
 # ═══════════════════════════════════════════════════════
+@app.route('/issue/<int:issue_id>/image')
+def issue_image_api(issue_id):
+    """
+    Return the image for a single issue.
+    Used by the map marker hover preview — images are stripped from
+    the public /issues list endpoint for size, so we serve them on demand.
+ 
+    Returns:
+      200 + image bytes  — issue has a photo
+      204 No Content     — issue exists but has no photo
+      404                — issue not found
+    """
+    issue = get_issue_by_id(issue_id)
+    if not issue:
+        return '', 404
+ 
+    img = issue.get('image') or ''
+    if not img:
+        return '', 204   # issue exists, no photo
+ 
+    # Data URL  (base64 stored directly in DB)
+    if img.startswith('data:'):
+        try:
+            header, data   = img.split(',', 1)
+            mime           = header.split(':')[1].split(';')[0]
+            img_bytes      = base64.b64decode(data)
+            from flask import Response
+            resp = Response(img_bytes, mimetype=mime)
+            resp.headers['Cache-Control'] = 'public, max-age=86400'  # cache 1 day
+            return resp
+        except Exception as e:
+            print(f'[issue_image] decode error for #{issue_id}: {e}')
+            return '', 500
+ 
+    # Object storage URL (R2 / S3)
+    if img.startswith('http'):
+        return redirect(img, 302)
+ 
+    return '', 404
+ 
 @app.route('/issues')
 def issues_api():
     tag          = (request.args.get('tag')    or '').strip() or None

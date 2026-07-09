@@ -360,9 +360,18 @@ input, textarea, select { font-size:16px; }
       <span>WHATSAPP</span>
     </a>
     {% if current_user %}
-    <div class="tb-user-pill"><div class="tb-avatar">{{ current_user[:2].upper() }}</div><span>{{ current_user }}</span></div>
-    <a href="/logout" class="tb-signout">SIGN OUT</a>
-    {% else %}
+<a href="/my-reports" class="tb-action"
+   style="background:rgba(74,144,226,0.12);color:#4a90e2;border-color:rgba(74,144,226,0.4)"
+   title="My Reports">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <path d="M9 11l3 3L22 4"/>
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+  </svg>
+  <span>MY REPORTS</span>
+</a>
+<div class="tb-user-pill"><div class="tb-avatar">{{ current_user[:2].upper() }}</div><span>{{ current_user }}</span></div>
+<a href="/logout" class="tb-signout">SIGN OUT</a>
+{% else %}
     <a href="/login" class="tb-signin-btn">SIGN IN</a>
     {% endif %}
   </div>
