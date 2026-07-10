@@ -2510,7 +2510,7 @@ window.addEventListener('load', _initMobileChrome);
 window.addEventListener('pageshow', _initMobileChrome);
 const _STEPS = [
   {
-    sel:   '.tool-btn.report, #m-fab-report',
+    sel:   '.bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report',
     title: 'Report a civic issue',
     body:  'Tap this button to report any problem — pothole, broken streetlight, garbage dump. Upload a photo and AI classifies it and routes it to the right government department instantly. No forms needed.',
   },
@@ -2530,9 +2530,18 @@ const _STEPS = [
     body:  'Tap the menu to access everything — All Issues, My Reports, Community Feed, NGO Directory, and Stats. Inside any issue report you can also draft an AI complaint letter and send it directly to the government authority.',
   },
   {
-    sel:   'a[href="/my-reports"], .tb-action[href="/my-reports"]',
-    title: 'Track your reports',
-    body:  'See live status of every issue you submitted. You get WhatsApp updates when your issue is acknowledged or resolved. You can also draft a formal complaint letter from any report.',
+    sel:     '#nav-menu a[href="/my-reports"]',
+    title:   'Track your reports',
+    body:    'See live status of every issue you submitted. You get WhatsApp updates when your issue is acknowledged or resolved. You can also draft a formal complaint letter from any report.',
+    onEnter: () => {
+      const m = document.getElementById('nav-menu');
+      const b = document.getElementById('nav-backdrop');
+      if (m && !m.classList.contains('open')) { m.classList.add('open'); b?.classList.add('show'); }
+    },
+    onExit: () => {
+      document.getElementById('nav-menu')?.classList.remove('open');
+      document.getElementById('nav-backdrop')?.classList.remove('show');
+    },
   },
 ];
 
@@ -2548,7 +2557,7 @@ function _tourStart(force) {
   _tourRender();
 }
 
-function _tourRender() {
+function _tourRender(retry) {
   const step  = _STEPS[_ti];
   const total = _STEPS.length;
 
@@ -2563,12 +2572,23 @@ function _tourRender() {
      background:${i===_ti?'var(--accent)':'var(--border-mid)'};transition:all .25s"></div>`
   ).join('');
 
+  // Run onEnter hook (e.g. open the nav menu before highlighting a link inside it)
+  if (step.onEnter) { try { step.onEnter(); } catch(e) {} }
+
   // Find target element (try multiple selectors)
   const el = step.sel.split(',').map(s => document.querySelector(s.trim())).find(e => {
     if (!e) return false;
     const r = e.getBoundingClientRect();
     return r.width > 0 && r.height > 0;
   });
+
+  // Element not found/visible yet (e.g. nav menu still animating open, or
+  // mobile FAB not yet injected) — retry once after a short delay instead
+  // of silently falling back to center mode.
+  if (!el && !step.center && !retry) {
+    setTimeout(() => _tourRender(true), 220);
+    return;
+  }
 
   if (!el || step.center) {
     // No spotlight — center the tooltip
@@ -2661,6 +2681,8 @@ function _placeTip(el) {
 }
 
 function _tourNext() {
+  const prev = _STEPS[_ti];
+  if (prev && prev.onExit) { try { prev.onExit(); } catch(e) {} }
   if (_ti < _STEPS.length - 1) {
     _ti++;
     _tourRender();
@@ -2670,6 +2692,8 @@ function _tourNext() {
 }
 
 function _tourSkip() {
+  const cur = _STEPS[_ti];
+  if (cur && cur.onExit) { try { cur.onExit(); } catch(e) {} }
   ['_tour-overlay','_tour-spot','_tour-tip'].forEach(id => {
     document.getElementById(id).style.display = 'none';
   });
