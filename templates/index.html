@@ -1042,19 +1042,13 @@ input, textarea, select { font-size:16px; }
 #map-img-hover {
   display:none; position:fixed; z-index:8500; pointer-events:none;
   background:var(--bg-2); border:1px solid var(--border-mid);
-  border-radius:8px; overflow:hidden;
-  box-shadow:0 6px 24px rgba(0,0,0,0.65);
-  width:190px; opacity:0;
+  border-radius:10px; overflow:hidden;
+  box-shadow:0 8px 28px rgba(0,0,0,0.55);
+  width:220px; opacity:0;
   transition:opacity .15s ease;
 }
 #map-img-hover.visible { opacity:1; }
-#map-img-hover img { width:100%; height:130px; object-fit:cover; display:block; }
-#map-img-hover .hov-label {
-  padding:6px 9px; font-size:9px;
-  font-family:'JetBrains Mono',monospace;
-  letter-spacing:.8px; color:var(--muted); text-transform:uppercase;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-}
+#map-img-hover img { width:100%; height:110px; object-fit:cover; display:block; }
 </style>
 </head>
 <body>
@@ -1518,7 +1512,7 @@ input, textarea, select { font-size:16px; }
 
 <div class="mobile-backdrop" id="mobile-backdrop" onclick="closeMobilePanels()"></div>
 <div id="toast"></div>
-<div id="_tour-overlay" onclick="_tourSkip()"></div>
+<div id="_tour-overlay"></div>
 <div id="_tour-spot"></div>
 <div id="_tour-tip">
   <div id="_tour-arrow"></div>
@@ -2510,12 +2504,13 @@ window.addEventListener('load', _initMobileChrome);
 window.addEventListener('pageshow', _initMobileChrome);
 const _STEPS = [
   {
-    sel:   '.bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report',
-    title: 'Report a civic issue',
-    body:  'Tap this button to report any problem — pothole, broken streetlight, garbage dump. Upload a photo and AI classifies it and routes it to the right government department instantly. No forms needed.',
+    sel:    '.bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report',
+    title:  'Report a civic issue',
+    body:   'See the + REPORT button at the bottom of your screen. Tap it to report any problem — pothole, broken streetlight, garbage dump. Upload a photo and AI classifies it instantly.',
+    tipPos: 'top',
   },
   {
-    sel:   '.leaflet-marker-icon, .leaflet-marker-pane img',
+    sel:   '.map-marker',
     title: 'Tap any dot on the map',
     body:  'Each coloured dot is a real citizen report. Tap any dot like this one to open the full report — photo evidence, status timeline, upvote button, and an AI complaint letter you can send directly to the government.',
   },
@@ -2532,15 +2527,19 @@ const _STEPS = [
   {
     sel:     '#nav-menu a[href="/my-reports"]',
     title:   'Track your reports',
-    body:    'See live status of every issue you submitted. You get WhatsApp updates when your issue is acknowledged or resolved. You can also draft a formal complaint letter from any report.',
+    body:    'See the My Reports link highlighted in the menu. Tap it to see live status of every issue you submitted — WhatsApp updates, resolution timeline, and AI complaint drafting.',
     onEnter: () => {
       const m = document.getElementById('nav-menu');
       const b = document.getElementById('nav-backdrop');
       if (m && !m.classList.contains('open')) { m.classList.add('open'); b?.classList.add('show'); }
+      const link = document.querySelector('#nav-menu a[href="/my-reports"]');
+      if (link) { link.style.background='var(--accent-dim)'; link.style.borderLeft='3px solid var(--accent)'; link.style.paddingLeft='10px'; }
     },
     onExit: () => {
       document.getElementById('nav-menu')?.classList.remove('open');
       document.getElementById('nav-backdrop')?.classList.remove('show');
+      const link = document.querySelector('#nav-menu a[href="/my-reports"]');
+      if (link) { link.style.background=''; link.style.borderLeft=''; link.style.paddingLeft=''; }
     },
   },
 ];
@@ -2586,19 +2585,21 @@ function _tourRender(retry) {
   // mobile FAB not yet injected) — retry once after a short delay instead
   // of silently falling back to center mode.
   if (!el && !step.center && !retry) {
-    setTimeout(() => _tourRender(true), 220);
+    setTimeout(() => _tourRender(true), 450);
     return;
   }
 
   if (!el || step.center) {
-    // No spotlight — center the tooltip
-    document.getElementById('_tour-spot').style.display  = 'none';
-    document.getElementById('_tour-arrow').style.display = 'none';
+    // No spotlight — hide overlay dim + center the tooltip so UI stays visible
+    document.getElementById('_tour-overlay').style.background = 'transparent';
+    document.getElementById('_tour-spot').style.display       = 'none';
+    document.getElementById('_tour-arrow').style.display      = 'none';
     const tip = document.getElementById('_tour-tip');
     tip.style.top       = '50%';
     tip.style.left      = '50%';
     tip.style.transform = 'translate(-50%,-50%)';
   } else {
+    document.getElementById('_tour-overlay').style.background = '';
     document.getElementById('_tour-spot').style.display  = 'block';
     document.getElementById('_tour-arrow').style.display = 'block';
     const tip = document.getElementById('_tour-tip');
@@ -2635,11 +2636,14 @@ function _placeTip(el) {
   const spRgt = vw - r.right - PAD - GAP;
   const spLft = r.left - PAD - GAP;
 
-  let pos = 'bottom';
-  if (spBot >= TH)       pos = 'bottom';
-  else if (spTop >= TH)  pos = 'top';
-  else if (spRgt >= TW)  pos = 'right';
-  else if (spLft >= TW)  pos = 'left';
+  const _forced = (_STEPS[_ti] || {}).tipPos || null;
+  let pos = _forced || 'bottom';
+  if (!_forced) {
+    if (spBot >= TH)       pos = 'bottom';
+    else if (spTop >= TH)  pos = 'top';
+    else if (spRgt >= TW)  pos = 'right';
+    else if (spLft >= TW)  pos = 'left';
+  }
 
   // Base arrow style
   const aBase = `position:absolute;width:11px;height:11px;background:var(--bg-2);
@@ -2714,24 +2718,46 @@ let   _hoverTimer = null;
 function _showImgHover(id, tag, area, sx, sy) {
   clearTimeout(_hoverTimer);
   _hoverTimer = setTimeout(async () => {
-    // Check cache first — if null, no image exists for this issue
-    if (_imgCache[id] === null) return;
+    const issue  = allIssues.find(x => x.id === id) || {};
+    const popup  = document.getElementById('map-img-hover');
+    const img    = document.getElementById('map-hover-img');
 
-    const popup = document.getElementById('map-img-hover');
-    const img   = document.getElementById('map-hover-img');
-    const label = document.getElementById('map-hover-label');
+    // ── Always fill info fields ──────────────────────────────────────────
+    const tagLabel = (TAG_LABELS[tag] || tag || 'Issue').toUpperCase();
+    const sev      = (issue.severity || 'medium').toUpperCase();
+    const sta      = (issue.status   || 'open').toUpperCase();
+    const desc     = issue.description || '';
+    const areaStr  = (area || issue.area || '').toUpperCase();
 
-    label.textContent = `${(TAG_LABELS[tag]||tag||'Issue').toUpperCase()} · ${(area||'').toUpperCase()}`;
+    const sevColors = { HIGH:'#e74c3c', MEDIUM:'var(--amber)', LOW:'var(--green)' };
+    const staColors = { OPEN:'var(--accent)', RESOLVED:'var(--green)', ESCALATED:'#e74c3c' };
 
-    // Position near cursor, keep inside viewport
+    document.getElementById('map-hover-tag').textContent  = tagLabel;
+    const sevEl = document.getElementById('map-hover-sev');
+    sevEl.textContent = sev;
+    sevEl.style.background = sevColors[sev] || 'var(--amber)';
+    sevEl.style.color = 'var(--ink)';
+    const staEl = document.getElementById('map-hover-sta');
+    staEl.textContent = sta;
+    staEl.style.background = staColors[sta] || 'var(--accent-dim)';
+    staEl.style.color = staColors[sta] ? 'var(--ink)' : 'var(--accent)';
+    document.getElementById('map-hover-desc').textContent = desc.length > 70 ? desc.slice(0,70)+'…' : desc;
+    document.getElementById('map-hover-area').textContent = areaStr;
+
+    // ── Position near cursor, keep inside viewport ───────────────────────
     const vw = window.innerWidth, vh = window.innerHeight;
-    const x  = Math.min(sx + 16, vw - 210);
-    const y  = Math.min(sy - 160, vh - 175);
-    popup.style.left = Math.max(8, x) + 'px';
-    popup.style.top  = Math.max(8, y) + 'px';
+    const x  = Math.min(sx + 16, vw - 235);
+    const y  = Math.min(sy - 20, vh - 200);
+    popup.style.left    = Math.max(8, x) + 'px';
+    popup.style.top     = Math.max(8, y) + 'px';
     popup.style.display = 'block';
+    popup.classList.add('visible');
 
-    // Load image if not cached
+    // ── Load photo if available (non-blocking — already shown info) ──────
+    if (_imgCache[id] === null) {
+      img.style.display = 'none';
+      return;
+    }
     if (_imgCache[id] === undefined) {
       _imgCache[id] = 'loading';
       try {
@@ -2740,22 +2766,19 @@ function _showImgHover(id, tag, area, sx, sy) {
           const blob = await r.blob();
           _imgCache[id] = URL.createObjectURL(blob);
         } else {
-          _imgCache[id] = null; // No image
-          popup.style.display = 'none';
+          _imgCache[id] = null;
+          img.style.display = 'none';
           return;
         }
       } catch {
         _imgCache[id] = null;
-        popup.style.display = 'none';
+        img.style.display = 'none';
         return;
       }
     }
-
     if (_imgCache[id] && _imgCache[id] !== 'loading') {
       img.src = _imgCache[id];
-      popup.classList.add('visible');
-    } else if (_imgCache[id] === null) {
-      popup.style.display = 'none';
+      img.style.display = 'block';
     }
   }, 180);
 }
@@ -2771,8 +2794,16 @@ function _hideImgHover() {
 
 <!-- Map image hover popup -->
 <div id="map-img-hover">
-  <img id="map-hover-img" alt="Issue photo" />
-  <div class="hov-label" id="map-hover-label"></div>
+  <img id="map-hover-img" alt="Issue photo" style="display:none" />
+  <div id="map-hover-info" style="padding:10px 11px 6px;display:flex;flex-direction:column;gap:4px">
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+      <span id="map-hover-tag" style="font-size:9px;font-weight:700;letter-spacing:.8px;font-family:'JetBrains Mono',monospace;color:var(--accent);text-transform:uppercase"></span>
+      <span id="map-hover-sev" style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;font-family:'JetBrains Mono',monospace"></span>
+      <span id="map-hover-sta" style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:3px;text-transform:uppercase;font-family:'JetBrains Mono',monospace;margin-left:auto"></span>
+    </div>
+    <div id="map-hover-desc" style="font-size:11.5px;color:var(--text);line-height:1.45;margin:1px 0"></div>
+    <div id="map-hover-area" style="font-size:9px;color:var(--muted);font-family:'JetBrains Mono',monospace;letter-spacing:.5px;text-transform:uppercase"></div>
+  </div>
 </div>
 </body>
 </html>
