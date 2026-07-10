@@ -730,6 +730,16 @@ input, textarea, select { font-size:16px; }
 .nav-menu-body::-webkit-scrollbar-thumb { background:var(--border-mid); }
 .nav-section { font-family:'Barlow Condensed', sans-serif; font-size:10.5px; font-weight:700; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; padding:14px 22px 8px; }
 .nav-link { display:flex; align-items:center; gap:14px; padding:14px 22px; font-size:15px; font-weight:500; color:var(--text); cursor:pointer; border-left:3px solid transparent; transition:background .12s, border-color .12s; text-decoration:none; }
+@keyframes tour-row-pulse {
+  0%   { box-shadow:0 0 0 0 rgba(248,192,35,0.9), inset 0 0 0 2px rgba(248,192,35,0.9); }
+  60%  { box-shadow:0 0 0 10px rgba(248,192,35,0), inset 0 0 0 2px rgba(248,192,35,0.9); }
+  100% { box-shadow:0 0 0 0 rgba(248,192,35,0), inset 0 0 0 2px rgba(248,192,35,0.9); }
+}
+.nav-link.tour-highlight { background:transparent !important; color:var(--text) !important; border-left:3px solid transparent !important; border-radius:6px !important; outline:2px solid var(--accent) !important; outline-offset:0px !important; animation:tour-row-pulse 1.2s ease-out infinite !important; }
+.nav-link.tour-highlight .nav-link-icon svg { stroke:var(--accent) !important; }
+.nav-link.tour-highlight .nav-link-text { color:var(--text) !important; }
+.nav-link.tour-highlight .nav-link-sub { color:var(--muted) !important; }
+.nav-link.tour-highlight .nav-link-arrow { color:var(--accent) !important; }
 .nav-link:hover { background:rgba(248,192,35,0.06); border-left-color:var(--accent); }
 .nav-link.active { background:var(--accent-dim); border-left-color:var(--accent); color:var(--accent); font-weight:600; }
 .nav-link-icon { width:30px; height:30px; display:flex; align-items:center; justify-content:center; color:var(--accent); flex-shrink:0; }
@@ -2528,18 +2538,22 @@ const _STEPS = [
     sel:     '#nav-menu a[href="/my-reports"]',
     title:   'Track your reports',
     body:    'See the My Reports link highlighted in the menu. Tap it to see live status of every issue you submitted — WhatsApp updates, resolution timeline, and AI complaint drafting.',
+    noSpot:  true,
     onEnter: () => {
       const m = document.getElementById('nav-menu');
       const b = document.getElementById('nav-backdrop');
       if (m && !m.classList.contains('open')) { m.classList.add('open'); b?.classList.add('show'); }
-      const link = document.querySelector('#nav-menu a[href="/my-reports"]');
-      if (link) { link.style.background='var(--accent-dim)'; link.style.borderLeft='3px solid var(--accent)'; link.style.paddingLeft='10px'; }
+      // Use CSS class so !important beats nav-link specificity
+      setTimeout(() => {
+        const link = document.querySelector('#nav-menu a[href="/my-reports"]');
+        if (link) link.classList.add('tour-highlight');
+      }, 50);
     },
     onExit: () => {
       document.getElementById('nav-menu')?.classList.remove('open');
       document.getElementById('nav-backdrop')?.classList.remove('show');
       const link = document.querySelector('#nav-menu a[href="/my-reports"]');
-      if (link) { link.style.background=''; link.style.borderLeft=''; link.style.paddingLeft=''; }
+      if (link) link.classList.remove('tour-highlight');
     },
   },
 ];
@@ -2600,12 +2614,22 @@ function _tourRender(retry) {
     tip.style.transform = 'translate(-50%,-50%)';
   } else {
     document.getElementById('_tour-overlay').style.background = '';
-    document.getElementById('_tour-spot').style.display  = 'block';
-    document.getElementById('_tour-arrow').style.display = 'block';
-    const tip = document.getElementById('_tour-tip');
-    tip.style.transform = '';
-    _placeSpotlight(el);
-    _placeTip(el);
+    if (step.noSpot) {
+      // CSS animation handles the highlight — no box-shadow spotlight needed
+      document.getElementById('_tour-spot').style.display  = 'none';
+      document.getElementById('_tour-arrow').style.display = 'none';
+      document.getElementById('_tour-overlay').style.background = 'transparent';
+      const tip = document.getElementById('_tour-tip');
+      tip.style.transform = '';
+      _placeTip(el);
+    } else {
+      document.getElementById('_tour-spot').style.display  = 'block';
+      document.getElementById('_tour-arrow').style.display = 'block';
+      const tip = document.getElementById('_tour-tip');
+      tip.style.transform = '';
+      _placeSpotlight(el);
+      _placeTip(el);
+    }
   }
 }
 
