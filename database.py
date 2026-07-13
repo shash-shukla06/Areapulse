@@ -120,6 +120,7 @@ def init_db():
                     "keepalives_count": 3,
                 },
                 configure=_ensure_pg_schema,
+                check=ConnectionPool.check_connection,
             )
             _state['mode'] = 'postgres'
             print('[database] Postgres connected (primary)')
