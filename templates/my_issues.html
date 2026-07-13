@@ -267,9 +267,7 @@ async function load() {
     const escalatedBadge = issue.is_escalated ? '<span class="badge badge-escalated">↑ Escalated</span>' : '';
     return `
     <div class="my-issue-card" onclick="openDetail(${issue.id})">
-      ${issue.image
-        ? `<img class="my-issue-card-img" src="${issue.image}" loading="lazy"/>`
-        : `<div class="my-issue-img-placeholder">${(issue.user || 'A').slice(0,2).toUpperCase()}</div>`}
+      <img class="my-issue-card-img" src="/issue/${issue.id}/image" loading="lazy" data-initials="${(issue.user||'A').slice(0,2).toUpperCase()}" onerror="_imgErr(this)"/>${(issue.user||'A').slice(0,2).toUpperCase()}</div>'"/>
       <div class="my-issue-body">
         <div class="my-issue-header">
           <div style="display:flex;gap:6px;flex-wrap:wrap">
@@ -425,9 +423,9 @@ function renderDetail(d) {
   const dateStr = ts ? ts.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Unknown';
 
   // Hero
-  const hero = issue.image
+  const hero = true
     ? `<div class="detail-hero">
-         <img src="${issue.image}"/>
+         <img src="/issue/${issue.id}/image" onerror="this.parentElement.style.display='none'"/>
          <div class="detail-hero-overlay">
            <div class="detail-hero-title">${escHtml(tagLabel)} — ${escHtml(issue.area || 'Delhi')}</div>
          </div>
@@ -605,6 +603,15 @@ async function emailAuthority(id) {
 
 function escHtml(s) {
   if(!s)return''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Swap broken <img> for initials avatar
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'my-issue-img-placeholder';
+  div.textContent = initials;
+  img.parentNode.replaceChild(div, img);
 }
 
 load();

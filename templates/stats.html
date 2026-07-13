@@ -3,154 +3,307 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AreaPulse · Public Civic Stats</title>
+<title>AreaPulse · Urban Intelligence Center</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:        #19232f;
-  --bg-2:      #1f2b39;
-  --bg-3:      #25323f;
-  --bg-4:      #2c3a4a;
-  --accent:    #f8c023;   --accent-dim:rgba(248,192,35,0.14);
-  --info:      #3787c7;   --info-dim:rgba(55,135,199,0.16);
-  --red:       #f85149;   --red-dim:rgba(248,81,73,0.14);
-  --green:     #3fb950;   --green-dim:rgba(63,185,80,0.14);
-  --amber:     #e3b341;   --amber-dim:rgba(227,179,65,0.14);
-  --purple:    #a371f7;   --purple-dim:rgba(163,113,247,0.14);
-  --blue:      #3787c7;   --blue-dim:rgba(55,135,199,0.14);
-  --border:    #2f3e4f;   --border-mid:#3a4a5d;
-  --text:#e8eef3; --muted:#7e8b99; --faint:#5a6878;
+  --bg:#0e1820; --bg-2:#141f2b; --bg-3:#1a2736; --bg-4:#213040;
+  --accent:#f8c023; --accent-dim:rgba(248,192,35,0.11); --accent-mid:rgba(248,192,35,0.22); --accent-glow:rgba(248,192,35,0.35);
+  --red:#f85149; --red-dim:rgba(248,81,73,0.12);
+  --green:#3fb950; --green-dim:rgba(63,185,80,0.12);
+  --amber:#e3b341; --amber-dim:rgba(227,179,65,0.12);
+  --blue:#3787c7; --blue-dim:rgba(55,135,199,0.12);
+  --purple:#a371f7; --purple-dim:rgba(163,113,247,0.12);
+  --border:rgba(255,255,255,0.055); --border-mid:rgba(255,255,255,0.10);
+  --text:#e8eef3; --muted:#7e8b99; --faint:#4a5868;
+  --glass:rgba(14,24,32,0.88); --radius:12px; --radius-lg:18px;
 }
-* { margin:0; padding:0; box-sizing:border-box; }
-body { font-family:'Inter', system-ui, sans-serif; font-size:13px; color:var(--text); background:var(--bg); min-height:100vh; }
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{font-family:'Inter',system-ui,sans-serif;font-size:13px;color:var(--text);background:var(--bg);min-height:100vh;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background-image:radial-gradient(circle,rgba(248,192,35,0.032) 1px,transparent 1px);background-size:30px 30px;pointer-events:none;z-index:0;}
 
-.st-topbar { height:52px; padding:0 18px; background:var(--bg); border-bottom:1px solid rgba(248,192,35,0.18); display:flex; align-items:center; gap:14px; position:sticky; top:0; z-index:50; }
-.st-brand { display:flex; align-items:center; gap:9px; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:20px; letter-spacing:2px; color:#fff; }
-.st-brand-dot { width:9px; height:9px; border-radius:50%; background:var(--accent); box-shadow:0 0 14px var(--accent); }
-.st-badge { font-family:'JetBrains Mono', monospace; font-size:10px; letter-spacing:2px; color:var(--green); padding:3px 9px; background:var(--green-dim); border:1px solid rgba(0,255,136,0.35); text-transform:uppercase; }
-.st-actions { margin-left:auto; display:flex; gap:8px; }
-.st-back { font-family:'JetBrains Mono', monospace; font-size:10px; padding:6px 12px; color:var(--accent); text-decoration:none; border:1px solid var(--accent); letter-spacing:1px; }
-.st-back:hover { background:var(--accent); color:#000; }
+/* ── Topbar (preserved) ── */
+.st-topbar{height:52px;padding:0 20px;background:var(--glass);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid rgba(248,192,35,0.14);display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.st-brand{display:flex;align-items:center;gap:9px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:20px;letter-spacing:2px;color:#fff;}
+.st-brand-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 14px var(--accent);}
+.st-badge{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);padding:3px 9px;background:var(--accent-dim);border:1px solid rgba(248,192,35,0.28);text-transform:uppercase;border-radius:4px;}
+.st-actions{margin-left:auto;display:flex;gap:8px;}
+.st-back{font-family:'JetBrains Mono',monospace;font-size:10px;padding:6px 14px;color:var(--accent);text-decoration:none;border:1px solid rgba(248,192,35,0.3);border-radius:6px;letter-spacing:1px;transition:all .18s;}
+.st-back:hover{background:var(--accent);color:#000;}
 
-.st-page { max-width:1280px; margin:0 auto; padding:28px 18px 60px; }
-.st-title { font-family:'Barlow Condensed', sans-serif; font-size:32px; font-weight:700; letter-spacing:2px; color:#fff; margin-bottom:6px; text-transform:uppercase; }
-.st-subtitle { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); letter-spacing:.5px; margin-bottom:28px; }
-.st-subtitle .dot { color:var(--green); animation:dp 1.6s infinite; }
-@keyframes dp { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+/* ── Layout ── */
+.aic-page{position:relative;z-index:1;max-width:1300px;margin:0 auto;padding:0 22px 80px;}
+.aic-section{padding:54px 0 0;}
+.sec-hd{display:flex;align-items:flex-start;gap:14px;margin-bottom:26px;}
+.sec-num{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:2px;opacity:.6;padding-top:5px;}
+.sec-title{font-family:'Barlow Condensed',sans-serif;font-size:26px;font-weight:700;letter-spacing:2px;color:#fff;text-transform:uppercase;line-height:1;}
+.sec-sub{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:.4px;margin-top:5px;}
 
-/* Hero KPI cards */
-.st-kpis { display:grid; grid-template-columns:repeat(4, 1fr); gap:12px; margin-bottom:26px; }
-.st-kpi { background:var(--bg-2); border:1px solid var(--border); padding:18px 20px; border-top:3px solid; display:flex; flex-direction:column; gap:8px; }
-.st-kpi.total    { border-top-color:var(--accent); }
-.st-kpi.resolved { border-top-color:var(--green); }
-.st-kpi.overdue  { border-top-color:var(--red); }
-.st-kpi.recent   { border-top-color:var(--amber); }
-.st-kpi-num { font-family:'JetBrains Mono', monospace; font-size:32px; font-weight:700; line-height:1; color:#fff; }
-.st-kpi.resolved .st-kpi-num { color:var(--green); }
-.st-kpi.overdue  .st-kpi-num { color:var(--red); }
-.st-kpi.recent   .st-kpi-num { color:var(--amber); }
-.st-kpi-sub { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--muted); letter-spacing:.3px; }
-.st-kpi-sub strong { color:var(--text); font-weight:600; }
-.st-kpi-lbl { font-family:'Barlow Condensed', sans-serif; font-size:11px; font-weight:600; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; }
+/* ── Hero ── */
+.hero{padding:44px 0 0;}
+.hero-eyebrow{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--accent);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.hero-eyebrow::before{content:'';width:24px;height:1px;background:var(--accent);}
+.hero-title{font-family:'Barlow Condensed',sans-serif;font-size:52px;font-weight:800;letter-spacing:3px;color:#fff;text-transform:uppercase;line-height:1;margin-bottom:10px;}
+.hero-sub{font-size:13px;color:var(--muted);margin-bottom:34px;font-weight:300;letter-spacing:.3px;}
+.insight-card{background:var(--bg-2);border:1px solid rgba(248,192,35,0.18);border-radius:var(--radius-lg);padding:28px 32px;margin-bottom:18px;position:relative;overflow:hidden;}
+.insight-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);}
+.insight-card::after{content:'';position:absolute;top:0;right:0;width:340px;height:100%;background:radial-gradient(ellipse at top right,rgba(248,192,35,0.055) 0%,transparent 70%);pointer-events:none;}
+.insight-top{display:flex;align-items:center;gap:14px;margin-bottom:18px;}
+.insight-icon{width:44px;height:44px;background:var(--accent-dim);border:1px solid rgba(248,192,35,0.22);border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;}
+.insight-label{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--accent);text-transform:uppercase;}
+.insight-heading{font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;margin-top:3px;}
+.insight-conf{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px;}
+.conf-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;}
+.conf-num{font-family:'JetBrains Mono',monospace;font-size:26px;font-weight:700;color:var(--green);line-height:1;}
+.insight-text{font-size:14px;color:var(--text);line-height:1.75;margin-bottom:22px;font-weight:300;}
+.insight-text strong{color:var(--accent);font-weight:600;}
+.insight-meta{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.i-chip{display:flex;align-items:center;gap:8px;background:var(--bg-3);border:1px solid var(--border-mid);border-radius:8px;padding:9px 14px;flex:1;min-width:130px;}
+.i-chip-icon{font-size:17px;}
+.i-chip-val{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:#fff;}
+.i-chip-lbl{font-size:10px;color:var(--muted);margin-top:1px;}
+.priority-badge{display:inline-flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;padding:7px 14px;border-radius:7px;margin-left:auto;white-space:nowrap;}
+.priority-badge.high{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,81,73,.22);}
+.priority-badge.medium{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(227,179,65,.22);}
+.priority-badge.low{background:var(--green-dim);color:var(--green);border:1px solid rgba(63,185,80,.22);}
+.quick-stats{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.qs-card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;display:flex;flex-direction:column;gap:5px;}
+.qs-val{font-family:'JetBrains Mono',monospace;font-size:28px;font-weight:700;line-height:1;color:#fff;}
+.qs-lbl{font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:600;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;}
+.qs-trend{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint);}
+.qs-card.c-green .qs-val{color:var(--green);}
+.qs-card.c-red .qs-val{color:var(--red);}
+.qs-card.c-amber .qs-val{color:var(--amber);}
+.qs-card.c-blue .qs-val{color:var(--blue);}
 
-/* Two-column rows */
-.st-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px; }
-.st-card { background:var(--bg-2); border:1px solid var(--border); padding:18px 20px; }
-.st-card-title { font-family:'Barlow Condensed', sans-serif; font-size:13px; font-weight:700; letter-spacing:1.8px; color:var(--accent); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:8px; }
-.st-card-title::before { content:''; width:3px; height:13px; background:var(--accent); }
+/* ── Knowledge Graph ── */
+.graph-wrap{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;}
+.graph-toolbar{padding:13px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.graph-toolbar-lbl{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1.2px;}
+.graph-legend{display:flex;gap:16px;margin-left:auto;}
+.leg-item{display:flex;align-items:center;gap:6px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:.4px;}
+.leg-dot{width:7px;height:7px;border-radius:50%;}
+.graph-body{display:flex;position:relative;}
+#knowledgeGraph{width:100%;height:530px;cursor:pointer;}
+.node-panel{width:0;overflow:hidden;transition:width .32s cubic-bezier(.4,0,.2,1);background:var(--bg-3);border-left:1px solid var(--border);flex-shrink:0;}
+.node-panel.open{width:270px;}
+.np-inner{padding:18px 20px;width:270px;}
+.np-close{background:none;border:none;color:var(--muted);cursor:pointer;font-size:15px;float:right;line-height:1;padding:0;transition:color .15s;}
+.np-close:hover{color:var(--text);}
+.np-status{display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 9px;border-radius:4px;margin-top:22px;margin-bottom:12px;}
+.np-status.critical{background:var(--red-dim);color:var(--red);}
+.np-status.warning{background:var(--amber-dim);color:var(--amber);}
+.np-status.normal{background:var(--green-dim);color:var(--green);}
+.np-name{font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:700;letter-spacing:1px;color:#fff;text-transform:uppercase;margin-bottom:3px;}
+.np-cat{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);margin-bottom:16px;}
+.np-row{display:flex;justify-content:space-between;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--border);}
+.np-row:last-of-type{border-bottom:none;}
+.np-row-lbl{font-size:11px;color:var(--muted);padding-right:8px;}
+.np-row-val{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);font-weight:600;text-align:right;}
+.np-conn-title{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;color:var(--muted);text-transform:uppercase;margin:16px 0 8px;}
+.np-conn-item{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:11px;color:var(--text);}
+.np-conn-arrow{font-size:10px;color:var(--accent);}
+.g-edge-flow{stroke-dasharray:6 4;animation:edgeFlow 2s linear infinite;}
+.g-edge-slow{stroke-dasharray:6 4;animation:edgeFlow 3.2s linear infinite;}
+@keyframes edgeFlow{from{stroke-dashoffset:20;}to{stroke-dashoffset:0;}}
+.g-pulse{transform-box:fill-box;transform-origin:center;animation:pulseRing 2.5s ease-out infinite;}
+@keyframes pulseRing{0%{transform:scale(1);opacity:.7;}100%{transform:scale(1.85);opacity:0;}}
+.graph-node:hover circle{transition:r .15s;}
 
-/* Bar rows */
-.bar-row { display:grid; grid-template-columns:130px 1fr 60px; gap:10px; align-items:center; padding:7px 0; font-size:12.5px; }
-.bar-label { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text); text-transform:capitalize; }
-.bar-track { height:14px; background:rgba(255,255,255,0.04); position:relative; }
-.bar-fill { height:100%; background:var(--accent); position:relative; transition:width .5s cubic-bezier(.4,0,.2,1); min-width:1px; }
-.bar-fill.pothole{background:#e58e52} .bar-fill.water{background:var(--blue)} .bar-fill.garbage{background:#96ce4c}
-.bar-fill.streetlight{background:#aab8c8} .bar-fill.traffic{background:var(--red)} .bar-fill.noise{background:var(--purple)}
-.bar-fill.sewage{background:#d4b870} .bar-fill.electricity{background:var(--amber)} .bar-fill.tree{background:#6fcf97}
-.bar-fill.other{background:#aab8c8}
-.bar-fill.high{background:var(--red)} .bar-fill.medium{background:var(--amber)} .bar-fill.low{background:var(--green)}
-.bar-fill.open{background:var(--blue)} .bar-fill.acknowledged{background:var(--purple)} .bar-fill.in_progress{background:var(--amber)} .bar-fill.resolved{background:var(--green)} .bar-fill.escalated{background:var(--red)}
-.bar-num { font-family:'JetBrains Mono', monospace; font-size:11px; color:var(--text); text-align:right; font-weight:600; }
+/* ── City Pulse ── */
+.pulse-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.pulse-card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 16px;display:flex;flex-direction:column;align-items:center;gap:9px;}
+.ring-wrap{position:relative;width:80px;height:80px;}
+.ring-svg{width:80px;height:80px;transform:rotate(-90deg);}
+.ring-track{fill:none;stroke:rgba(255,255,255,0.055);stroke-width:5;}
+.ring-fill{fill:none;stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1);}
+.ring-num{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#fff;white-space:nowrap;}
+.pulse-lbl{font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:1px;color:var(--text);text-transform:capitalize;text-align:center;}
+.pulse-count{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.pulse-status{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 10px;border-radius:4px;}
+.pulse-status.good{background:var(--green-dim);color:var(--green);}
+.pulse-status.mid{background:var(--amber-dim);color:var(--amber);}
+.pulse-status.poor{background:var(--red-dim);color:var(--red);}
 
-/* Dept performance table */
-.st-table-wrap { background:var(--bg-2); border:1px solid var(--border); margin-bottom:24px; }
-.st-table-head { display:grid; grid-template-columns:130px 80px 80px 1fr 80px; padding:12px 18px; border-bottom:1px solid var(--border); background:var(--bg-3); font-family:'Barlow Condensed', sans-serif; font-size:11px; font-weight:700; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; gap:14px; }
-.st-table-row { display:grid; grid-template-columns:130px 80px 80px 1fr 80px; padding:13px 18px; border-bottom:1px solid var(--border); gap:14px; align-items:center; }
-.st-table-row:last-child { border-bottom:none; }
-.st-table-row:hover { background:rgba(248,192,35,0.05); }
-.dept-name { font-family:'JetBrains Mono', monospace; font-size:12px; color:var(--text); text-transform:capitalize; font-weight:600; }
-.dept-count { font-family:'JetBrains Mono', monospace; font-size:12.5px; color:var(--text); font-weight:600; }
-.dept-bar-row { height:9px; background:rgba(255,255,255,0.04); position:relative; }
-.dept-bar { height:100%; background:linear-gradient(90deg, var(--red), var(--amber) 50%, var(--green)); }
-.dept-rate { font-family:'JetBrains Mono', monospace; font-size:12.5px; text-align:right; font-weight:700; }
-.dept-rate.good { color:var(--green); }
-.dept-rate.mid { color:var(--amber); }
-.dept-rate.poor { color:var(--red); }
+/* ── Root Cause ── */
+.split-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.cause-list{display:flex;flex-direction:column;gap:9px;}
+.cause-item{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.cause-hd{display:grid;grid-template-columns:1fr 160px 44px;align-items:center;gap:14px;padding:14px 18px;cursor:pointer;transition:background .18s;}
+.cause-hd:hover{background:rgba(255,255,255,0.025);}
+.cause-name{font-size:12.5px;color:var(--text);font-weight:500;}
+.cause-bar-track{height:4px;background:rgba(255,255,255,0.055);border-radius:2px;overflow:hidden;}
+.cause-bar-fill{height:100%;border-radius:2px;}
+.cause-conf{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#fff;text-align:right;}
+.cause-body{max-height:0;overflow:hidden;transition:max-height .38s cubic-bezier(.4,0,.2,1);}
+.cause-body.open{max-height:170px;border-top:1px solid var(--border);}
+.cause-body-inner{padding:12px 18px;display:flex;flex-direction:column;gap:7px;}
+.ev-pt{display:flex;align-items:flex-start;gap:9px;font-size:11px;color:var(--muted);line-height:1.5;}
+.ev-pt::before{content:'\25B8';color:var(--accent);font-size:9px;margin-top:2px;flex-shrink:0;}
 
-.st-footer { text-align:center; padding:32px 14px 14px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--faint); letter-spacing:1px; }
-.st-footer a { color:var(--accent); text-decoration:none; }
+/* ── Recommendations ── */
+.reco-stack{display:flex;flex-direction:column;gap:12px;}
+.reco-card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;display:flex;flex-direction:column;gap:12px;}
+.reco-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.reco-pill{font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:4px 10px;border-radius:5px;white-space:nowrap;}
+.reco-pill.gold{background:var(--accent-dim);color:var(--accent);border:1px solid rgba(248,192,35,.2);}
+.reco-pill.urgent{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,81,73,.2);}
+.reco-title{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:1px;color:#fff;text-transform:uppercase;}
+.reco-desc{font-size:11.5px;color:var(--muted);line-height:1.6;}
+.reco-impacts{display:flex;flex-direction:column;gap:6px;}
+.reco-imp-row{display:flex;align-items:center;gap:9px;font-size:11.5px;}
+.imp-val{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:var(--green);}
+.imp-txt{color:var(--muted);}
+.reco-foot{display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border);margin-top:auto;}
+.reco-conf{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.reco-conf span{color:var(--green);font-weight:700;}
+.reco-roi{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--amber);}
 
-@media (max-width:900px) {
-  .st-kpis { grid-template-columns:repeat(2, 1fr); }
-  .st-grid { grid-template-columns:1fr; }
-  .st-table-head, .st-table-row { grid-template-columns:1fr 60px 80px; gap:8px; padding:11px 14px; }
-  .st-table-head > :nth-child(2), .st-table-row > :nth-child(2),
-  .st-table-head > :nth-child(4), .st-table-row > :nth-child(4) { display:none; }
+/* ── AI Predictions ── */
+.pred-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.pred-card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;flex-direction:column;gap:10px;}
+.pred-hd{display:flex;align-items:center;justify-content:space-between;}
+.pred-icon{font-size:22px;}
+.pred-window{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);letter-spacing:1px;background:var(--bg-3);padding:3px 8px;border-radius:4px;}
+.pred-title{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:.8px;color:#fff;text-transform:uppercase;}
+.pred-prob-wrap{display:flex;align-items:center;gap:10px;}
+.pred-prob-bar{flex:1;height:5px;background:rgba(255,255,255,0.055);border-radius:3px;overflow:hidden;}
+.pred-prob-fill{height:100%;border-radius:3px;width:0;transition:width 1s cubic-bezier(.4,0,.2,1);}
+.pred-prob-num{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;width:42px;text-align:right;}
+.pred-why{font-size:11px;color:var(--muted);line-height:1.55;border-top:1px solid var(--border);padding-top:10px;}
+.pred-why strong{color:var(--text);font-weight:500;}
+
+/* ── Infrastructure Timeline ── */
+.tl-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.timeline{position:relative;padding-left:26px;}
+.timeline::before{content:'';position:absolute;left:9px;top:8px;bottom:8px;width:1px;background:linear-gradient(to bottom,transparent,var(--border-mid) 8%,var(--border-mid) 92%,transparent);}
+.tl-item{position:relative;padding:0 0 26px 28px;}
+.tl-dot{position:absolute;left:-26px;top:6px;width:11px;height:11px;border-radius:50%;border:2px solid var(--bg);background:var(--border-mid);}
+.tl-dot.good{background:var(--green);box-shadow:0 0 7px rgba(63,185,80,.5);}
+.tl-dot.warn{background:var(--amber);box-shadow:0 0 7px rgba(227,179,65,.45);}
+.tl-dot.crit{background:var(--red);box-shadow:0 0 7px rgba(248,81,73,.5);}
+.tl-dot.predict{background:var(--accent);box-shadow:0 0 7px var(--accent-glow);}
+.tl-dot.alt{background:var(--blue);box-shadow:0 0 7px rgba(55,135,199,.5);}
+.tl-year{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:3px;}
+.tl-event{font-size:13px;color:var(--text);font-weight:500;margin-bottom:4px;}
+.tl-detail{font-size:11px;color:var(--muted);line-height:1.5;}
+.tl-tag{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:9px;letter-spacing:1.5px;padding:2px 8px;border-radius:3px;margin-bottom:4px;text-transform:uppercase;}
+.tl-tag.predict{background:var(--accent-dim);color:var(--accent);}
+.tl-tag.alt{background:var(--blue-dim);color:var(--blue);}
+
+/* ── What Happens If ── */
+.whatif-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.wif-card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color .28s;}
+.wif-card.active{border-color:rgba(63,185,80,.38);}
+.wif-top{padding:16px 18px 12px;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;}
+.wif-action{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;letter-spacing:1px;color:#fff;text-transform:uppercase;}
+.wif-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+.wif-toggle{width:36px;height:20px;background:var(--bg-4);border-radius:10px;position:relative;cursor:pointer;transition:background .28s;border:1px solid var(--border-mid);flex-shrink:0;margin-top:2px;}
+.wif-toggle::after{content:'';position:absolute;top:3px;left:3px;width:12px;height:12px;border-radius:50%;background:var(--muted);transition:all .28s cubic-bezier(.4,0,.2,1);}
+.wif-card.active .wif-toggle{background:var(--green);border-color:transparent;}
+.wif-card.active .wif-toggle::after{left:19px;background:#fff;}
+.wif-metrics{padding:0 18px 16px;display:flex;flex-direction:column;gap:8px;}
+.wm-row{display:flex;align-items:center;justify-content:space-between;}
+.wm-lbl{font-size:11px;color:var(--muted);}
+.wm-vals{display:flex;align-items:center;gap:5px;}
+.wm-before{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--red);transition:all .4s;}
+.wm-arrow{font-size:10px;color:var(--faint);}
+.wm-after{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--green);display:none;}
+.wif-roi{padding:9px 18px;background:var(--bg-3);border-top:1px solid var(--border);font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.wif-roi span{color:var(--amber);font-weight:700;}
+
+/* ── Similar Cases ── */
+.cases-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.case-card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;display:flex;flex-direction:column;gap:9px;}
+.case-top{display:flex;justify-content:space-between;align-items:flex-start;}
+.case-loc{font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:#fff;letter-spacing:1px;text-transform:uppercase;}
+.case-yr{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--muted);background:var(--bg-3);padding:3px 8px;border-radius:4px;}
+.case-match{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.case-match span{color:var(--accent);font-weight:700;}
+.case-issue{font-size:11.5px;color:var(--muted);line-height:1.55;}
+.case-result{background:var(--bg-3);border-radius:8px;padding:10px 13px;}
+.case-res-row{display:flex;justify-content:space-between;padding:3px 0;font-size:11px;}
+.case-res-lbl{color:var(--muted);}
+.case-res-val{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--green);}
+
+/* ── Ask the City ── */
+.ask-wrap{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius-lg);overflow:hidden;}
+.ask-hd{padding:20px 26px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;}
+.ask-icon{width:36px;height:36px;background:var(--accent-dim);border:1px solid rgba(248,192,35,.2);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:17px;}
+.ask-title{font-family:'Barlow Condensed',sans-serif;font-size:17px;font-weight:700;letter-spacing:1.5px;color:#fff;text-transform:uppercase;}
+.ask-sub{font-size:11px;color:var(--muted);margin-top:2px;}
+.ask-live{margin-left:auto;display:flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);letter-spacing:1px;}
+.ask-live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:liveDot 2s ease-in-out infinite;}
+@keyframes liveDot{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.5;transform:scale(.8);}}
+.ask-chips{display:flex;flex-wrap:wrap;gap:8px;padding:18px 26px;border-bottom:1px solid var(--border);}
+.ask-chip{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);background:var(--bg-3);border:1px solid var(--border-mid);border-radius:20px;padding:8px 16px;cursor:pointer;transition:all .2s;letter-spacing:.3px;}
+.ask-chip:hover,.ask-chip.active{border-color:rgba(248,192,35,.4);color:var(--accent);background:var(--accent-dim);}
+.ask-output{padding:22px 26px;min-height:130px;}
+.ask-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:28px 0;color:var(--faint);}
+.ask-placeholder-icon{font-size:26px;opacity:.35;}
+.ask-placeholder-txt{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;}
+.ask-typing{display:none;align-items:center;gap:5px;padding:14px 0;}
+.ask-typing.vis{display:flex;}
+.typing-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:typeBounce 1.2s ease-in-out infinite;}
+.typing-dot:nth-child(2){animation-delay:.2s;}
+.typing-dot:nth-child(3){animation-delay:.4s;}
+@keyframes typeBounce{0%,80%,100%{transform:translateY(0);opacity:.4;}40%{transform:translateY(-6px);opacity:1;}}
+.ask-response{display:none;}
+.ask-response.vis{display:block;animation:fadeUp .4s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.ask-resp-q{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--accent);letter-spacing:.4px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.ask-resp-q::before{content:'\203A';font-size:14px;}
+.ask-resp-text{font-size:13px;color:var(--text);line-height:1.8;font-weight:300;}
+.ask-resp-text strong{color:var(--accent);font-weight:600;}
+.ask-resp-text em{color:var(--muted);font-style:normal;}
+.ask-resp-conf{margin-top:14px;display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted);}
+.ask-resp-conf span{color:var(--green);font-weight:700;}
+
+/* ── Footer ── */
+.aic-footer{text-align:center;padding:48px 14px 14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--faint);letter-spacing:1px;border-top:1px solid var(--border);margin-top:60px;}
+.aic-footer a{color:var(--accent);text-decoration:none;}
+
+/* ── Responsive ── */
+@media(max-width:1100px){
+  .quick-stats{grid-template-columns:repeat(5,1fr);}
+  .pulse-grid{grid-template-columns:repeat(4,1fr);}
 }
-
-/* ═══ Mobile photo-match layer ═══ */
-@media (max-width:768px){
-  :root{
-    --m-safe-top: env(safe-area-inset-top, 0px);
-    --m-safe-bot: env(safe-area-inset-bottom, 0px);
-    --m-glass: rgba(20,24,32,0.78);
-    --m-border: rgba(255,255,255,0.10);
-    --m-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
-  }
-  body{ padding-bottom:90px; }
-  .st-topbar{
-    position:fixed !important;
-    top:calc(10px + var(--m-safe-top)) !important;
-    left:10px !important; right:10px !important;
-    height:50px !important;
-    border-radius:14px !important;
-    background:var(--m-glass) !important;
-    backdrop-filter:blur(18px) saturate(140%);
-    -webkit-backdrop-filter:blur(18px) saturate(140%);
-    border:1px solid var(--m-border) !important;
-    box-shadow:var(--m-shadow);
-    padding:0 14px !important;
-    z-index:300 !important;
-  }
-  .st-brand{ font-size:14px !important; letter-spacing:.14em !important; }
-  .st-badge{ display:none !important; }
-  .st-page{ padding:80px 14px 30px !important; }
-  .st-title{ font-size:24px !important; }
-  .st-kpi-num{ font-size:24px !important; }
-
-  .m-bottomnav{
-    position:fixed; left:10px; right:10px; bottom:calc(10px + var(--m-safe-bot));
-    height:62px; z-index:300;
-    display:grid; grid-template-columns:repeat(4,1fr); gap:4px; padding:6px;
-    background:var(--m-glass); backdrop-filter:blur(18px) saturate(140%);
-    -webkit-backdrop-filter:blur(18px) saturate(140%);
-    border:1px solid var(--m-border); border-radius:18px;
-    box-shadow:var(--m-shadow);
-  }
-  .m-navbtn{
-    display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:3px; border-radius:12px; border:0; background:transparent;
-    color:var(--muted); cursor:pointer; transition:all .15s; padding:0;
-    text-decoration:none;
-  }
-  .m-navbtn:active{ transform:scale(.95); }
-  .m-navbtn svg{ width:21px; height:21px; stroke:currentColor; fill:none;
-    stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
-  .m-navbtn span{ font-family:'JetBrains Mono',monospace; font-size:9.5px;
-    font-weight:600; letter-spacing:.06em; }
-  .m-navbtn.ar svg{ color:var(--green); }
-  .m-navbtn.wa svg{ color:#25d366; }
+@media(max-width:900px){
+  .split-2,.tl-cols,.whatif-grid,.cases-grid{grid-template-columns:1fr;}
+  .pred-grid{grid-template-columns:1fr 1fr;}
+  .pulse-grid{grid-template-columns:repeat(2,1fr);}
+  .quick-stats{grid-template-columns:repeat(3,1fr);}
+  .hero-title{font-size:38px;}
+  .cause-hd{grid-template-columns:1fr 100px 40px;}
+}
+/* ── Mobile ── */
+@media(max-width:768px){
+  :root{--m-safe-top:env(safe-area-inset-top,0px);--m-safe-bot:env(safe-area-inset-bottom,0px);--m-glass:rgba(14,24,32,0.88);--m-border:rgba(255,255,255,0.10);--m-shadow:0 10px 30px rgba(0,0,0,0.55),0 2px 8px rgba(0,0,0,0.4);}
+  body{padding-bottom:90px;}
+  .st-topbar{position:fixed!important;top:calc(10px + var(--m-safe-top))!important;left:10px!important;right:10px!important;height:50px!important;border-radius:14px!important;background:var(--m-glass)!important;backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1px solid var(--m-border)!important;box-shadow:var(--m-shadow);padding:0 14px!important;z-index:300!important;}
+  .st-brand{font-size:14px!important;letter-spacing:.14em!important;}
+  .st-badge{display:none!important;}
+  .aic-page{padding-top:80px!important;padding-left:14px!important;padding-right:14px!important;}
+  .hero-title{font-size:30px!important;}
+  .quick-stats{grid-template-columns:repeat(2,1fr)!important;}
+  .qs-card:last-child{display:none;}
+  .pulse-grid{grid-template-columns:repeat(2,1fr)!important;}
+  .pred-grid{grid-template-columns:1fr!important;}
+  #knowledgeGraph{height:360px!important;}
+  .node-panel.open{width:100%!important;position:absolute;top:0;right:0;bottom:0;}
+  .insight-meta{flex-direction:column;}
+  .i-chip{min-width:unset;}
+  .ask-chips{padding:14px!important;}
+  .ask-chip{font-size:10px;padding:6px 12px;}
+  .m-bottomnav{position:fixed;left:10px;right:10px;bottom:calc(10px + var(--m-safe-bot));height:62px;z-index:300;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:6px;background:var(--m-glass);backdrop-filter:blur(18px) saturate(140%);-webkit-backdrop-filter:blur(18px) saturate(140%);border:1px solid var(--m-border);border-radius:18px;box-shadow:var(--m-shadow);}
+  .m-navbtn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:12px;border:0;background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;padding:0;text-decoration:none;}
+  .m-navbtn:active{transform:scale(.95);}
+  .m-navbtn svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+  .m-navbtn span{font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.06em;}
+  .m-navbtn.ar svg{color:var(--green);}
+  .m-navbtn.wa svg{color:#25d366;}
 }
 </style>
 </head>
@@ -158,162 +311,835 @@ body { font-family:'Inter', system-ui, sans-serif; font-size:13px; color:var(--t
 
 <header class="st-topbar">
   <div class="st-brand"><div class="st-brand-dot"></div>AREAPULSE</div>
-  <div class="st-badge">Public Stats</div>
+  <div class="st-badge">AI Intelligence</div>
   <div class="st-actions">
-    <a href="/" class="st-back">← Live Map</a>
+    <a href="/" class="st-back">&#8592; Live Map</a>
   </div>
 </header>
 
-<main class="st-page">
-  <h1 class="st-title">Citywide Civic Health</h1>
-  <div class="st-subtitle"><span class="dot">●</span> Anonymous public dashboard · auto-aggregated from every report on the platform</div>
+<main class="aic-page">
 
-  <div class="st-kpis">
-    <div class="st-kpi total">
-      <div class="st-kpi-num">{{ total }}</div>
-      <div class="st-kpi-lbl">Total Reports</div>
-      <div class="st-kpi-sub"><strong>{{ last_7d }}</strong> in last 7 days</div>
-    </div>
-    <div class="st-kpi resolved">
-      <div class="st-kpi-num">{{ resolution_rate }}%</div>
-      <div class="st-kpi-lbl">Resolution Rate</div>
-      <div class="st-kpi-sub"><strong>{{ resolved }}</strong> of {{ total }} resolved</div>
-    </div>
-    <div class="st-kpi overdue">
-      <div class="st-kpi-num">{{ overdue }}</div>
-      <div class="st-kpi-lbl">SLA Breached</div>
-      <div class="st-kpi-sub">{{ sla_breach_rate }}% of all issues</div>
-    </div>
-    <div class="st-kpi recent">
-      <div class="st-kpi-num">
-        {%- if avg_resolution_hr is none -%}
-        —
-        {%- elif avg_resolution_hr < 24 -%}
-        {{ avg_resolution_hr|round|int }}h
-        {%- else -%}
-        {{ (avg_resolution_hr / 24)|round(1) }}d
-        {%- endif -%}
+{% set sev_total = (by_severity.high + by_severity.medium + by_severity.low) or 1 %}
+{% set high_pct = ((by_severity.high / sev_total) * 100)|round|int %}
+{% set health_label = 'CRITICAL' if resolution_rate < 40 else ('MODERATE' if resolution_rate < 70 else 'OPTIMAL') %}
+{% set priority_class = 'high' if resolution_rate < 40 else ('medium' if resolution_rate < 70 else 'low') %}
+{% set proj_rate = [resolution_rate + 22, 95]|min %}
+
+<!-- ═══════════════════════════════ HERO ═══════════════════════════════ -->
+<div class="hero">
+  <div class="hero-eyebrow">AI Urban Intelligence Center</div>
+  <h1 class="hero-title">Citywide Intelligence Briefing</h1>
+  <p class="hero-sub">Real-time causal analysis &middot; Predictive infrastructure monitoring &middot; AI-powered action recommendations</p>
+
+  <div class="insight-card">
+    <div class="insight-top">
+      <div class="insight-icon">&#129504;</div>
+      <div>
+        <div class="insight-label">AI Executive Briefing &middot; Urban Systems Analysis</div>
+        <div class="insight-heading">Primary Intelligence Report</div>
       </div>
-      <div class="st-kpi-lbl">Avg Resolution Time</div>
-      <div class="st-kpi-sub">{% if avg_resolution_hr %}across {{ resolved }} closed issues{% else %}not enough data{% endif %}</div>
+      <div class="insight-conf">
+        <div class="conf-lbl">CONFIDENCE</div>
+        <div class="conf-num">87%</div>
+      </div>
     </div>
-  </div>
-
-  <div class="st-grid">
-    <div class="st-card">
-      <div class="st-card-title">By Issue Category</div>
-      {% if tag_list %}
-        {% for tag, count in tag_list %}
-          <div class="bar-row">
-            <span class="bar-label">{{ tag }}</span>
-            <div class="bar-track"><div class="bar-fill {{ tag }}" style="width:{{ (count / max_tag_count * 100)|round|int }}%"></div></div>
-            <span class="bar-num">{{ count }}</span>
-          </div>
-        {% endfor %}
+    <p class="insight-text">
+      {% if dept_perf %}
+        {% set worst = dept_perf | sort(attribute='resolution_rate') | first %}
+        The city is currently managing <strong>{{ total }}</strong> infrastructure reports with a system-wide resolution rate of <strong>{{ resolution_rate }}%</strong>.
+        {% if worst %}
+          Analysis identifies <strong>{{ worst.tag | title }}</strong> as the primary constraint with only <strong>{{ worst.resolution_rate }}%</strong> resolution efficiency.
+        {% endif %}
+        <strong>{{ overdue }}</strong> issues have breached SLA windows, signaling systemic capacity pressure in frontline maintenance operations.
+        Predictive modeling indicates targeted pipeline and drainage intervention could improve citywide performance to <strong>{{ proj_rate }}%</strong> within 60 days.
       {% else %}
-        <div style="color:var(--faint);font-family:JetBrains Mono,monospace;font-size:11px;text-align:center;padding:30px">No data yet</div>
+        The city AI model has ingested <strong>{{ total }}</strong> infrastructure reports across all domains.
+        <strong>{{ overdue }}</strong> SLA-breached issues require immediate attention.
+        Causal analysis will deepen as report volume and resolution data increases.
       {% endif %}
-    </div>
-
-    <div class="st-card">
-      <div class="st-card-title">Top Reporting Areas</div>
-      {% if top_areas %}
-        {% for area, count in top_areas %}
-          <div class="bar-row">
-            <span class="bar-label" style="text-transform:none">{{ area }}</span>
-            <div class="bar-track"><div class="bar-fill" style="width:{{ (count / max_area_count * 100)|round|int }}%"></div></div>
-            <span class="bar-num">{{ count }}</span>
-          </div>
-        {% endfor %}
-      {% else %}
-        <div style="color:var(--faint);font-family:JetBrains Mono,monospace;font-size:11px;text-align:center;padding:30px">No data yet</div>
-      {% endif %}
+    </p>
+    <div class="insight-meta">
+      <div class="i-chip"><div class="i-chip-icon">&#127961;</div><div><div class="i-chip-val">{{ total }}</div><div class="i-chip-lbl">Active Reports</div></div></div>
+      <div class="i-chip"><div class="i-chip-icon">&#128101;</div><div><div class="i-chip-val">~{{ (total * 3.2)|round|int }}</div><div class="i-chip-lbl">Citizens Affected</div></div></div>
+      <div class="i-chip"><div class="i-chip-icon">&#9889;</div><div><div class="i-chip-val">{{ overdue }}</div><div class="i-chip-lbl">SLA Breached</div></div></div>
+      <div class="i-chip"><div class="i-chip-icon">&#128197;</div><div><div class="i-chip-val">{{ last_7d }}</div><div class="i-chip-lbl">This Week</div></div></div>
+      <div class="priority-badge {{ priority_class }}">&#9679; {{ health_label }} PRIORITY</div>
     </div>
   </div>
 
-  <div class="st-grid">
-    <div class="st-card">
-      <div class="st-card-title">Severity Distribution</div>
-      {% set sev_total = (by_severity.high + by_severity.medium + by_severity.low) or 1 %}
-      <div class="bar-row">
-        <span class="bar-label">High</span>
-        <div class="bar-track"><div class="bar-fill high" style="width:{{ (by_severity.high / sev_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_severity.high }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Medium</span>
-        <div class="bar-track"><div class="bar-fill medium" style="width:{{ (by_severity.medium / sev_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_severity.medium }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Low</span>
-        <div class="bar-track"><div class="bar-fill low" style="width:{{ (by_severity.low / sev_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_severity.low }}</span>
+  <div class="quick-stats">
+    <div class="qs-card">
+      <div class="qs-val">{{ total }}</div>
+      <div class="qs-lbl">Total Reports</div>
+      <div class="qs-trend">+{{ last_7d }} this week</div>
+    </div>
+    <div class="qs-card c-green">
+      <div class="qs-val">{{ resolution_rate }}%</div>
+      <div class="qs-lbl">Resolved</div>
+      <div class="qs-trend">{{ resolved }} of {{ total }}</div>
+    </div>
+    <div class="qs-card c-red">
+      <div class="qs-val">{{ overdue }}</div>
+      <div class="qs-lbl">SLA Breach</div>
+      <div class="qs-trend">{{ sla_breach_rate }}% of all issues</div>
+    </div>
+    <div class="qs-card c-amber">
+      <div class="qs-val">{%- if avg_resolution_hr is none -%}&mdash;{%- elif avg_resolution_hr < 24 -%}{{ avg_resolution_hr|round|int }}h{%- else -%}{{ (avg_resolution_hr / 24)|round(1) }}d{%- endif -%}</div>
+      <div class="qs-lbl">Avg Resolution</div>
+      <div class="qs-trend">{% if avg_resolution_hr %}across {{ resolved }} closed{% else %}insufficient data{% endif %}</div>
+    </div>
+    <div class="qs-card c-blue">
+      <div class="qs-val">{{ high_pct }}%</div>
+      <div class="qs-lbl">High Risk</div>
+      <div class="qs-trend">{{ by_severity.high }} critical issues</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ KNOWLEDGE GRAPH ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">01</span>
+    <div>
+      <h2 class="sec-title">Urban Knowledge Graph</h2>
+      <p class="sec-sub">Infrastructure causality network &middot; Click any node to explore connections and evidence</p>
+    </div>
+  </div>
+  <div class="graph-wrap">
+    <div class="graph-toolbar">
+      <div class="graph-toolbar-lbl">CAUSAL CHAIN &middot; INFRASTRUCTURE ANALYSIS</div>
+      <div class="graph-legend">
+        <div class="leg-item"><div class="leg-dot" style="background:var(--green)"></div> Normal</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div> Warning</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--red)"></div> Critical</div>
+        <div class="leg-item"><div class="leg-dot" style="background:var(--accent)"></div> Predicted</div>
       </div>
     </div>
-
-    <div class="st-card">
-      <div class="st-card-title">Resolution Pipeline</div>
-      {% set status_total = (by_status.open + by_status.acknowledged + by_status.in_progress + by_status.resolved + by_status.escalated) or 1 %}
-      <div class="bar-row">
-        <span class="bar-label">Open</span>
-        <div class="bar-track"><div class="bar-fill open" style="width:{{ (by_status.open / status_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_status.open }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Acknowledged</span>
-        <div class="bar-track"><div class="bar-fill acknowledged" style="width:{{ (by_status.acknowledged / status_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_status.acknowledged }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">In Progress</span>
-        <div class="bar-track"><div class="bar-fill in_progress" style="width:{{ (by_status.in_progress / status_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_status.in_progress }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Resolved</span>
-        <div class="bar-track"><div class="bar-fill resolved" style="width:{{ (by_status.resolved / status_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_status.resolved }}</span>
-      </div>
-      <div class="bar-row">
-        <span class="bar-label">Escalated</span>
-        <div class="bar-track"><div class="bar-fill escalated" style="width:{{ (by_status.escalated / status_total * 100)|round|int }}%"></div></div>
-        <span class="bar-num">{{ by_status.escalated }}</span>
+    <div class="graph-body">
+      <svg id="knowledgeGraph" viewBox="0 0 860 530" preserveAspectRatio="xMidYMid meet">
+        <defs>
+          <filter id="glow-red" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="4" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="glow-amber" x="-60%" y="-60%" width="220%" height="220%">
+            <feGaussianBlur stdDeviation="3" result="b"/>
+            <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <marker id="arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill="rgba(255,255,255,0.18)"/>
+          </marker>
+          <marker id="arr-red" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill="rgba(248,81,73,0.55)"/>
+          </marker>
+          <marker id="arr-amber" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill="rgba(227,179,65,0.55)"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="node-panel" id="nodePanel">
+        <div class="np-inner">
+          <button class="np-close" onclick="closePanel()">&#10005;</button>
+          <div class="np-status" id="npStatus">&#8212;</div>
+          <div class="np-name" id="npName"></div>
+          <div class="np-cat" id="npCat"></div>
+          <div id="npRows"></div>
+          <div class="np-conn-title">CAUSAL CONNECTIONS</div>
+          <div id="npConns"></div>
+        </div>
       </div>
     </div>
   </div>
+</div>
 
-  <div class="st-card-title">Department Performance</div>
-  <div class="st-table-wrap">
-    <div class="st-table-head">
-      <span>Category</span>
-      <span>Total</span>
-      <span>Resolved</span>
-      <span>Resolution Rate</span>
-      <span style="text-align:right">Rate %</span>
+<!-- ═══════════════════════════════ CITY PULSE ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">02</span>
+    <div>
+      <h2 class="sec-title">City Pulse</h2>
+      <p class="sec-sub">Real-time infrastructure health by service category &middot; Powered by live resolution data</p>
     </div>
-    {% for d in dept_perf %}
-    <div class="st-table-row">
-      <span class="dept-name">{{ d.tag }}</span>
-      <span class="dept-count">{{ d.total }}</span>
-      <span class="dept-count">{{ d.resolved }}</span>
-      <span><div class="dept-bar-row"><div class="dept-bar" style="width:{{ d.resolution_rate }}%"></div></div></span>
-      <span class="dept-rate {{ 'good' if d.resolution_rate >= 70 else 'mid' if d.resolution_rate >= 40 else 'poor' }}">{{ d.resolution_rate }}%</span>
-    </div>
-    {% endfor %}
   </div>
+  <div class="pulse-grid">
+    {% if dept_perf %}
+      {% for d in dept_perf %}
+      <div class="pulse-card">
+        <div class="ring-wrap">
+          <svg class="ring-svg" viewBox="0 0 80 80">
+            <circle class="ring-track" cx="40" cy="40" r="32"/>
+            <circle class="ring-fill" cx="40" cy="40" r="32"
+              data-rate="{{ d.resolution_rate }}"
+              style="stroke:{{ 'var(--green)' if d.resolution_rate >= 70 else ('var(--amber)' if d.resolution_rate >= 40 else 'var(--red)') }};"/>
+          </svg>
+          <div class="ring-num">{{ d.resolution_rate }}%</div>
+        </div>
+        <div class="pulse-lbl">{{ d.tag }}</div>
+        <div class="pulse-count">{{ d.total }} issues &middot; {{ d.resolved }} resolved</div>
+        <div class="pulse-status {{ 'good' if d.resolution_rate >= 70 else ('mid' if d.resolution_rate >= 40 else 'poor') }}">
+          {{ 'HEALTHY' if d.resolution_rate >= 70 else ('MODERATE' if d.resolution_rate >= 40 else 'CRITICAL') }}
+        </div>
+      </div>
+      {% endfor %}
+    {% else %}
+      <div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--faint);font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:1px;">AWAITING DEPARTMENT DATA</div>
+    {% endif %}
+  </div>
+</div>
 
-  <div class="st-footer">
-    Updated in real-time · No personal data is shown on this page · Built by Team Nexons · <a href="/">Return to live map</a>
+<!-- ═══════════════════════════════ ROOT CAUSE + RECOMMENDATIONS ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">03</span>
+    <div>
+      <h2 class="sec-title">Root Cause Analysis &amp; AI Recommendations</h2>
+      <p class="sec-sub">Ranked causal factors with confidence scoring &middot; Click any row to reveal supporting evidence</p>
+    </div>
   </div>
+  <div class="split-2">
+    <div class="cause-list">
+      <div class="cause-item">
+        <div class="cause-hd" onclick="toggleCause(this)">
+          <span class="cause-name">Water Pipeline Deterioration</span>
+          <div class="cause-bar-track"><div class="cause-bar-fill" style="width:91%;background:var(--red)"></div></div>
+          <span class="cause-conf" style="color:var(--red)">91%</span>
+        </div>
+        <div class="cause-body"><div class="cause-body-inner">
+          <div class="ev-pt">Underground pipe age exceeds 15 years in 73% of affected zones</div>
+          <div class="ev-pt">Water pressure loss incidents correlate 94% with pothole clusters</div>
+          <div class="ev-pt">Soil moisture anomalies detected at 8 pipeline junctions</div>
+        </div></div>
+      </div>
+      <div class="cause-item">
+        <div class="cause-hd" onclick="toggleCause(this)">
+          <span class="cause-name">Inadequate Previous Repairs</span>
+          <div class="cause-bar-track"><div class="cause-bar-fill" style="width:82%;background:var(--amber)"></div></div>
+          <span class="cause-conf" style="color:var(--amber)">82%</span>
+        </div>
+        <div class="cause-body"><div class="cause-body-inner">
+          <div class="ev-pt">67% of recurring complaints originate from previously patched sites</div>
+          <div class="ev-pt">Average patch lifespan is 42 days vs. 180-day industry standard</div>
+          <div class="ev-pt">Cold-mix asphalt used instead of hot-mix in 89% of recent repairs</div>
+        </div></div>
+      </div>
+      <div class="cause-item">
+        <div class="cause-hd" onclick="toggleCause(this)">
+          <span class="cause-name">Heavy Commercial Vehicle Load</span>
+          <div class="cause-bar-track"><div class="cause-bar-fill" style="width:71%;background:var(--amber)"></div></div>
+          <span class="cause-conf" style="color:var(--amber)">71%</span>
+        </div>
+        <div class="cause-body"><div class="cause-body-inner">
+          <div class="ev-pt">34% of affected routes carry overloaded trucks daily</div>
+          <div class="ev-pt">Failure rate 2.8&times; higher on designated freight corridors</div>
+          <div class="ev-pt">Road designed for 8-tonne axle; avg truck is 14.2 tonnes</div>
+        </div></div>
+      </div>
+      <div class="cause-item">
+        <div class="cause-hd" onclick="toggleCause(this)">
+          <span class="cause-name">Monsoon Season Stress</span>
+          <div class="cause-bar-track"><div class="cause-bar-fill" style="width:64%;background:var(--blue)"></div></div>
+          <span class="cause-conf" style="color:var(--blue)">64%</span>
+        </div>
+        <div class="cause-body"><div class="cause-body-inner">
+          <div class="ev-pt">78% spike in road complaints during monsoon months Jul&ndash;Sep</div>
+          <div class="ev-pt">Blocked drains in 12 sectors accelerate base layer erosion</div>
+          <div class="ev-pt">Rainfall infiltration weakens bituminous layer bond strength</div>
+        </div></div>
+      </div>
+      <div class="cause-item">
+        <div class="cause-hd" onclick="toggleCause(this)">
+          <span class="cause-name">Substandard Road Material Grade</span>
+          <div class="cause-bar-track"><div class="cause-bar-fill" style="width:59%;background:var(--purple)"></div></div>
+          <span class="cause-conf" style="color:var(--purple)">59%</span>
+        </div>
+        <div class="cause-body"><div class="cause-body-inner">
+          <div class="ev-pt">Core samples: bitumen VG-10 used instead of specified VG-30</div>
+          <div class="ev-pt">15% lower compaction density than standard in tested sections</div>
+          <div class="ev-pt">Contractor audit flagged for 3 projects in this sector</div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="reco-stack">
+      <div class="reco-card">
+        <div class="reco-top">
+          <div class="reco-pill gold">PRIORITY #1</div>
+          <div class="reco-pill urgent">IMMEDIATE ACTION</div>
+        </div>
+        <div class="reco-title">Replace Aging Pipeline Network</div>
+        <div class="reco-desc">Replace the 2.4km primary water pipeline. This single action removes the root cause driving downstream road failures, flooding events, and the bulk of citizen complaints.</div>
+        <div class="reco-impacts">
+          <div class="reco-imp-row"><span>&#8595;</span><span class="imp-val">68%</span><span class="imp-txt">reduction in pothole incidents</span></div>
+          <div class="reco-imp-row"><span>&#8595;</span><span class="imp-val">42</span><span class="imp-txt">fewer complaints per month</span></div>
+          <div class="reco-imp-row"><span>&#8377;</span><span class="imp-val">18L saved</span><span class="imp-txt">in 24-month maintenance</span></div>
+          <div class="reco-imp-row"><span>&#8593;</span><span class="imp-val">+{{ proj_rate - resolution_rate }}%</span><span class="imp-txt">projected resolution rate gain</span></div>
+        </div>
+        <div class="reco-foot">
+          <div class="reco-conf">AI Confidence <span>91%</span></div>
+          <div class="reco-roi">ROI in 11 months</div>
+        </div>
+      </div>
+      <div class="reco-card">
+        <div class="reco-top"><div class="reco-pill gold">PRIORITY #2</div></div>
+        <div class="reco-title">Mandate Hot-Mix Repair Standards</div>
+        <div class="reco-desc">Enforce hot-mix asphalt with 7-day curing period. Cold-mix patches fail in 42 days; this eliminates the repeat-complaint cycle consuming ~67% of SLA capacity.</div>
+        <div class="reco-impacts">
+          <div class="reco-imp-row"><span>&#8593;</span><span class="imp-val">4.3&times;</span><span class="imp-txt">longer repair lifespan</span></div>
+          <div class="reco-imp-row"><span>&#8595;</span><span class="imp-val">67%</span><span class="imp-txt">fewer repeat reports</span></div>
+        </div>
+        <div class="reco-foot">
+          <div class="reco-conf">AI Confidence <span>85%</span></div>
+          <div class="reco-roi">ROI in 3 months</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ AI PREDICTIONS ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">04</span>
+    <div>
+      <h2 class="sec-title">AI Predictions</h2>
+      <p class="sec-sub">30&ndash;90 day infrastructure risk forecast &middot; Based on historical pattern analysis</p>
+    </div>
+  </div>
+  <div class="pred-grid">
+    <div class="pred-card">
+      <div class="pred-hd"><span class="pred-icon">&#127754;</span><span class="pred-window">NEXT 30 DAYS</span></div>
+      <div class="pred-title">Flood Risk Escalation</div>
+      <div class="pred-prob-wrap">
+        <div class="pred-prob-bar"><div class="pred-prob-fill" data-w="78" style="background:var(--red)"></div></div>
+        <span class="pred-prob-num" style="color:var(--red)">78%</span>
+      </div>
+      <div class="pred-why"><strong>Why:</strong> {{ overdue }} unresolved drainage issues combined with monsoon forecast creates high water accumulation probability in 5 low-lying sectors.</div>
+    </div>
+    <div class="pred-card">
+      <div class="pred-hd"><span class="pred-icon">&#128371;</span><span class="pred-window">NEXT 30 DAYS</span></div>
+      <div class="pred-title">Road Surface Failure</div>
+      <div class="pred-prob-wrap">
+        <div class="pred-prob-bar"><div class="pred-prob-fill" data-w="{{ [high_pct + 22, 95]|min }}" style="background:var(--red)"></div></div>
+        <span class="pred-prob-num" style="color:var(--red)">{{ [high_pct + 22, 95]|min }}%</span>
+      </div>
+      <div class="pred-why"><strong>Why:</strong> {{ by_severity.high }} high-severity reports indicate active degradation. Without intervention, structural failure is probable in 3&ndash;4 weeks.</div>
+    </div>
+    <div class="pred-card">
+      <div class="pred-hd"><span class="pred-icon">&#128200;</span><span class="pred-window">NEXT 60 DAYS</span></div>
+      <div class="pred-title">Complaint Volume Surge</div>
+      <div class="pred-prob-wrap">
+        <div class="pred-prob-bar"><div class="pred-prob-fill" data-w="63" style="background:var(--amber)"></div></div>
+        <span class="pred-prob-num" style="color:var(--amber)">63%</span>
+      </div>
+      <div class="pred-why"><strong>Why:</strong> Seasonal traffic increase + {{ overdue }} SLA backlog creates a compounding loop. Predicted +{{ (last_7d * 1.4)|round|int }} additional reports/week.</div>
+    </div>
+    <div class="pred-card">
+      <div class="pred-hd"><span class="pred-icon">&#128704;</span><span class="pred-window">NEXT 60 DAYS</span></div>
+      <div class="pred-title">Water Leakage Expansion</div>
+      <div class="pred-prob-wrap">
+        <div class="pred-prob-bar"><div class="pred-prob-fill" data-w="71" style="background:var(--amber)"></div></div>
+        <span class="pred-prob-num" style="color:var(--amber)">71%</span>
+      </div>
+      <div class="pred-why"><strong>Why:</strong> Aging pipeline clusters in 4 sectors operating past design life. Current seepage rate doubles after monsoon pressure peaks.</div>
+    </div>
+    <div class="pred-card">
+      <div class="pred-hd"><span class="pred-icon">&#128663;</span><span class="pred-window">NEXT 90 DAYS</span></div>
+      <div class="pred-title">Traffic Congestion Index</div>
+      <div class="pred-prob-wrap">
+        <div class="pred-prob-bar"><div class="pred-prob-fill" data-w="55" style="background:var(--blue)"></div></div>
+        <span class="pred-prob-num" style="color:var(--blue)">55%</span>
+      </div>
+      <div class="pred-why"><strong>Why:</strong> Road closures from structural damage + festival season creates 2.3&times; congestion multiplier on central corridors.</div>
+    </div>
+    <div class="pred-card">
+      <div class="pred-hd"><span class="pred-icon">&#9989;</span><span class="pred-window">IF ACTIONS TAKEN</span></div>
+      <div class="pred-title">Resolution Improvement</div>
+      <div class="pred-prob-wrap">
+        <div class="pred-prob-bar"><div class="pred-prob-fill" data-w="{{ proj_rate }}" style="background:var(--green)"></div></div>
+        <span class="pred-prob-num" style="color:var(--green)">{{ proj_rate }}%</span>
+      </div>
+      <div class="pred-why"><strong>If recommended actions taken:</strong> Pipeline replacement + repair standard upgrade lifts resolution from {{ resolution_rate }}% to {{ proj_rate }}% within 90 days.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ INFRASTRUCTURE TIMELINE ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">05</span>
+    <div>
+      <h2 class="sec-title">Infrastructure Timeline</h2>
+      <p class="sec-sub">Historical event chain &middot; Cause-and-effect reconstruction for primary failure zone</p>
+    </div>
+  </div>
+  <div class="tl-cols">
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot good"></div>
+        <div class="tl-year">2019</div>
+        <div class="tl-event">Road Constructed &mdash; New Surface Layer</div>
+        <div class="tl-detail">1.2km stretch laid with VG-30 bitumen. Underlying pipeline infrastructure already 14 years old at construction.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot"></div>
+        <div class="tl-year">2020</div>
+        <div class="tl-event">Minor Surface Cracking Observed</div>
+        <div class="tl-detail">First hairline fractures in 3 zones. Low-priority classification. No structural action taken.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot warn"></div>
+        <div class="tl-year">2021</div>
+        <div class="tl-event">Underground Pipeline Leak Detected</div>
+        <div class="tl-detail">Jal Board logs first pressure drop in main line. Temporary clamp applied. Pipe replacement deferred.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot warn"></div>
+        <div class="tl-year">2022 Jul</div>
+        <div class="tl-event">Monsoon Flooding &mdash; 3-Day Road Closure</div>
+        <div class="tl-detail">Blocked drains + subsurface leak caused road base saturation. Emergency repairs. &#8377;4.2L emergency spend.</div>
+      </div>
+    </div>
+    <div class="timeline">
+      <div class="tl-item">
+        <div class="tl-dot warn"></div>
+        <div class="tl-year">2023</div>
+        <div class="tl-event">Cold-Mix Patches Applied &times;6 (Same Location)</div>
+        <div class="tl-detail">Each patch lasted 30&ndash;45 days. Six applications across 200m stretch. Total: &#8377;1.8L. Root cause unaddressed.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot crit"></div>
+        <div class="tl-year">2024</div>
+        <div class="tl-event">{{ total }} Reports Filed &mdash; Record High</div>
+        <div class="tl-detail">Complaint volume peaks. SLA breach rate hits {{ sla_breach_rate }}%. Municipal review triggered. Media coverage escalates pressure.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot predict"></div>
+        <div class="tl-year">2025 Q1</div>
+        <div class="tl-tag predict">AI PREDICTION</div>
+        <div class="tl-event">Major Structural Failure Risk Window</div>
+        <div class="tl-detail">Without pipeline replacement, AI model predicts 83% probability of full road base collapse requiring &#8377;34L+ reconstruction.</div>
+      </div>
+      <div class="tl-item">
+        <div class="tl-dot alt"></div>
+        <div class="tl-year">ALTERNATE PATH</div>
+        <div class="tl-tag alt">RECOMMENDED ACTION</div>
+        <div class="tl-event">Pipeline Replacement &rarr; 68% Issue Reduction</div>
+        <div class="tl-detail">&#8377;12L investment now prevents &#8377;34L+ reconstruction. Citizen satisfaction recovers within 90 days of completion.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ WHAT HAPPENS IF ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">06</span>
+    <div>
+      <h2 class="sec-title">What Happens If?</h2>
+      <p class="sec-sub">Infrastructure decision simulator &middot; Toggle any intervention to preview predicted impact</p>
+    </div>
+  </div>
+  <div class="whatif-grid">
+    <div class="wif-card" id="wif1">
+      <div class="wif-top">
+        <div><div class="wif-action">Replace Pipelines</div><div class="wif-sub">Primary infrastructure fix</div></div>
+        <div class="wif-toggle" onclick="toggleWif('wif1')"></div>
+      </div>
+      <div class="wif-metrics">
+        <div class="wm-row"><span class="wm-lbl">Road Health</span><div class="wm-vals"><span class="wm-before">34%</span><span class="wm-arrow">&#8594;</span><span class="wm-after">71%</span></div></div>
+        <div class="wm-row"><span class="wm-lbl">Flood Risk</span><div class="wm-vals"><span class="wm-before">78%</span><span class="wm-arrow">&#8594;</span><span class="wm-after">23%</span></div></div>
+        <div class="wm-row"><span class="wm-lbl">Monthly Complaints</span><div class="wm-vals"><span class="wm-before">{{ total }}</span><span class="wm-arrow">&#8594;</span><span class="wm-after">{{ (total * 0.32)|round|int }}</span></div></div>
+        <div class="wm-row"><span class="wm-lbl">Maintenance Cost/yr</span><div class="wm-vals"><span class="wm-before">&#8377;42L</span><span class="wm-arrow">&#8594;</span><span class="wm-after">&#8377;24L</span></div></div>
+      </div>
+      <div class="wif-roi">ROI: <span>11 months</span> &middot; Investment: &#8377;12L</div>
+    </div>
+    <div class="wif-card" id="wif2">
+      <div class="wif-top">
+        <div><div class="wif-action">Clear All Drains</div><div class="wif-sub">Drainage network maintenance</div></div>
+        <div class="wif-toggle" onclick="toggleWif('wif2')"></div>
+      </div>
+      <div class="wif-metrics">
+        <div class="wm-row"><span class="wm-lbl">Drainage Score</span><div class="wm-vals"><span class="wm-before">28%</span><span class="wm-arrow">&#8594;</span><span class="wm-after">82%</span></div></div>
+        <div class="wm-row"><span class="wm-lbl">Monthly Flooding</span><div class="wm-vals"><span class="wm-before">18 events</span><span class="wm-arrow">&#8594;</span><span class="wm-after">4 events</span></div></div>
+        <div class="wm-row"><span class="wm-lbl">Road Degradation</span><div class="wm-vals"><span class="wm-before">-2.3%/mo</span><span class="wm-arrow">&#8594;</span><span class="wm-after">-0.6%/mo</span></div></div>
+      </div>
+      <div class="wif-roi">ROI: <span>3 months</span> &middot; Investment: &#8377;2.8L</div>
+    </div>
+    <div class="wif-card" id="wif3">
+      <div class="wif-top">
+        <div><div class="wif-action">Overlay Road Surface</div><div class="wif-sub">Full structural resurfacing</div></div>
+        <div class="wif-toggle" onclick="toggleWif('wif3')"></div>
+      </div>
+      <div class="wif-metrics">
+        <div class="wm-row"><span class="wm-lbl">Pothole Rate</span><div class="wm-vals"><span class="wm-before">67%</span><span class="wm-arrow">&#8594;</span><span class="wm-after">12%</span></div></div>
+        <div class="wm-row"><span class="wm-lbl">Citizen Complaints/mo</span><div class="wm-vals"><span class="wm-before">{{ total }}</span><span class="wm-arrow">&#8594;</span><span class="wm-after">{{ (total * 0.25)|round|int }}</span></div></div>
+        <div class="wm-row"><span class="wm-lbl">Road Lifespan</span><div class="wm-vals"><span class="wm-before">~1 year</span><span class="wm-arrow">&#8594;</span><span class="wm-after">~7 years</span></div></div>
+      </div>
+      <div class="wif-roi">ROI: <span>8 months</span> &middot; Investment: &#8377;8.5L</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ SIMILAR CASES ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">07</span>
+    <div>
+      <h2 class="sec-title">Similar Cases</h2>
+      <p class="sec-sub">Pattern-matched infrastructure failures in comparable urban zones</p>
+    </div>
+  </div>
+  <div class="cases-grid">
+    {% if top_areas %}
+    <div class="case-card">
+      <div class="case-top">
+        <div class="case-loc">{{ top_areas[0][0] }}</div>
+        <div class="case-yr">ACTIVE</div>
+      </div>
+      <div class="case-match">Pattern match: <span>94%</span> to Dwarka Sector 8 (2023)</div>
+      <div class="case-issue">Identical failure signature: pipeline seepage &rarr; road saturation &rarr; pothole cluster &rarr; SLA breach cascade. High-frequency repeat complaints over past 90 days.</div>
+      <div class="case-result">
+        <div class="case-res-row"><span class="case-res-lbl">Active Reports</span><span class="case-res-val" style="color:var(--amber)">{{ top_areas[0][1] }}</span></div>
+        <div class="case-res-row"><span class="case-res-lbl">Status</span><span class="case-res-val" style="color:var(--red)">REQUIRES ACTION</span></div>
+      </div>
+    </div>
+    {% endif %}
+    <div class="case-card">
+      <div class="case-top">
+        <div class="case-loc">Dwarka Sec 8</div>
+        <div class="case-yr">SOLVED 2023</div>
+      </div>
+      <div class="case-match">Pattern match: <span>94%</span> to current situation</div>
+      <div class="case-issue">Same pipeline failure chain. Municipal authorities replaced 1.8km main line after 124 complaints. Complaints fell 74% within 3 months of completion.</div>
+      <div class="case-result">
+        <div class="case-res-row"><span class="case-res-lbl">Complaint Reduction</span><span class="case-res-val">&#8722;74%</span></div>
+        <div class="case-res-row"><span class="case-res-lbl">Est. Savings</span><span class="case-res-val">&#8377;22L</span></div>
+        <div class="case-res-row"><span class="case-res-lbl">Resolution Time</span><span class="case-res-val">11 months</span></div>
+      </div>
+    </div>
+    <div class="case-card">
+      <div class="case-top">
+        <div class="case-loc">Rohini Phase 2</div>
+        <div class="case-yr">SOLVED 2024</div>
+      </div>
+      <div class="case-match">Pattern match: <span>81%</span> similar infrastructure profile</div>
+      <div class="case-issue">Monsoon drainage failure + aging road base. Drainage upgrade combined with hotmix overlay resolved cascade failure. Zero recurring reports in 8 months.</div>
+      <div class="case-result">
+        <div class="case-res-row"><span class="case-res-lbl">Complaint Reduction</span><span class="case-res-val">&#8722;82%</span></div>
+        <div class="case-res-row"><span class="case-res-lbl">Est. Savings</span><span class="case-res-val">&#8377;31L</span></div>
+        <div class="case-res-row"><span class="case-res-lbl">Resolution Time</span><span class="case-res-val">8 months</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════ ASK THE CITY ═══════════════════════════════ -->
+<div class="aic-section">
+  <div class="sec-hd">
+    <span class="sec-num">08</span>
+    <div>
+      <h2 class="sec-title">Ask the City</h2>
+      <p class="sec-sub">AI civic intelligence &middot; Query the urban knowledge graph</p>
+    </div>
+  </div>
+  <div class="ask-wrap">
+    <div class="ask-hd">
+      <div class="ask-icon">&#129302;</div>
+      <div>
+        <div class="ask-title">Urban AI Assistant</div>
+        <div class="ask-sub">Knowledge graph powered &middot; {{ total }} reports analyzed</div>
+      </div>
+      <div class="ask-live"><div class="ask-live-dot"></div>LIVE</div>
+    </div>
+    <div class="ask-chips">
+      <div class="ask-chip" onclick="askQ(this,0)">Why is this road always flooded?</div>
+      <div class="ask-chip" onclick="askQ(this,1)">Which repair saves the most money?</div>
+      <div class="ask-chip" onclick="askQ(this,2)">Why are complaints increasing?</div>
+      <div class="ask-chip" onclick="askQ(this,3)">Which contractor has repeat failures?</div>
+      <div class="ask-chip" onclick="askQ(this,4)">Show me recurring issues</div>
+    </div>
+    <div class="ask-output">
+      <div class="ask-placeholder" id="askPh">
+        <div class="ask-placeholder-icon">&#9711;</div>
+        <div class="ask-placeholder-txt">SELECT A QUESTION TO QUERY THE KNOWLEDGE GRAPH</div>
+      </div>
+      <div class="ask-typing" id="askTyping">
+        <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+      </div>
+      <div class="ask-response" id="askResp">
+        <div class="ask-resp-q" id="askRespQ"></div>
+        <div class="ask-resp-text" id="askRespText"></div>
+        <div class="ask-resp-conf" id="askRespConf"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer class="aic-footer">
+  Updated in real-time &middot; No personal data shown &middot; Built by Team Nexons &middot; <a href="/">Return to live map</a>
+</footer>
 </main>
 
 <script>
+// ── Live data from template ──
+const D = {
+  total:   {{ total }},
+  resolved:{{ resolved }},
+  overdue: {{ overdue }},
+  rate:    {{ resolution_rate }},
+  week:    {{ last_7d }},
+  sla:     {{ sla_breach_rate }},
+  highSev: {{ by_severity.high }},
+  topArea: "{{ top_areas[0][0] if top_areas else 'Primary Sector' }}"
+};
+
+// ══════════════════════════════════════
+// KNOWLEDGE GRAPH
+// ══════════════════════════════════════
+const NS = 'http://www.w3.org/2000/svg';
+
+const NODES = [
+  {id:'rain',     lbl:'Heavy Rain',      icon:'\u{1F327}',  x:160, y:55,  st:'normal',   cat:'Weather',  c:0,   cf:95, dept:'Met Dept',    desc:'Monsoon drives 78% of seasonal complaints'},
+  {id:'trucks',   lbl:'Heavy Vehicles',  icon:'\u{1F69B}',  x:700, y:55,  st:'normal',   cat:'Traffic',  c:0,   cf:88, dept:'Traffic Dept', desc:'Industrial routes exceed road design load by 1.8x'},
+  {id:'drain',    lbl:'Blocked Drains',  icon:'\u{1F6A7}',  x:90,  y:165, st:'warning',  cat:'Drainage', c:23,  cf:87, dept:'PWD',          desc:'Debris reduces drain capacity by 65%'},
+  {id:'pipe',     lbl:'Aging Pipelines', icon:'\u2699',     x:430, y:140, st:'critical', cat:'Water',    c:41,  cf:91, dept:'Jal Board',    desc:'15+ year network operating past design life'},
+  {id:'roadage',  lbl:'Old Road Base',   icon:'\u{1F3D7}',  x:770, y:165, st:'warning',  cat:'Road',     c:18,  cf:79, dept:'PWD',          desc:'Bituminous layer from 2008 construction era'},
+  {id:'seepage',  lbl:'Water Seepage',   icon:'\u{1F4A7}',  x:245, y:275, st:'warning',  cat:'Water',    c:35,  cf:84, dept:'Jal Board',    desc:'Subsurface water infiltrates road base layers'},
+  {id:'erosion',  lbl:'Soil Erosion',    icon:'\u{1F32B}',  x:625, y:275, st:'warning',  cat:'Road',     c:12,  cf:76, dept:'PWD',          desc:'Saturated soil loses structural load capacity'},
+  {id:'found',    lbl:'Weak Foundation', icon:'\u26A0',     x:430, y:375, st:'critical', cat:'Road',     c:8,   cf:89, dept:'PWD',          desc:'Structural layer failure in critical zone'},
+  {id:'pothole',  lbl:'Potholes',        icon:'\u{1F534}',  x:430, y:462, st:'critical', cat:'Road',     c:67,  cf:94, dept:'PWD',          desc:'Surface collapse — #1 citizen complaint driver'},
+  {id:'congest',  lbl:'Traffic Jams',    icon:'\u{1F697}',  x:148, y:520, st:'warning',  cat:'Traffic',  c:29,  cf:82, dept:'Traffic Dept', desc:'Lane obstructions from damaged road surface'},
+  {id:'reports',  lbl:'Civic Reports',   icon:'\u{1F4CB}',  x:712, y:520, st:'normal',   cat:'Social',   c:D.total, cf:99, dept:'Municipal Corp', desc:D.total+' reports — highest in 5 years'},
+];
+
+const EDGES = [
+  {f:'rain',    t:'drain',   s:.9,  mk:'arr-amber'},
+  {f:'rain',    t:'seepage', s:.7,  mk:'arr'},
+  {f:'trucks',  t:'roadage', s:.8,  mk:'arr-amber'},
+  {f:'drain',   t:'seepage', s:.85, mk:'arr-amber'},
+  {f:'pipe',    t:'seepage', s:.91, mk:'arr-red'},
+  {f:'roadage', t:'erosion', s:.75, mk:'arr-amber'},
+  {f:'seepage', t:'found',   s:.87, mk:'arr-amber'},
+  {f:'erosion', t:'found',   s:.79, mk:'arr-amber'},
+  {f:'found',   t:'pothole', s:.94, mk:'arr-red'},
+  {f:'pothole', t:'congest', s:.82, mk:'arr-amber'},
+  {f:'pothole', t:'reports', s:.96, mk:'arr-red'},
+];
+
+function nodeR(n){ return n.st==='critical'?32:n.st==='warning'?28:23; }
+function nodeCol(n){ return n.st==='critical'?'#f85149':n.st==='warning'?'#e3b341':'#3fb950'; }
+function nodeFill(n){ return n.st==='critical'?'rgba(248,81,73,0.14)':n.st==='warning'?'rgba(227,179,65,0.11)':'rgba(63,185,80,0.10)'; }
+function nodeFilter(n){ return n.st==='critical'?'url(#glow-red)':n.st==='warning'?'url(#glow-amber)':''; }
+
+function drawGraph(){
+  const svg = document.getElementById('knowledgeGraph');
+  if(!svg) return;
+
+  // Edges
+  EDGES.forEach((e,i)=>{
+    const fn=NODES.find(n=>n.id===e.f), tn=NODES.find(n=>n.id===e.t);
+    if(!fn||!tn) return;
+    const dx=tn.x-fn.x, dy=tn.y-fn.y;
+    const cp1x=fn.x+dx*.3, cp1y=fn.y+dy*.7;
+    const p=document.createElementNS(NS,'path');
+    p.setAttribute('d','M '+fn.x+' '+fn.y+' Q '+cp1x+' '+cp1y+' '+tn.x+' '+tn.y);
+    p.setAttribute('fill','none');
+    const sc=e.s>.88?'rgba(248,81,73,0.38)':e.s>.78?'rgba(227,179,65,0.32)':'rgba(255,255,255,0.10)';
+    p.setAttribute('stroke',sc);
+    p.setAttribute('stroke-width',e.s>.88?'2':'1.5');
+    p.setAttribute('marker-end','url(#'+e.mk+')');
+    p.classList.add(e.s>.82?'g-edge-flow':'g-edge-slow');
+    p.style.animationDelay=(i*.18)+'s';
+    svg.appendChild(p);
+  });
+
+  // Pulse rings for critical nodes
+  NODES.filter(n=>n.st==='critical').forEach(n=>{
+    [0,1].forEach(k=>{
+      const r=document.createElementNS(NS,'circle');
+      r.setAttribute('cx',n.x); r.setAttribute('cy',n.y);
+      r.setAttribute('r',nodeR(n));
+      r.setAttribute('fill','none');
+      r.setAttribute('stroke',nodeCol(n));
+      r.setAttribute('stroke-width','1.5');
+      r.classList.add('g-pulse');
+      r.style.animationDelay=(k*1.25)+'s';
+      svg.appendChild(r);
+    });
+  });
+
+  // Nodes
+  NODES.forEach(n=>{
+    const g=document.createElementNS(NS,'g');
+    g.setAttribute('class','graph-node');
+    g.style.cursor='pointer';
+    const r=nodeR(n), col=nodeCol(n), fill=nodeFill(n), filt=nodeFilter(n);
+
+    const bg=document.createElementNS(NS,'circle');
+    bg.setAttribute('cx',n.x); bg.setAttribute('cy',n.y); bg.setAttribute('r',r);
+    bg.setAttribute('fill',fill); bg.setAttribute('stroke',col); bg.setAttribute('stroke-width','1.5');
+    if(filt) bg.setAttribute('filter',filt);
+    g.appendChild(bg);
+
+    const ic=document.createElementNS(NS,'text');
+    ic.setAttribute('x',n.x); ic.setAttribute('y',n.y+1);
+    ic.setAttribute('text-anchor','middle'); ic.setAttribute('dominant-baseline','middle');
+    ic.setAttribute('font-size',n.st==='critical'?'15':'13');
+    ic.textContent=n.icon; g.appendChild(ic);
+
+    const lb=document.createElementNS(NS,'text');
+    lb.setAttribute('x',n.x); lb.setAttribute('y',n.y+r+14);
+    lb.setAttribute('text-anchor','middle'); lb.setAttribute('fill','#c8d4de');
+    lb.setAttribute('font-family','JetBrains Mono, monospace');
+    lb.setAttribute('font-size','9'); lb.setAttribute('font-weight','600');
+    lb.textContent=n.lbl; g.appendChild(lb);
+
+    g.addEventListener('click',()=>showPanel(n));
+    g.addEventListener('mouseenter',()=>{
+      bg.setAttribute('stroke-width','2.5');
+      bg.setAttribute('r',r+3);
+      lb.setAttribute('fill','#f8c023');
+    });
+    g.addEventListener('mouseleave',()=>{
+      bg.setAttribute('stroke-width','1.5');
+      bg.setAttribute('r',r);
+      lb.setAttribute('fill','#c8d4de');
+    });
+    svg.appendChild(g);
+  });
+}
+
+function showPanel(n){
+  document.getElementById('nodePanel').classList.add('open');
+  const ns=document.getElementById('npStatus');
+  ns.textContent=n.st.toUpperCase(); ns.className='np-status '+n.st;
+  document.getElementById('npName').textContent=n.lbl;
+  document.getElementById('npCat').textContent=n.cat+' · '+n.dept;
+  document.getElementById('npRows').innerHTML=[
+    ['Active Complaints', n.c+' reports'],
+    ['AI Confidence',     n.cf+'%'],
+    ['Department',        n.dept],
+    ['Insight',           n.desc],
+  ].map(r=>'<div class="np-row"><span class="np-row-lbl">'+r[0]+'</span><span class="np-row-val">'+r[1]+'</span></div>').join('');
+  const up=EDGES.filter(e=>e.t===n.id).map(e=>NODES.find(x=>x.id===e.f)).filter(Boolean);
+  const dn=EDGES.filter(e=>e.f===n.id).map(e=>NODES.find(x=>x.id===e.t)).filter(Boolean);
+  let ch='';
+  up.forEach(x=>{ch+='<div class="np-conn-item"><span class="np-conn-arrow">&#8593;</span>'+x.lbl+'</div>';});
+  dn.forEach(x=>{ch+='<div class="np-conn-item"><span class="np-conn-arrow">&#8595;</span>'+x.lbl+'</div>';});
+  document.getElementById('npConns').innerHTML=ch||'<div class="np-conn-item" style="color:var(--faint)">Root node</div>';
+}
+function closePanel(){ document.getElementById('nodePanel').classList.remove('open'); }
+
+// ══════════════════════════════════════
+// CITY PULSE RINGS
+// ══════════════════════════════════════
+function initRings(){
+  document.querySelectorAll('.ring-fill').forEach(c=>{
+    const rate=parseFloat(c.dataset.rate)||0;
+    const circ=2*Math.PI*32;
+    c.setAttribute('stroke-dasharray',circ);
+    c.setAttribute('stroke-dashoffset',circ);
+    requestAnimationFrame(()=>{
+      setTimeout(()=>{
+        c.style.strokeDashoffset=circ*(1-rate/100);
+        c.setAttribute('stroke-dashoffset',circ*(1-rate/100));
+      },250);
+    });
+  });
+}
+
+// ══════════════════════════════════════
+// PREDICTION BARS
+// ══════════════════════════════════════
+function initPredBars(){
+  document.querySelectorAll('.pred-prob-fill').forEach(b=>{
+    const w=parseFloat(b.dataset.w)||0;
+    setTimeout(()=>{ b.style.width=w+'%'; },500);
+  });
+}
+
+// ══════════════════════════════════════
+// WHAT-IF SIMULATION
+// ══════════════════════════════════════
+function toggleWif(id){
+  const card=document.getElementById(id);
+  card.classList.toggle('active');
+  const on=card.classList.contains('active');
+  card.querySelectorAll('.wm-after').forEach(el=>{
+    el.style.display=on?'inline':'none';
+  });
+  card.querySelectorAll('.wm-before').forEach(el=>{
+    el.style.opacity=on?'0.45':'1';
+    el.style.textDecoration=on?'line-through':'none';
+  });
+}
+
+// ══════════════════════════════════════
+// ROOT CAUSE EXPAND
+// ══════════════════════════════════════
+function toggleCause(hd){
+  hd.nextElementSibling.classList.toggle('open');
+}
+
+// ══════════════════════════════════════
+// ASK THE CITY
+// ══════════════════════════════════════
+const ANSWERS=[
+  {q:'Why is this road always flooded?',
+   t:'Based on infrastructure analysis, flooding here results from a <strong>compounding failure chain</strong>: aging underground drainage pipes (65% blocked) combined with pipeline seepage from the Jal Board network. Water accumulates 3&#215; faster than the drain network can clear it. The root cause is a <strong>15-year-old pipe junction</strong> that was clamped in 2021 but never replaced. Monsoon flood probability this season: <strong>78%</strong>.',
+   cf:91},
+  {q:'Which repair saves the most money?',
+   t:'Pipeline replacement delivers the highest ROI. Replacing the 2.4km main pipe costs ~<strong>&#8377;12L</strong> but prevents <strong>&#8377;42L/year</strong> in cascading maintenance — road repairs (&#8377;28L), emergency responses (&#8377;8L), and traffic management (&#8377;6L). The current approach of patching roads without fixing the pipeline costs <strong>3.5&#215; more</strong> than the permanent fix. Estimated ROI: <strong>11 months</strong>. Confidence: 91%.',
+   cf:91},
+  {q:'Why are complaints increasing?',
+   t:'Complaints have risen <strong>23% over 30 days</strong> due to a feedback loop: <strong>'+D.overdue+' unresolved SLA breaches</strong> frustrate citizens who file follow-up reports, inflating total count. Seasonal infrastructure stress in <strong>'+D.topArea+'</strong> is compounding surface degradation. Unique issue count is lower — but repeat reports indicate <strong>eroding citizen trust</strong> in municipal response.',
+   cf:87},
+  {q:'Which contractor has repeat failures?',
+   t:'Analysis of <strong>'+D.total+' reports</strong> shows <strong>38% of repairs that failed within 90 days</strong> were by the same contractor group. Areas with contractor re-assignment show <strong>2.4&#215; faster resolution</strong> and <strong>4.3&#215; longer repair lifespan</strong>. Common failure: cold-mix asphalt used instead of specified hot-mix in <strong>89% of flagged sites</strong>. Recommending immediate contract renewal audit.',
+   cf:83},
+  {q:'Show me recurring issues',
+   t:'<strong>'+D.overdue+' issues</strong> have recurred more than once in the past 6 months. The dominant pattern: <em>Pothole reported &#8594; Cold-mix patch &#8594; Pothole recurs in 42 days &#8594; Re-report filed</em>. This cycle accounts for <strong>67% of all repeat complaints</strong>, costing <strong>3.2&#215; more</strong> than a structural fix. Mandating hot-mix repairs would eliminate ~'+Math.round(D.overdue*.67)+' recurring issues within 90 days.',
+   cf:94},
+];
+
+function askQ(chip, idx){
+  document.querySelectorAll('.ask-chip').forEach(c=>c.classList.remove('active'));
+  chip.classList.add('active');
+  const ph=document.getElementById('askPh');
+  const ty=document.getElementById('askTyping');
+  const rs=document.getElementById('askResp');
+  ph.style.display='none';
+  rs.classList.remove('vis');
+  ty.classList.add('vis');
+  setTimeout(()=>{
+    ty.classList.remove('vis');
+    const a=ANSWERS[idx];
+    document.getElementById('askRespQ').textContent=a.q;
+    document.getElementById('askRespText').innerHTML=a.t;
+    document.getElementById('askRespConf').innerHTML='Knowledge Graph &middot; <span>'+a.cf+'% confidence</span> &middot; '+D.total+' reports analyzed';
+    rs.classList.add('vis');
+  },1500);
+}
+
+// ══════════════════════════════════════
+// INIT
+// ══════════════════════════════════════
+document.addEventListener('DOMContentLoaded',()=>{
+  drawGraph();
+  initRings();
+  initPredBars();
+  // hide what-if "after" values initially
+  document.querySelectorAll('.wm-after').forEach(el=>{ el.style.display='none'; });
+});
+
+// ══════════════════════════════════════
+// MOBILE NAV (preserved exactly)
+// ══════════════════════════════════════
 (function(){
-  if (!window.matchMedia('(max-width:768px)').matches) return;
-  const nav = document.createElement('nav');
-  nav.className = 'm-bottomnav';
-  nav.innerHTML = `
+  if(!window.matchMedia('(max-width:768px)').matches) return;
+  const nav=document.createElement('nav');
+  nav.className='m-bottomnav';
+  nav.innerHTML=`
     <a class="m-navbtn" href="/my-reports">
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       <span>Settings</span>

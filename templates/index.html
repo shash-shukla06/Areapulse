@@ -11,12 +11,12 @@
 <style>
 
 :root {
-  /* FR24-accurate palette (sampled from real Flightradar24 UI) */
-  --bg:        #1c1f25;   /* main backdrop, slightly warm dark */
-  --bg-2:      #232730;   /* primary panels */
-  --bg-3:      #2a2f3a;   /* hover/elevated */
-  --bg-4:      #353a47;   /* active selection */
-  --accent:    #f8c023;   /* FR24 brand yellow */
+  
+  --bg:        #1c1f25;   
+  --bg-2:      #232730;   
+  --bg-3:      #2a2f3a;   
+  --bg-4:      #353a47;   
+  --accent:    #f8c023;   
   --accent-2:  #ffd34d;
   --accent-dim:rgba(248,192,35,0.13);
   --info:      #4a90e2;
@@ -32,7 +32,6 @@
 html, body { width:100%; height:100%; overflow:hidden; font-family:'Inter', system-ui, sans-serif; font-size:13px; line-height:1.4; color:var(--text); background:var(--bg); }
 button, input, select, textarea { font-family:inherit; }
 
-/* Map */
 #map { position:fixed; inset:0; z-index:0; background:#0f1721; }
 .leaflet-control-zoom { display:none !important; }
 .leaflet-control-attribution {
@@ -46,7 +45,7 @@ button, input, select, textarea { font-family:inherit; }
   z-index: 9998;
   position: relative;
 }
-/* Marker dots — extra contrast for LIGHT map */
+
 @keyframes mpulse {
   0%   { transform:scale(0.5); opacity:.9; }
   70%  { transform:scale(2.6); opacity:.15; }
@@ -68,7 +67,6 @@ button, input, select, textarea { font-family:inherit; }
   animation:mpulse 2s cubic-bezier(.2,.6,.4,1) infinite;
 }
 
-/* Popup tag */
 .leaflet-popup-content-wrapper {
   background:var(--bg-2) !important; border:1px solid var(--accent) !important;
   border-radius:0 !important; box-shadow:0 0 16px rgba(248,192,35,0.18) !important;
@@ -91,7 +89,6 @@ button, input, select, textarea { font-family:inherit; }
 .popup-tag .pt-sev.low { background:var(--green); color:#000; }
 .popup-tag:hover { background:var(--accent-dim); }
 
-/* Topbar */
 .topbar {
   position:fixed; top:0; left:0; right:0; z-index:300;
   height:48px; padding:0 14px;
@@ -130,12 +127,14 @@ button, input, select, textarea { font-family:inherit; }
 .tb-search { background:var(--bg-2); border:1px solid var(--border); color:var(--text); padding:6px 11px; font-size:11.5px; outline:none; width:220px; font-family:'Inter', sans-serif; }
 .tb-search:focus { border-color:var(--accent); }
 .tb-search::placeholder { color:var(--faint); font-size:11px; }
-.tb-icon-btn { width:30px; height:30px; display:flex; align-items:center; justify-content:center; color:var(--muted); background:var(--bg-2); border:1px solid var(--border); cursor:pointer; }
-.tb-icon-btn:hover { color:var(--accent); border-color:var(--accent); }
-.tb-icon-btn svg { width:14px; height:14px; }
+.tb-icon-btn { width:36px; height:36px; display:flex; align-items:center; justify-content:center; color:var(--accent); background:var(--bg-3); border:1px solid var(--border-mid); border-radius:8px; cursor:pointer; transition:background .15s, border-color .15s, transform .1s; }
+.tb-icon-btn:hover { color:#000; background:var(--accent); border-color:var(--accent); }
+.tb-icon-btn:active { transform:scale(.93); }
+.tb-icon-btn svg { width:18px; height:18px; }
+.tb-icon-btn#nav-menu-btn { background:var(--accent); color:#000; border-color:var(--accent); }
+.tb-icon-btn#nav-menu-btn:hover { background:var(--accent-2); }
 
-/* Settings modal — FR24-style 3x3 map picker */
-.settings-modal { z-index:550; }
+.settings-modal { z-index:99997; }
 .settings-card { max-width:520px; padding:0 !important; overflow:hidden; }
 .settings-head { display:flex; align-items:center; padding:14px 18px 12px; border-bottom:1px solid var(--border); }
 .settings-title { flex:1; font-size:15px; font-weight:600; color:#fff; letter-spacing:.3px; }
@@ -159,7 +158,6 @@ button, input, select, textarea { font-family:inherit; }
 .msc-lbl { font-size:11px; font-weight:600; color:var(--text-2); letter-spacing:.2px; text-align:center; }
 .map-style-card.active .msc-lbl { color:var(--accent); }
 
-/* Thumbnail mini-previews (CSS gradient approximations) */
 .t-hybrid   { background:linear-gradient(135deg,#1a2e3a 0%,#2c5e3d 40%,#1f3a4a 70%,#0a1218 100%); }
 .t-sat      { background:linear-gradient(135deg,#0d1828 0%,#2d4828 35%,#1f2e2a 65%,#0a1015 100%); }
 .t-dark     { background:#1a1f29; background-image:linear-gradient(90deg,transparent 49%,#3a4555 50%,transparent 51%),linear-gradient(0deg,transparent 49%,#3a4555 50%,transparent 51%); background-size:18px 18px; }
@@ -175,7 +173,6 @@ button, input, select, textarea { font-family:inherit; }
 .brightness-row input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%; background:var(--accent); cursor:pointer; border:2px solid var(--bg-2); }
 .brightness-row input[type=range]::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:var(--accent); border:2px solid var(--bg-2); cursor:pointer; }
 
-/* Display tab */
 .display-row { display:flex; align-items:center; padding:11px 0; border-bottom:1px solid var(--border); }
 .display-row:last-child { border-bottom:none; }
 .display-row-label { flex:1; font-size:13px; color:var(--text-2); }
@@ -191,7 +188,6 @@ button, input, select, textarea { font-family:inherit; }
 .switch input:checked + .switch-track { background:var(--accent-dim); }
 .switch input:checked + .switch-track::before { transform:translateX(18px); background:var(--accent); }
 
-/* About tab */
 .about-block { color:var(--text-2); }
 .about-title { font-size:22px; font-weight:800; color:#fff; letter-spacing:.5px; margin-bottom:2px; }
 .about-tagline { font-size:13px; color:var(--muted); margin-bottom:16px; }
@@ -202,7 +198,6 @@ button, input, select, textarea { font-family:inherit; }
 .about-link { color:var(--accent); text-decoration:none; }
 .about-link:hover { text-decoration:underline; }
 
-/* Left sidebar */
 @keyframes fade-up { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
 .left-panel { position:fixed; top:56px; left:10px; z-index:100; width:240px; max-height:calc(100vh - 110px); background:var(--bg-2); border:1px solid var(--border); display:flex; flex-direction:column; animation:fade-up .4s ease both; }
 .left-panel.hidden { display:none; }
@@ -230,6 +225,7 @@ button, input, select, textarea { font-family:inherit; }
 .layer-row:hover { background:rgba(248,192,35,0.05); border-left-color:var(--accent); }
 .layer-row.active { background:var(--accent-dim); border-left-color:var(--accent); }
 .layer-icon { width:18px; height:18px; display:flex; align-items:center; justify-content:center; font-size:11px; flex-shrink:0; }
+.layer-icon svg { width:16px; height:16px; }
 .layer-name { font-family:'Barlow Condensed', sans-serif; font-size:13px; font-weight:600; letter-spacing:0.5px; color:var(--text); flex:1; text-transform:uppercase; }
 .layer-row.active .layer-name { color:#fff; }
 .layer-count { font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--faint); background:rgba(255,255,255,0.04); padding:2px 7px; min-width:22px; text-align:center; }
@@ -247,7 +243,6 @@ button, input, select, textarea { font-family:inherit; }
 .lp-footer { padding:10px 14px; border-top:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; gap:8px; }
 .lp-footer-label { font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--faint); letter-spacing:1px; }
 
-/* Right context panel */
 .right-panel { position:fixed; top:56px; right:10px; bottom:90px; z-index:100; width:320px; background:var(--bg-2); border:1px solid var(--border); display:flex; flex-direction:column; animation:fade-up .4s ease both; }
 .right-panel.hidden { display:none; }
 .rp-tabs { display:flex; border-bottom:1px solid var(--border); flex-shrink:0; }
@@ -261,15 +256,11 @@ button, input, select, textarea { font-family:inherit; }
 .rp-stats { display:flex; padding:0; border-bottom:1px solid var(--border); flex-shrink:0; }
 .rp-stat { flex:1; padding:11px 8px; text-align:center; border-right:1px solid var(--border); border-top:2px solid; display:flex; flex-direction:column; gap:2px; }
 .rp-stat:last-child { border-right:none; }
-.rp-stat.high { border-top-color:var(--red); }
-.rp-stat.medium { border-top-color:var(--amber); }
-.rp-stat.low { border-top-color:var(--green); }
-.rp-stat.resolved { border-top-color:var(--accent); }
+.rp-stat.open { border-top-color:var(--amber); }
+.rp-stat.resolved { border-top-color:var(--green); }
 .rp-stat-num { font-family:'JetBrains Mono', monospace; font-size:20px; font-weight:700; line-height:1; color:var(--text); }
-.rp-stat.high .rp-stat-num { color:var(--red); }
-.rp-stat.medium .rp-stat-num { color:var(--amber); }
-.rp-stat.low .rp-stat-num { color:var(--green); }
-.rp-stat.resolved .rp-stat-num { color:var(--accent); }
+.rp-stat.open .rp-stat-num { color:var(--amber); }
+.rp-stat.resolved .rp-stat-num { color:var(--green); }
 .rp-stat-lbl { font-family:'Barlow Condensed', sans-serif; font-size:9px; font-weight:600; letter-spacing:1.2px; color:var(--muted); text-transform:uppercase; margin-top:4px; }
 
 .rp-content { flex:1; overflow-y:auto; min-height:0; }
@@ -278,21 +269,24 @@ button, input, select, textarea { font-family:inherit; }
 .rp-view { display:none; min-height:0; flex:1; flex-direction:column; }
 .rp-view.active { display:flex; }
 
-.issue-card { padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer; position:relative; transition:background .12s; }
+.issue-card { padding:14px 15px; border-bottom:1px solid #23272f; border-left:2px solid #4a4d55; cursor:pointer; position:relative; transition:background .12s; }
+.issue-card.is-open { border-left-color:#4a4d55; }
+.issue-card.is-resolved { border-left-color:var(--green); }
+.issue-card.is-escalated { border-left-color:var(--red); }
 .issue-card:hover { background:var(--accent-dim); }
 .issue-card.active { background:var(--accent-dim); }
-.issue-card.active::before { content:''; position:absolute; left:0; top:0; bottom:0; width:2px; background:var(--accent); }
-.issue-card-top { display:flex; align-items:center; gap:5px; margin-bottom:6px; flex-wrap:wrap; }
+.issue-card.active { border-left-color:var(--accent); }
+.issue-card-top { display:flex; align-items:center; gap:5px; margin-bottom:8px; }
 .issue-card-num { font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700; color:var(--faint); min-width:18px; }
-.issue-card-pill { display:inline-block; padding:2px 7px; font-size:9px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; font-family:'JetBrains Mono', monospace; }
+.issue-card-id { font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700; color:var(--muted); letter-spacing:.5px; }
+.issue-card-pill { display:inline-block; padding:2px 8px; font-size:8.5px; font-weight:700; letter-spacing:.8px; text-transform:uppercase; font-family:'JetBrains Mono', monospace; border-radius:3px; }
 .pill-pothole{background:rgba(229,142,82,0.15);color:#e58e52} .pill-water{background:rgba(74,158,255,0.15);color:#4a9eff} .pill-garbage{background:rgba(150,206,76,0.15);color:#96ce4c}
 .pill-streetlight{background:rgba(170,184,200,0.15);color:#aab8c8} .pill-traffic{background:rgba(255,68,68,0.15);color:var(--red)} .pill-noise{background:rgba(192,132,252,0.15);color:#c084fc}
 .pill-sewage{background:rgba(212,184,112,0.15);color:#d4b870} .pill-electricity{background:rgba(255,170,0,0.15);color:var(--amber)} .pill-tree{background:rgba(111,207,151,0.15);color:#6fcf97}
 .pill-other{background:rgba(170,184,200,0.15);color:#aab8c8}
 .pill-high{background:var(--red-dim);color:var(--red)} .pill-medium{background:var(--amber-dim);color:var(--amber)} .pill-low{background:var(--green-dim);color:var(--green)}
-.pill-open{background:rgba(74,158,255,0.15);color:#4a9eff} .pill-resolved{background:var(--green-dim);color:var(--green)} .pill-escalated{background:var(--red-dim);color:var(--red)}
+.pill-open{background:transparent;color:var(--muted);border:1px solid var(--border-mid)} .pill-resolved{background:var(--green-dim);color:var(--green)} .pill-escalated{background:var(--red-dim);color:var(--red)}
 
-/* SLA badge */
 .sla-badge {
   font-family:'JetBrains Mono', monospace;
   font-size:8.5px; font-weight:700; letter-spacing:.5px;
@@ -308,8 +302,9 @@ button, input, select, textarea { font-family:inherit; }
   50%     { box-shadow:0 0 0 2px rgba(255,68,68,0.18); }
 }
 
-.issue-card-desc { font-size:12.5px; color:var(--text); line-height:1.45; margin-bottom:6px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.issue-card-meta { display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono', monospace; font-size:9.5px; color:var(--faint); flex-wrap:wrap; }
+.issue-card-desc { font-size:13.5px; color:#eef0f3; line-height:1.45; margin-bottom:9px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.issue-card-meta { display:flex; align-items:center; gap:8px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--faint); }
+.icm-area { color:#c9ccd2; font-weight:500; }
 .icm-area::before { content:'◉ '; color:var(--accent); }
 .icm-time { margin-left:auto; }
 .icm-upvote { display:inline-flex; align-items:center; gap:3px; background:transparent; border:1px solid var(--border); padding:2px 7px; font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); cursor:pointer; }
@@ -323,16 +318,15 @@ button, input, select, textarea { font-family:inherit; }
 .locked-btn { display:inline-block; padding:7px 16px; background:transparent; border:1px solid var(--accent); color:var(--accent); font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:700; letter-spacing:1.5px; text-decoration:none; text-transform:uppercase; }
 .locked-btn:hover { background:var(--accent); color:#000; }
 
-/* Detail card */
-.detail-card { position:fixed; top:56px; right:10px; bottom:90px; z-index:200; width:340px; background:var(--bg-2); border:1px solid var(--accent); box-shadow:0 0 26px rgba(248,192,35,0.18); transform:translateX(calc(100% + 30px)); transition:transform .3s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; }
+.detail-card { position:fixed; top:56px; right:10px; z-index:200; width:340px; max-height:calc(100vh - 110px); background:var(--bg-2); border:1px solid var(--accent); box-shadow:0 0 26px rgba(248,192,35,0.18); transform:translateX(calc(100% + 30px)); transition:transform .3s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; }
 .detail-card.open { transform:none; }
 .detail-header { padding:13px 16px 11px; border-bottom:1px solid var(--border); background:var(--bg); position:relative; flex-shrink:0; }
 .detail-tag-row { display:flex; align-items:center; gap:6px; margin-bottom:7px; flex-wrap:wrap; }
-.detail-ref { font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--faint); margin-left:auto; }
+.detail-ref { font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--faint); margin-left:auto; margin-right:34px; }
 .detail-title { font-family:'Barlow Condensed', sans-serif; font-size:18px; font-weight:600; color:#fff; line-height:1.3; padding-right:32px; letter-spacing:.3px; }
 .detail-close { position:absolute; top:11px; right:12px; width:24px; height:24px; background:transparent; border:1px solid var(--border); color:var(--muted); font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .detail-close:hover { color:var(--red); border-color:var(--red); }
-.detail-body { overflow-y:auto; padding:14px 16px 16px; flex:1; }
+.detail-body { overflow-y:auto; padding:14px 16px 16px; }
 .detail-body::-webkit-scrollbar { width:3px; }
 .detail-body::-webkit-scrollbar-thumb { background:var(--border-mid); }
 .detail-img { width:100%; height:140px; object-fit:cover; border:1px solid var(--border); margin-bottom:12px; }
@@ -347,12 +341,11 @@ button, input, select, textarea { font-family:inherit; }
 .ngo-card-meta { font-size:10.5px; color:var(--muted); font-family:'JetBrains Mono', monospace; margin-bottom:5px; }
 .ngo-card-phone { display:inline-block; font-size:11px; color:var(--accent); text-decoration:none; padding:3px 9px; border:1px solid var(--accent); font-family:'JetBrains Mono', monospace; }
 .detail-actions { display:flex; gap:6px; margin-top:14px; flex-wrap:wrap; }
-.dbtn { flex:1; min-width:90px; padding:9px; background:transparent; border:1px solid var(--border); color:var(--muted); font-family:'JetBrains Mono', monospace; font-size:10.5px; font-weight:700; letter-spacing:1px; cursor:pointer; text-transform:uppercase; text-decoration:none; text-align:center; }
+.dbtn { flex:1; min-width:90px; padding:9px; background:transparent; border:1px solid var(--border); color:var(--text); font-family:'JetBrains Mono', monospace; font-size:10.5px; font-weight:700; letter-spacing:1px; cursor:pointer; text-transform:uppercase; text-decoration:none; text-align:center; }
 .dbtn:hover { border-color:var(--accent); color:var(--accent); }
 .dbtn-primary { background:var(--accent); border-color:var(--accent); color:#000; }
 .dbtn-primary:hover { color:#000; filter:brightness(1.15); }
 
-/* Map controls */
 .map-ctrl { position:fixed; top:104px; right:10px; z-index:90; display:flex; flex-direction:column; gap:1px; background:var(--border); border:1px solid var(--border); width:32px; }
 .map-ctrl-btn { width:32px; height:32px; background:var(--bg-2); border:none; color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .map-ctrl-btn:hover { color:var(--accent); background:var(--bg-3); }
@@ -361,13 +354,29 @@ button, input, select, textarea { font-family:inherit; }
 .map-alert-pill.high { background:var(--red-dim); color:var(--red); border-color:rgba(255,68,68,0.5); box-shadow:0 0 12px rgba(255,68,68,0.2); }
 .map-alert-num { font-weight:800; font-size:11px; }
 
-/* Bottom toolbar */
-.bottom-toolbar { position:fixed; bottom:44px; left:50%; transform:translateX(-50%); z-index:100; display:flex; background:var(--bg-2); border:1px solid var(--border); }
+.bottom-toolbar { position:fixed; bottom:36px; left:50%; transform:translateX(-50%); z-index:100; display:flex; }
+.report-fab { display:flex; align-items:center; justify-content:center; gap:10px; height:52px; min-width:210px; padding:0 44px; background:var(--accent); color:#000; border:none; border-radius:26px; font-family:'Inter', system-ui, sans-serif; font-size:15px; font-weight:600; letter-spacing:.5px; cursor:pointer; box-shadow:0 6px 22px rgba(248,192,35,0.45); transition:transform .12s, box-shadow .18s, background .15s; }
+.report-fab svg { width:18px; height:18px; stroke:#000; }
+.report-fab:hover { background:var(--accent-2); box-shadow:0 8px 30px rgba(248,192,35,0.6); }
+.report-fab:active { transform:scale(.97); }
+.ai-fab { position:fixed; bottom:36px; right:24px; z-index:100; width:52px; height:52px; border-radius:50%; background:var(--bg-3); border:1px solid var(--border-mid); color:var(--accent); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(0,0,0,0.5); transition:transform .12s, border-color .15s, background .15s; }
+.ai-fab svg { width:22px; height:22px; }
+.ai-fab:hover { background:var(--bg-4); border-color:var(--accent); }
+.ai-fab:active { transform:scale(.94); }
 .tool-btn { width:64px; height:52px; background:transparent; border:none; border-right:1px solid var(--border); color:var(--muted); cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; text-decoration:none; position:relative; transition:background .12s; }
 .tool-btn:last-child { border-right:none; }
 .tool-btn svg { width:16px; height:16px; }
 .tool-btn .tool-lbl { font-family:'JetBrains Mono', monospace; font-size:8.5px; font-weight:700; letter-spacing:1.2px; text-transform:uppercase; }
-.tool-btn.report:hover { background:rgba(255,68,68,0.10); color:var(--red); }
+.tool-btn.report {
+  background:var(--accent); color:#000; border-right-color:var(--accent);
+}
+.tool-btn.report .tool-lbl { color:#000; }
+.tool-btn.report svg { stroke:#000; }
+.tool-btn.report:hover { background:var(--accent-2); color:#000; }
+.tool-btn.report::after {
+  content:''; position:absolute; inset:0; pointer-events:none;
+  box-shadow:0 0 14px rgba(248,192,35,0.55);
+}
 .tool-btn.locate:hover { background:rgba(248,192,35,0.12); color:var(--accent); }
 .tool-btn.ai:hover { background:rgba(0,255,136,0.10); color:var(--green); }
 .tool-btn.ar:hover { background:rgba(255,170,0,0.10); color:var(--amber); }
@@ -375,7 +384,6 @@ button, input, select, textarea { font-family:inherit; }
 .tool-btn.active { color:var(--accent); background:var(--accent-dim); }
 .tool-btn.active::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:currentColor; }
 
-/* AI Drawer */
 .ai-drawer { position:fixed; top:56px; right:10px; bottom:90px; z-index:250; width:380px; background:var(--bg-2); border:1px solid var(--accent); box-shadow:0 0 30px rgba(248,192,35,0.18); transform:translateX(calc(100% + 30px)); transition:transform .3s cubic-bezier(.4,0,.2,1); display:flex; flex-direction:column; }
 .ai-drawer.open { transform:none; }
 .ai-drawer-header { display:flex; align-items:center; padding:11px 14px; border-bottom:1px solid var(--border); flex-shrink:0; gap:9px; }
@@ -410,7 +418,6 @@ button, input, select, textarea { font-family:inherit; }
 .drawer-close { width:20px; height:20px; background:transparent; border:1px solid var(--border); color:var(--muted); font-size:11px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .drawer-close:hover { color:var(--red); border-color:var(--red); }
 
-/* Ticker */
 .ticker-bar { position:fixed; bottom:0; left:0; right:0; z-index:80; height:30px; background:var(--bg); border-top:1px solid rgba(248,192,35,0.28); overflow:hidden; display:flex; align-items:center; }
 .ticker-label { flex-shrink:0; padding:0 14px; background:var(--accent); color:#000; font-family:'JetBrains Mono', monospace; font-size:10px; font-weight:800; letter-spacing:1.5px; text-transform:uppercase; height:100%; display:flex; align-items:center; }
 .ticker-track { flex:1; overflow:hidden; height:100%; }
@@ -428,8 +435,7 @@ button, input, select, textarea { font-family:inherit; }
 .tick-area { color:var(--accent); }
 .tick-time { color:var(--faint); }
 
-/* Modals */
-.modal-overlay { position:fixed; inset:0; z-index:500; background:rgba(10,13,14,0.85); display:none; align-items:center; justify-content:center; padding:16px; }
+.modal-overlay { position:fixed; inset:0; z-index:99996; background:rgba(10,13,14,0.85); display:none; align-items:center; justify-content:center; padding:16px; }
 .modal-overlay.open { display:flex; }
 .modal { background:var(--bg-2); border:1px solid var(--accent); width:100%; max-width:540px; padding:22px; position:relative; max-height:90vh; overflow-y:auto; }
 .modal::-webkit-scrollbar { width:3px; }
@@ -461,7 +467,7 @@ button, input, select, textarea { font-family:inherit; }
 .ai-analyze.show { display:flex; }
 .ai-analyze:hover { background:var(--accent); color:#000; }
 .ai-result { display:none; margin-top:8px; padding:10px 12px; background:var(--accent-dim); border:1px solid var(--accent); font-family:'JetBrains Mono', monospace; font-size:11.5px; color:var(--text); }
-.complaint-modal { z-index:600; }
+.complaint-modal { z-index:99997; }
 .complaint-modal .modal { max-width:680px; }
 .cm-banner { background:var(--amber-dim); border:1px solid var(--amber); color:var(--amber); padding:9px 12px; font-family:'JetBrains Mono', monospace; font-size:11px; margin-bottom:14px; letter-spacing:.3px; }
 .cm-source { font-family:'JetBrains Mono', monospace; font-size:10px; color:var(--muted); margin-bottom:12px; letter-spacing:1.2px; text-transform:uppercase; }
@@ -484,16 +490,58 @@ button, input, select, textarea { font-family:inherit; }
 .cm-status.success { background:var(--green-dim); border:1px solid var(--green); color:var(--green); }
 .cm-status.error { background:var(--red-dim); border:1px solid var(--red); color:var(--red); }
 
-#toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--bg-2); border:1px solid var(--accent); color:var(--text); padding:9px 16px; font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:.3px; z-index:1000; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; max-width:90vw; text-align:center; }
+.report-choice .modal { max-width:440px; padding:0; overflow:visible; background:transparent; border:none; }
+.rc-card {
+  background:var(--bg-2); border:1px solid var(--border);
+  border-radius:22px; padding:44px 26px 26px; position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+}
+.rc-badge {
+  position:absolute; top:-24px; left:50%; transform:translateX(-50%);
+  width:52px; height:52px; border-radius:50%;
+  background:var(--bg-3); border:1px solid rgba(248,192,35,0.4);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 0 0 6px var(--bg-2);
+}
+.rc-badge svg { width:24px; height:24px; stroke:var(--accent); fill:none; stroke-width:2; }
+.rc-eyebrow { text-align:center; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; letter-spacing:1.5px; color:var(--muted); text-transform:uppercase; margin-bottom:5px; }
+.rc-title { text-align:center; font-family:'Barlow Condensed',sans-serif; font-size:26px; font-weight:800; letter-spacing:.5px; color:#fff; line-height:1.05; margin-bottom:6px; }
+.rc-sub { text-align:center; font-size:11.5px; color:var(--text-2); margin-bottom:18px; }
+.rc-close { position:absolute; top:14px; right:14px; width:28px; height:28px; border-radius:50%; background:var(--bg-3); border:1px solid var(--border); color:var(--muted); cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; z-index:2; }
+.rc-close:hover { color:var(--red); border-color:var(--red); }
+.rc-options { display:flex; flex-direction:column; gap:9px; }
+.rc-opt {
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  padding:12px 13px; border-radius:12px; cursor:pointer; text-decoration:none;
+  background:var(--bg-3); border:none; border-left:2px solid transparent;
+  font-family:inherit;
+  transition:transform .12s, background .15s, border-color .15s;
+}
+.rc-opt:hover { background:var(--bg-4); }
+.rc-opt:active { transform:scale(.98); }
+.rc-opt-icon { width:20px; height:20px; flex-shrink:0; display:flex; align-items:center; justify-content:center; }
+.rc-opt-icon svg { width:18px; height:18px; }
+.rc-opt-text { flex:1; }
+.rc-opt-name { font-family:'Barlow Condensed',sans-serif; font-size:14px; font-weight:700; letter-spacing:.4px; color:#fff; }
+.rc-opt-desc { font-size:9.5px; color:var(--muted); font-family:'JetBrains Mono',monospace; letter-spacing:.2px; }
+.rc-opt-arrow { color:var(--faint); font-size:15px; }
+.rc-opt:hover .rc-opt-arrow { color:var(--accent); }
+
+.rc-opt.cam { border-left-color:var(--accent); }
+.rc-opt.cam .rc-opt-icon svg { stroke:var(--accent); fill:none; stroke-width:2; }
+
+.rc-opt.wa .rc-opt-icon svg { fill:#25D366; }
+
+.rc-opt.form .rc-opt-icon svg { stroke:var(--muted); fill:none; stroke-width:2; }
+@media (max-width:480px){
+  .rc-title { font-size:24px; }
+}
+
+#toast { position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:#2a303d; border:1.5px solid rgba(255,255,255,0.85); color:#fff; padding:11px 20px; font-family:'JetBrains Mono', monospace; font-size:12px; letter-spacing:.3px; z-index:99998; opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; max-width:90vw; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.6); }
 #toast.show { opacity:1; transform:translateX(-50%) translateY(-8px); }
 #toast.success { border-color:var(--green); }
 #toast.warn { border-color:var(--amber); }
 
-/* ═══════════════════════════════════════════════════════
-   COMPREHENSIVE RESPONSIVE DESIGN — Desktop · Tablet · Phone
-   ═══════════════════════════════════════════════════════ */
-
-/* iOS Safari: prevent 16px-zoom on input focus */
 input, textarea, select { font-size:16px; }
 @media (min-width:721px) {
   input, textarea, select { font-size:inherit; }
@@ -502,13 +550,11 @@ input, textarea, select { font-size:16px; }
   .tb-search { font-size:11.5px; }
 }
 
-/* Safe-area insets for notched phones */
 @supports (padding: env(safe-area-inset-bottom)) {
   .ticker-bar { padding-bottom: env(safe-area-inset-bottom); }
   .bottom-toolbar { bottom: calc(44px + env(safe-area-inset-bottom)); }
 }
 
-/* ── TABLET (≤900px) ── */
 @media (max-width:900px) {
   .left-panel { width:220px; }
   .right-panel, .detail-card, .ai-drawer { width:300px; }
@@ -517,18 +563,17 @@ input, textarea, select { font-size:16px; }
   .map-alert-pill { top:228px; }
 }
 
-/* ── PHONE / LARGE PHONE (≤720px) ── */
 @media (max-width:720px) {
   body { overscroll-behavior:none; }
 
-  /* Topbar — icon-only, compact */
+  
   .topbar { padding:0 8px; gap:6px; height:52px; }
   .tb-clock, .tb-search { display:none; }
-  .tb-action span { display:none; }                  /* icons only */
+  .tb-action span { display:none; }                  
   .tb-action { padding:7px 9px; }
   .tb-action svg { width:15px; height:15px; }
   .tb-user-pill { padding:3px 8px 3px 3px; }
-  .tb-user-pill span { display:none; }                /* avatar only */
+  .tb-user-pill span { display:none; }                
   .tb-signout { font-size:9px; padding:4px 7px; letter-spacing:.8px; }
   .tb-signin-btn { padding:6px 12px; font-size:10px; }
   .tb-center { left:50%; }
@@ -536,7 +581,7 @@ input, textarea, select { font-size:16px; }
   .tb-subtitle { font-size:8px; letter-spacing:1.8px; }
   .tb-icon-btn { width:32px; height:32px; }
 
-  /* LEFT PANEL — slide-in drawer with backdrop */
+  
   .left-panel {
     position:fixed; top:52px; left:0; bottom:30px;
     width:280px; max-width:85vw; max-height:none;
@@ -544,9 +589,9 @@ input, textarea, select { font-size:16px; }
     z-index:260; box-shadow:6px 0 24px rgba(0,0,0,0.5);
   }
   .left-panel.open { transform:translateX(0); }
-  .left-panel.hidden { display:flex !important; }     /* visibility now via .open */
+  .left-panel.hidden { display:flex !important; }     
 
-  /* Backdrop element (added by JS — see bottom of file) */
+  
   .mobile-backdrop {
     position:fixed; inset:52px 0 30px 0; z-index:255;
     background:rgba(0,0,0,0.55); backdrop-filter:blur(2px);
@@ -554,7 +599,7 @@ input, textarea, select { font-size:16px; }
   }
   .mobile-backdrop.show { opacity:1; pointer-events:auto; }
 
-  /* RIGHT PANEL — bottom sheet */
+  
   .right-panel {
     position:fixed; top:auto; left:0; right:0; bottom:0;
     width:100vw; max-height:72vh; border-radius:16px 16px 0 0;
@@ -566,7 +611,7 @@ input, textarea, select { font-size:16px; }
   .right-panel.open { transform:translateY(0); }
   .right-panel.hidden { transform:translateY(100%); display:flex !important; }
 
-  /* Sheet drag handle */
+  
   .rp-tabs { position:relative; padding-top:16px; }
   .rp-tabs::before {
     content:''; position:absolute; top:6px; left:50%;
@@ -574,7 +619,7 @@ input, textarea, select { font-size:16px; }
     background:var(--border-mid); border-radius:2px;
   }
 
-  /* DETAIL CARD — slides up from bottom */
+  
   .detail-card {
     position:fixed; top:auto; left:0; right:0; bottom:0;
     width:100vw; max-height:80vh; border-radius:16px 16px 0 0;
@@ -582,7 +627,7 @@ input, textarea, select { font-size:16px; }
   }
   .detail-card.open { transform:translateY(0); }
 
-  /* AI DRAWER — slides up from bottom */
+  
   .ai-drawer {
     position:fixed; top:auto; left:0; right:0; bottom:0;
     width:100vw; max-height:80vh; border-radius:16px 16px 0 0;
@@ -590,11 +635,11 @@ input, textarea, select { font-size:16px; }
   }
   .ai-drawer.open { transform:translateY(0); }
 
-  /* Map controls — left side on mobile to leave room for right-side gestures */
+  
   .map-ctrl { top:64px; right:8px; }
   .map-alert-pill { top:200px; right:8px; }
 
-  /* BOTTOM TOOLBAR — full-width, equal-flex */
+  
   .bottom-toolbar {
     bottom:36px; left:8px; right:8px;
     width:calc(100vw - 16px); transform:none;
@@ -607,7 +652,7 @@ input, textarea, select { font-size:16px; }
   .tool-btn svg { width:17px; height:17px; }
   .tool-btn .tool-lbl { font-size:8px; letter-spacing:1px; }
 
-  /* MODALS — full-screen on mobile */
+  
   .modal-overlay { padding:0; align-items:stretch; }
   .modal {
     max-width:100vw; max-height:100vh;
@@ -622,34 +667,33 @@ input, textarea, select { font-size:16px; }
   .settings-view { max-height:calc(100vh - 120px); padding:16px 16px 22px; }
   .map-style-grid { grid-template-columns:repeat(2, 1fr); gap:9px; }
 
-  /* Complaint modal — make body editor reasonable */
+  
   .complaint-modal .modal { max-width:100vw; }
   .cm-body-edit { min-height:280px; }
   .cm-row { grid-template-columns:1fr; gap:5px; }
   .cm-label { margin-bottom:0; }
 
-  /* Report modal */
+  
   .fg-grid { grid-template-columns:1fr; gap:0; }
   .upload-zone { padding:24px 12px; }
 
-  /* Ticker — slimmer on mobile */
+  
   .ticker-bar { height:28px; }
   .ticker-label { padding:0 10px; font-size:9px; }
   .ticker-content { font-size:10.5px; gap:28px; }
 
-  /* Issue cards — tighter spacing */
+  
   .issue-card { padding:11px 14px; }
   .issue-card-desc { font-size:12.5px; -webkit-line-clamp:3; }
   .issue-card-meta { font-size:9.5px; gap:7px; }
 
-  /* Toast — push above bottom toolbar */
+  
   #toast { bottom:96px; max-width:88vw; font-size:11.5px; }
 
-  /* Map style pill removed from main view (uses Settings instead) */
+  
   .map-style-pill { display:none; }
 }
 
-/* ── SMALL PHONE (≤480px) ── */
 @media (max-width:480px) {
   .topbar { gap:5px; padding:0 6px; }
   .tb-action { padding:6px 8px; }
@@ -671,7 +715,6 @@ input, textarea, select { font-size:16px; }
   .dt-label { flex-basis:80px; font-size:9.5px; }
 }
 
-/* ── VERY SMALL / iPhone SE (≤375px) ── */
 @media (max-width:375px) {
   .tb-action { padding:5px 7px; }
   .tb-action svg { width:14px; height:14px; }
@@ -680,7 +723,6 @@ input, textarea, select { font-size:16px; }
   .tb-avatar { width:20px; height:20px; font-size:9px; }
 }
 
-/* ── LANDSCAPE PHONE ── */
 @media (max-width:900px) and (orientation:landscape) and (max-height:500px) {
   .right-panel, .detail-card, .ai-drawer { max-height:88vh; }
   .ticker-bar { display:none; }
@@ -692,7 +734,6 @@ input, textarea, select { font-size:16px; }
   .tb-subtitle { display:none; }
 }
 
-/* ── TOUCH-FRIENDLY: increase tap targets on touch devices ── */
 @media (hover:none) and (pointer:coarse) {
   .layer-row { padding-top:11px; padding-bottom:11px; }
   .icm-upvote { min-height:32px; padding:4px 10px; }
@@ -707,8 +748,6 @@ input, textarea, select { font-size:16px; }
   *:focus-visible { outline:1px solid var(--accent); outline-offset:1px; }
 }
 
-
-/* ═══ SLIDE-OUT NAV MENU (FR24-style) ═══ */
 .nav-menu {
   position:fixed; top:0; right:0; bottom:0; z-index:600;
   width:360px; max-width:100vw;
@@ -753,11 +792,6 @@ input, textarea, select { font-size:16px; }
 .nav-backdrop.show { opacity:1; pointer-events:auto; }
 @media (max-width:720px) { .nav-menu { width:100%; border-left:none; border-top:3px solid var(--accent); } }
 
-/* ═══════════════════════════════════════════════════════════════════
-   MOBILE PHOTO-MATCH LAYER (Zoom Earth + Flightradar24 + World Monitor)
-   Map-first. Everything floats. Panels closed by default.
-   Activates only on ≤768px. Desktop completely unchanged.
-   ═══════════════════════════════════════════════════════════════════ */
 @media (max-width:768px){
   :root{
     --m-safe-top: env(safe-area-inset-top, 0px);
@@ -769,7 +803,7 @@ input, textarea, select { font-size:16px; }
     --m-shadow: 0 10px 30px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.4);
   }
 
-  /* ─── TOPBAR → floating glass pill ─── */
+  
   .topbar{
     top:calc(10px + var(--m-safe-top)) !important;
     left:10px !important; right:10px !important;
@@ -787,7 +821,7 @@ input, textarea, select { font-size:16px; }
   .tb-action.ar, .tb-action.wa{ display:none !important; }
   .tb-right .tb-action[href="/stats"]{ display:none !important; }
   .tb-search{ display:none !important; }
-  /* hide topbar Settings (gear) + Layers icons on mobile — they live in bottom nav + tag rail */
+  
   .tb-right .tb-icon-btn[onclick*="openSettings"]{ display:none !important; }
   .tb-right .tb-icon-btn[onclick*="toggleLeftPanel"]{ display:none !important; }
   .tb-subtitle{ display:none !important; }
@@ -796,8 +830,8 @@ input, textarea, select { font-size:16px; }
   .tb-brand-dot{ box-shadow:0 0 12px var(--accent); }
   .tb-icon-btn{ width:34px !important; height:34px !important; }
 
-  /* ─── FORCE-CLOSE every legacy panel on load (matches photos: map-first) ─── */
-  /* The existing mobile CSS gave panels a peek state — kill it. */
+  
+  
   .left-panel{
     top:72px !important; left:0 !important; bottom:0 !important;
     width:82% !important; max-width:320px !important;
@@ -819,7 +853,7 @@ input, textarea, select { font-size:16px; }
     border-radius:18px 18px 0 0 !important;
     border:1px solid var(--m-border) !important; border-bottom:0 !important;
     background:var(--m-glass-strong) !important;
-    transform:translateY(100%) !important;     /* fully hidden by default */
+    transform:translateY(100%) !important;     
     transition:transform .3s cubic-bezier(.4,0,.2,1) !important;
     z-index:920 !important;
   }
@@ -840,21 +874,22 @@ input, textarea, select { font-size:16px; }
     top:auto !important; left:0 !important; right:0 !important; bottom:0 !important;
     width:100% !important; max-height:80vh !important;
     border-radius:18px 18px 0 0 !important;
-    transform:translateY(100%) !important;       /* hidden by default — no peek */
+    transform:translateY(100%) !important;       
     background:var(--m-glass-strong) !important;
     z-index:920 !important;
   }
   .ai-drawer.open{ transform:translateY(0) !important; }
 
-  /* ─── Hide ticker on mobile (covers bottom nav area) ─── */
+  
   .ticker-bar{ display:none !important; }
 
-  /* ─── Hide legacy map controls + bottom toolbar (replaced by FABs + bottom nav) ─── */
+  
   .map-ctrl{ display:none !important; }
   .map-alert-pill{ display:none !important; }
   .bottom-toolbar{ display:none !important; }
+  .ai-fab{ display:none !important; }
 
-  /* ─── Backdrop shared by drawer + sheets ─── */
+  
   .mobile-backdrop{
     position:fixed !important; inset:0 !important;
     background:rgba(0,0,0,0.55); backdrop-filter:blur(3px);
@@ -863,7 +898,7 @@ input, textarea, select { font-size:16px; }
   }
   .mobile-backdrop.show{ opacity:1; pointer-events:auto; }
 
-  /* ─── TIME-RANGE CHIPS (World Monitor style) ─── */
+  
   .m-chiprow{
     position:fixed; left:50%; transform:translateX(-50%);
     top:calc(70px + var(--m-safe-top));
@@ -882,7 +917,7 @@ input, textarea, select { font-size:16px; }
   }
   .m-chip.active{ background:var(--accent); color:#1a1500; }
 
-  /* ─── RIGHT FAB STACK ─── */
+  
   .m-fabstack{
     position:fixed; right:10px; top:calc(70px + var(--m-safe-top));
     display:flex; flex-direction:column; gap:8px; z-index:200;
@@ -910,7 +945,7 @@ input, textarea, select { font-size:16px; }
   }
   @keyframes m-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.7)}}
 
-  /* ─── LEFT TAG RAIL (vertical icons, from wireframe) ─── */
+  
   .m-tagrail{
     position:fixed; left:10px; top:calc(70px + var(--m-safe-top));
     width:46px; max-height:55vh; overflow-y:auto; overflow-x:hidden;
@@ -940,7 +975,7 @@ input, textarea, select { font-size:16px; }
   }
   .m-tagbtn .m-badge.show{ display:grid; }
 
-  /* ─── SEVERITY LEGEND PILL ─── */
+  
   .m-legend{
     position:fixed; left:50%; transform:translateX(-50%);
     bottom:calc(84px + var(--m-safe-bot));
@@ -960,7 +995,7 @@ input, textarea, select { font-size:16px; }
   .m-legend .im{ background:var(--amber); box-shadow:0 0 8px var(--amber); }
   .m-legend .il{ background:var(--green); box-shadow:0 0 8px var(--green); }
 
-  /* ─── REPORT-AN-ISSUE CTA PILL (Flightradar "Open in app" position) ─── */
+  
   .m-cta{
     position:fixed; left:50%; transform:translateX(-50%);
     bottom:calc(86px + var(--m-safe-bot));
@@ -985,7 +1020,7 @@ input, textarea, select { font-size:16px; }
   .m-cta .m-cta-x:hover{ background:rgba(0,0,0,0.28); }
   .m-cta.hidden{ display:none; }
 
-  /* ─── BOTTOM NAV (wireframe: Settings | Reports | AR | WhatsApp) ─── */
+  
   .m-bottomnav{
     position:fixed; left:10px; right:10px; bottom:calc(10px + var(--m-safe-bot));
     height:62px; z-index:300;
@@ -1009,11 +1044,11 @@ input, textarea, select { font-size:16px; }
   .m-navbtn.ar svg{ color:var(--green); }
   .m-navbtn.wa svg{ color:#25d366; }
 
-  /* ─── Toast above bottom nav ─── */
-  #toast{ bottom:calc(150px + var(--m-safe-bot)) !important; z-index:1000 !important; }
+  
+  #toast{ bottom:calc(150px + var(--m-safe-bot)) !important; z-index:99998 !important; }
 
-  /* ─── Modals untouched, but ensure they sit above everything ─── */
-  .modal-overlay{ z-index:1100 !important; }
+  
+  .modal-overlay{ z-index:99996 !important; }
   .nav-menu{ z-index:1050 !important; }
   .nav-backdrop{ z-index:1040 !important; }
 }
@@ -1022,8 +1057,6 @@ input, textarea, select { font-size:16px; }
   .m-chiprow{ display:none; }
 }
 
-
-/* ── Tour spotlight — OUTSIDE all @media blocks ── */
 #_tour-spot {
   display:none; position:fixed; z-index:99993; pointer-events:none;
   border-radius:8px;
@@ -1048,7 +1081,6 @@ input, textarea, select { font-size:16px; }
 }
 #_tour-overlay { display:none; position:fixed; inset:0; z-index:99990; }
 
-/* ── Map image hover popup ── */
 #map-img-hover {
   display:none; position:fixed; z-index:8500; pointer-events:none;
   background:var(--bg-2); border:1px solid var(--border-mid);
@@ -1100,7 +1132,6 @@ input, textarea, select { font-size:16px; }
       <div id="sc-tag-badge" style="margin-top:6px;font-size:11px;color:var(--text-2)"></div>
     </div>
 
-
     <div style="text-align:left;margin-bottom:24px">
       <div style="font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px">What happens next</div>
       <div style="display:flex;flex-direction:column;gap:8px">
@@ -1118,7 +1149,6 @@ input, textarea, select { font-size:16px; }
         </div>
       </div>
     </div>
-
 
     <div id="sc-points" style="display:inline-block;background:var(--accent-dim);border:1px solid var(--accent);border-radius:20px;padding:5px 16px;font-size:12px;font-weight:600;color:var(--accent);margin-bottom:20px">
       +5 pts earned
@@ -1140,7 +1170,6 @@ input, textarea, select { font-size:16px; }
 
 <div id="map"></div>
 
-<!-- Topbar -->
 <div class="topbar">
   <div class="tb-left">
     <a href="https://areapulse-cam.onrender.com" target="_blank" class="tb-action ar" title="AR Scanner">
@@ -1175,9 +1204,6 @@ input, textarea, select { font-size:16px; }
   </div>
 </div>
 
-<!-- (Map style picker moved into Settings modal) -->
-
-<!-- Left sidebar -->
 <div class="left-panel" id="left-panel">
   <div class="city-health">
     <div class="ch-header"><span class="ch-label">City Health</span><span class="ch-score" id="city-health-score">— / 100</span></div>
@@ -1188,15 +1214,15 @@ input, textarea, select { font-size:16px; }
   <div class="lp-list" id="lp-list">
     <div class="lp-section-label">Layers <span style="margin-left:auto;cursor:help" title="Toggle which issue types appear on the map">?</span></div>
     <div class="lp-section-label">Issue Categories</div>
-    <div class="layer-row" data-cat="pothole" onclick="toggleCategory('pothole')"><span class="layer-icon" style="background:rgba(229,142,82,0.15);color:#e58e52">●</span><span class="layer-name">Potholes</span><span class="layer-count" data-count="pothole">—</span></div>
-    <div class="layer-row" data-cat="water" onclick="toggleCategory('water')"><span class="layer-icon" style="background:rgba(74,158,255,0.15);color:#4a9eff">●</span><span class="layer-name">Water</span><span class="layer-count" data-count="water">—</span></div>
-    <div class="layer-row" data-cat="garbage" onclick="toggleCategory('garbage')"><span class="layer-icon" style="background:rgba(150,206,76,0.15);color:#96ce4c">●</span><span class="layer-name">Garbage</span><span class="layer-count" data-count="garbage">—</span></div>
-    <div class="layer-row" data-cat="streetlight" onclick="toggleCategory('streetlight')"><span class="layer-icon" style="background:rgba(170,184,200,0.15);color:#aab8c8">●</span><span class="layer-name">Streetlights</span><span class="layer-count" data-count="streetlight">—</span></div>
-    <div class="layer-row" data-cat="traffic" onclick="toggleCategory('traffic')"><span class="layer-icon" style="background:rgba(255,68,68,0.15);color:var(--red)">●</span><span class="layer-name">Traffic</span><span class="layer-count" data-count="traffic">—</span></div>
-    <div class="layer-row" data-cat="noise" onclick="toggleCategory('noise')"><span class="layer-icon" style="background:rgba(192,132,252,0.15);color:#c084fc">●</span><span class="layer-name">Noise</span><span class="layer-count" data-count="noise">—</span></div>
-    <div class="layer-row" data-cat="sewage" onclick="toggleCategory('sewage')"><span class="layer-icon" style="background:rgba(212,184,112,0.15);color:#d4b870">●</span><span class="layer-name">Sewage</span><span class="layer-count" data-count="sewage">—</span></div>
-    <div class="layer-row" data-cat="electricity" onclick="toggleCategory('electricity')"><span class="layer-icon" style="background:rgba(255,170,0,0.15);color:var(--amber)">●</span><span class="layer-name">Electricity</span><span class="layer-count" data-count="electricity">—</span></div>
-    <div class="layer-row" data-cat="tree" onclick="toggleCategory('tree')"><span class="layer-icon" style="background:rgba(111,207,151,0.15);color:#6fcf97">●</span><span class="layer-name">Trees</span><span class="layer-count" data-count="tree">—</span></div>
+    <div class="layer-row" data-cat="pothole" onclick="toggleCategory('pothole')"><span class="layer-icon" style="color:#e58e52"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg></span><span class="layer-name">Potholes</span><span class="layer-count" data-count="pothole">—</span></div>
+    <div class="layer-row" data-cat="water" onclick="toggleCategory('water')"><span class="layer-icon" style="color:#4a9eff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2.5s6 7 6 11.5a6 6 0 1 1-12 0c0-4.5 6-11.5 6-11.5z"/></svg></span><span class="layer-name">Water</span><span class="layer-count" data-count="water">—</span></div>
+    <div class="layer-row" data-cat="garbage" onclick="toggleCategory('garbage')"><span class="layer-icon" style="color:#96ce4c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg></span><span class="layer-name">Garbage</span><span class="layer-count" data-count="garbage">—</span></div>
+    <div class="layer-row" data-cat="streetlight" onclick="toggleCategory('streetlight')"><span class="layer-icon" style="color:#aab8c8"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v6M8 8h8l-2 6h-4z"/><path d="M10 14v8M14 14v8"/></svg></span><span class="layer-name">Streetlights</span><span class="layer-count" data-count="streetlight">—</span></div>
+    <div class="layer-row" data-cat="traffic" onclick="toggleCategory('traffic')"><span class="layer-icon" style="color:#e74c3c"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="2" width="6" height="20" rx="3"/><circle cx="12" cy="7" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="12" cy="17" r="1.2"/></svg></span><span class="layer-name">Traffic</span><span class="layer-count" data-count="traffic">—</span></div>
+    <div class="layer-row" data-cat="noise" onclick="toggleCategory('noise')"><span class="layer-icon" style="color:#c084fc"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg></span><span class="layer-name">Noise</span><span class="layer-count" data-count="noise">—</span></div>
+    <div class="layer-row" data-cat="sewage" onclick="toggleCategory('sewage')"><span class="layer-icon" style="color:#d4b870"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M5 7v13h14V7"/><path d="M9 12h6"/></svg></span><span class="layer-name">Sewage</span><span class="layer-count" data-count="sewage">—</span></div>
+    <div class="layer-row" data-cat="electricity" onclick="toggleCategory('electricity')"><span class="layer-icon" style="color:#f39c12"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span><span class="layer-name">Electricity</span><span class="layer-count" data-count="electricity">—</span></div>
+    <div class="layer-row" data-cat="tree" onclick="toggleCategory('tree')"><span class="layer-icon" style="color:#6fcf97"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22V12"/><path d="M8 12a4 4 0 1 1 0-8 4 4 0 0 1 4-4 4 4 0 0 1 4 4 4 4 0 1 1 0 8z"/></svg></span><span class="layer-name">Trees</span><span class="layer-count" data-count="tree">—</span></div>
     <div class="lp-section-label">Map Overlays</div>
     <div class="layer-row" data-overlay="ngos" onclick="toggleOverlay('ngos')"><span class="layer-icon" style="color:var(--green)">⌂</span><span class="layer-name">NGOs</span><div class="layer-toggle"></div></div>
     <div class="layer-row" data-overlay="heatmap" onclick="toggleOverlay('heatmap')"><span class="layer-icon" style="color:var(--red)">≋</span><span class="layer-name">Density Heatmap</span><div class="layer-toggle"></div></div>
@@ -1211,7 +1237,6 @@ input, textarea, select { font-size:16px; }
   <div class="lp-footer"><span class="lp-footer-label">v1.0 · Delhi</span></div>
 </div>
 
-<!-- Map controls -->
 <div class="map-ctrl">
   <button class="map-ctrl-btn" onclick="map.zoomIn()" title="Zoom in"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
   <button class="map-ctrl-btn" onclick="map.zoomOut()" title="Zoom out"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -1220,7 +1245,6 @@ input, textarea, select { font-size:16px; }
 </div>
 <div class="map-alert-pill" id="map-alert-pill" onclick="toggleRightPanel()">ALERT <span class="map-alert-num" id="tb-badge">0</span></div>
 
-<!-- Right context panel -->
 <div class="right-panel" id="right-panel">
   <div class="rp-tabs">
     <button class="rp-tab active" data-view="active" onclick="switchPanelTab('active')">
@@ -1231,9 +1255,7 @@ input, textarea, select { font-size:16px; }
   </div>
   <div class="rp-view active" id="rp-view-active">
     <div class="rp-stats">
-      <div class="rp-stat high"><span class="rp-stat-num" id="rsp-high">0</span><span class="rp-stat-lbl">High</span></div>
-      <div class="rp-stat medium"><span class="rp-stat-num" id="rsp-medium">0</span><span class="rp-stat-lbl">Med</span></div>
-      <div class="rp-stat low"><span class="rp-stat-num" id="rsp-low">0</span><span class="rp-stat-lbl">Low</span></div>
+      <div class="rp-stat open"><span class="rp-stat-num" id="rsp-open">0</span><span class="rp-stat-lbl">Open</span></div>
       <div class="rp-stat resolved"><span class="rp-stat-num" id="rsp-resolved">0</span><span class="rp-stat-lbl">Resolved</span></div>
     </div>
     <div class="rp-content" id="issues-list"><div class="rp-empty">Loading…</div></div>
@@ -1253,13 +1275,11 @@ input, textarea, select { font-size:16px; }
   </div>
 </div>
 
-<!-- Detail card -->
 <div class="detail-card" id="detail-card">
   <div class="detail-header" id="detail-header"></div>
   <div class="detail-body" id="detail-body"></div>
 </div>
 
-<!-- AI drawer -->
 <div class="ai-drawer" id="ai-drawer">
   <div class="ai-drawer-header">
     <div class="ai-drawer-dot"></div>
@@ -1289,22 +1309,17 @@ input, textarea, select { font-size:16px; }
   </div>
 </div>
 
-
 <div class="bottom-toolbar">
-  <button class="tool-btn report" onclick="openReportModal()" title="Report Issue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span class="tool-lbl">Report</span></button>
-  <button class="tool-btn locate" onclick="locateMe()" title="Locate me"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg><span class="tool-lbl">Locate</span></button>
-  <button class="tool-btn ai" onclick="openAIDrawer('ask')" title="Ask AI"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span class="tool-lbl">AI Ask</span></button>
-
-  <button class="tool-btn insights" onclick="openAIDrawer('insights')" title="AI Insights"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l1.5 4.5L18 8l-4.5 1.5L12 14l-1.5-4.5L6 8l4.5-1.5z"/><path d="M19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75z"/><path d="M5 14l.75 2.25L8 17l-2.25.75L5 20l-.75-2.25L2 17l2.25-.75z"/></svg><span class="tool-lbl">Insights</span></button>
+  <button class="report-fab" onclick="openReportModal()" title="Report an issue">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    <span>Report</span>
+  </button>
 </div>
 
-<!-- Ticker -->
-<div class="ticker-bar">
-  <div class="ticker-label">● LIVE FEED</div>
-  <div class="ticker-track"><div class="ticker-content" id="ticker-content"></div></div>
-</div>
+<button class="ai-fab" onclick="openAIDrawer('ask')" title="Ask AI">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+</button>
 
-<!-- Modals -->
 <div class="modal-overlay complaint-modal" id="complaint-modal">
   <div class="modal">
     <button class="modal-close-x" onclick="closeComplaintModal()">✕</button>
@@ -1325,6 +1340,37 @@ input, textarea, select { font-size:16px; }
       <button class="cm-btn" id="cm-send-btn" onclick="sendComplaint()">Send Email</button>
     </div>
     <div class="cm-status" id="cm-status" style="display:none"></div>
+  </div>
+</div>
+
+<div class="modal-overlay report-choice" id="report-choice-modal">
+  <div class="modal">
+    <div class="rc-card">
+      <button class="rc-close" onclick="closeModal('report-choice-modal')">✕</button>
+      <div class="rc-badge">
+        <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </div>
+      <div class="rc-eyebrow">Found an issue?</div>
+      <div class="rc-title">Report an Issue</div>
+      <div class="rc-sub">Help improve your city in under 30 seconds</div>
+      <div class="rc-options">
+        <a class="rc-opt cam" href="https://areapulse-cam.onrender.com" target="_blank" onclick="closeModal('report-choice-modal')">
+          <div class="rc-opt-icon"><svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg></div>
+          <div class="rc-opt-text"><div class="rc-opt-name">AI Camera</div><div class="rc-opt-desc">Scan &amp; report</div></div>
+          <span class="rc-opt-arrow">›</span>
+        </a>
+        <a class="rc-opt wa" href="https://wa.me/{{ wa_number or '14155238886' }}?text={{ ('join ' + (wa_join_code or 'feet-cheese')) | urlencode }}" target="_blank" onclick="closeModal('report-choice-modal')">
+          <div class="rc-opt-icon"><svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/></svg></div>
+          <div class="rc-opt-text"><div class="rc-opt-name">WhatsApp</div><div class="rc-opt-desc">Chat &amp; report</div></div>
+          <span class="rc-opt-arrow">›</span>
+        </a>
+        <button class="rc-opt form" onclick="chooseFormReport()">
+          <div class="rc-opt-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+          <div class="rc-opt-text"><div class="rc-opt-name">Fill the Form</div><div class="rc-opt-desc">Full details</div></div>
+          <span class="rc-opt-arrow">›</span>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1373,7 +1419,6 @@ input, textarea, select { font-size:16px; }
   </div>
 </div>
 
-<!-- Settings modal (FR24-style) -->
 <div class="modal-overlay settings-modal" id="settings-modal">
   <div class="modal settings-card">
     <div class="settings-head">
@@ -1454,7 +1499,6 @@ input, textarea, select { font-size:16px; }
       <div class="about-block">
         <div class="about-title">AreaPulse</div>
         <div class="about-tagline">Civic issue reporting and resolution platform</div>
-        <div class="about-row"><span class="about-key">Version</span><span class="about-val">v1.0 · SIH25031</span></div>
         <div class="about-row"><span class="about-key">Built by</span><span class="about-val">Team Nexons</span></div>
         <div class="about-row"><span class="about-key">Problem</span><span class="about-val">Crowdsourced Civic Issue Reporting · Govt of Jharkhand</span></div>
         <div class="about-row"><span class="about-key">Map</span><span class="about-val">MapTiler tiles · Leaflet</span></div>
@@ -1472,7 +1516,6 @@ input, textarea, select { font-size:16px; }
   </div>
 </div>
 
-<!-- ── SLIDE-OUT NAV MENU ── -->
 <div class="nav-backdrop" id="nav-backdrop" onclick="closeNavMenu()"></div>
 <div class="nav-menu" id="nav-menu">
   <div class="nav-menu-head">
@@ -1517,7 +1560,7 @@ input, textarea, select { font-size:16px; }
     </a>
     {% endif %}
   </div>
-  <div class="nav-menu-foot">AreaPulse · QuantCraft 2026</div>
+  <div class="nav-menu-foot"></div>
 </div>
 
 <div class="mobile-backdrop" id="mobile-backdrop" onclick="closeMobilePanels()"></div>
@@ -1545,8 +1588,6 @@ input, textarea, select { font-size:16px; }
             color:#000;font-size:12px;font-weight:700;cursor:pointer;
             font-family:'JetBrains Mono',monospace;letter-spacing:.5px"></button>
   </div>
-</div>
-
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1794,7 +1835,6 @@ function loadIssues() {
     updateAllCounts(allIssues);
     applyFiltering();
     renderMyReports();
-    renderTicker();
     renderInsights();
     if (activeOverlays.has('heatmap')) renderHeatmap(true);
   }).catch(() => { document.getElementById('issues-list').innerHTML = '<div class="rp-empty">Connection error</div>'; });
@@ -1813,9 +1853,7 @@ function updateAllCounts(issues) {
   }
   document.querySelectorAll('[data-count]').forEach(el => { el.textContent = cats[el.getAttribute('data-count')] || 0; });
   document.getElementById('rsp-count-issues').textContent = issues.length;
-  animateCount('rsp-high', stats.high);
-  animateCount('rsp-medium', stats.medium);
-  animateCount('rsp-low', stats.low);
+  animateCount('rsp-open', stats.open);
   animateCount('rsp-resolved', stats.resolved);
   document.getElementById('rsp-count-mine').textContent = mine;
   const pill = document.getElementById('map-alert-pill');
@@ -1855,23 +1893,20 @@ function renderIssues(issues) {
   el.innerHTML = issues.slice(0, 50).map((i, idx) => issueCardHTML(i, idx + 1)).join('');
 }
 function issueCardHTML(i, num) {
-  const tag = i.tag || 'other';
-  const sev = i.severity || 'medium';
   const status = i.status || 'open';
+  const desc = esc(i.description || '');
+  const descCap = desc.charAt(0).toUpperCase() + desc.slice(1);
+  const stLabel = status.charAt(0).toUpperCase() + status.slice(1);
   return `
-    <div class="issue-card" id="card-${i.id}" onclick="panToIssue(${i.id})">
+    <div class="issue-card is-${status}" id="card-${i.id}" onclick="panToIssue(${i.id})">
       <div class="issue-card-top">
-        <span class="issue-card-num">${String(num).padStart(2,'0')}</span>
-        <span class="issue-card-pill pill-${tag}">${TAG_LABELS[tag]||'Other'}</span>
-        <span class="issue-card-pill pill-${sev}">${sev}</span>
-        <span class="issue-card-pill pill-${status}" style="margin-left:auto">${status}</span>
+        <span class="issue-card-id">#AP-${i.id}</span>
+        <span class="issue-card-pill pill-${status}" style="margin-left:auto">${stLabel}</span>
       </div>
-      <div class="issue-card-desc">${esc(i.description)}</div>
+      <div class="issue-card-desc">${descCap}</div>
       <div class="issue-card-meta">
         <span class="icm-area">${esc(i.area||'Delhi')}</span>
-        ${slaBadgeHTML(i)}
-        <button class="icm-upvote" onclick="event.stopPropagation(); upvote(${i.id}, this)">▲ <span>${i.upvotes||0}</span></button>
-        <span class="icm-time">${timeAgo(i.timestamp)}</span>
+        <span class="icm-time">${(() => { const t = timeAgo(i.timestamp); return (t === 'now' || t === '\u2014') ? t : t + ' ago'; })()}</span>
       </div>
     </div>`;
 }
@@ -1902,6 +1937,8 @@ function renderInsights() {
     <div class="ai-insight-row"><strong>${Math.round(recentResolved/total*100)}%</strong> citywide resolution rate this period</div>`;
 }
 function renderTicker() {
+  const _tc = document.getElementById('ticker-content');
+  if (!_tc) return;
   const recent = [...allIssues].sort((a,b) => (b.timestamp||0) - (a.timestamp||0)).slice(0, 15);
   const html = recent.map(i => {
     const sev = i.severity || 'medium';
@@ -1910,7 +1947,7 @@ function renderTicker() {
       ${esc(trunc(i.description, 50))} — <span class="tick-area">${esc(i.area||'Delhi')}</span> · <span class="tick-time">${timeAgo(i.timestamp)}</span>
     </div>`;
   }).join('');
-  document.getElementById('ticker-content').innerHTML = html + html;
+  _tc.innerHTML = html + html;
 }
 
 function makeIcon(i) {
@@ -2041,6 +2078,14 @@ function openReportModal() {
     document.getElementById('login-prompt-modal').classList.add('open');
     return;
   }
+  // Report is the primary action — offer the fast paths first.
+  document.getElementById('report-choice-modal').classList.add('open');
+}
+function chooseFormReport() {
+  closeModal('report-choice-modal');
+  _openReportForm();
+}
+function _openReportForm() {
   map.once('click', e => {
     document.getElementById('r-lat').value = e.latlng.lat;
     document.getElementById('r-lng').value = e.latlng.lng;
@@ -2514,7 +2559,7 @@ window.addEventListener('load', _initMobileChrome);
 window.addEventListener('pageshow', _initMobileChrome);
 const _STEPS = [
   {
-    sel:    '.bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report',
+    sel:    '.report-fab, .bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report',
     title:  'Report a civic issue',
     body:   'See the + REPORT button at the bottom of your screen. Tap it to report any problem — pothole, broken streetlight, garbage dump. Upload a photo and AI classifies it instantly.',
     tipPos: 'top',
@@ -2646,13 +2691,15 @@ function _placeSpotlight(el) {
 function _placeTip(el) {
   const PAD  = 10;
   const GAP  = 18;
-  const TW   = 272;
-  const TH   = 220;
+  const tip  = document.getElementById('_tour-tip');
+  const arr  = document.getElementById('_tour-arrow');
+  // Measure the tooltip's REAL rendered size (fallbacks if not yet laid out)
+  const tr   = tip.getBoundingClientRect();
+  const TW   = tr.width  > 40 ? tr.width  : 272;
+  const TH   = tr.height > 40 ? tr.height : 220;
   const r    = el.getBoundingClientRect();
   const vw   = window.innerWidth;
   const vh   = window.innerHeight;
-  const tip  = document.getElementById('_tour-tip');
-  const arr  = document.getElementById('_tour-arrow');
 
   // Available space in each direction
   const spBot = vh - r.bottom - PAD - GAP;
@@ -2660,13 +2707,16 @@ function _placeTip(el) {
   const spRgt = vw - r.right - PAD - GAP;
   const spLft = r.left - PAD - GAP;
 
-  const _forced = (_STEPS[_ti] || {}).tipPos || null;
-  let pos = _forced || 'bottom';
-  if (!_forced) {
-    if (spBot >= TH)       pos = 'bottom';
-    else if (spTop >= TH)  pos = 'top';
-    else if (spRgt >= TW)  pos = 'right';
-    else if (spLft >= TW)  pos = 'left';
+  // Start from the step's preferred side, but only honor it if it actually fits.
+  // Otherwise fall through to whichever side has room — never overlap the target.
+  let pos = (_STEPS[_ti] || {}).tipPos || null;
+  const fits = { top: spTop >= TH, bottom: spBot >= TH, right: spRgt >= TW, left: spLft >= TW };
+  if (!pos || !fits[pos]) {
+    if      (fits.bottom) pos = 'bottom';
+    else if (fits.top)    pos = 'top';
+    else if (fits.right)  pos = 'right';
+    else if (fits.left)   pos = 'left';
+    else pos = (spTop > spBot) ? 'top' : 'bottom'; // pick the roomier side as last resort
   }
 
   // Base arrow style
@@ -2704,7 +2754,11 @@ function _placeTip(el) {
     arr.style.cssText = aBase + `right:-6px;top:${ay}px;transform:rotate(135deg)`;
   }
 
-  tip.style.top  = Math.max(12, Math.min(top,  vh - TH - 12)) + 'px';
+  // Clamp into viewport, but for top/bottom positions keep the tip clear of the target
+  let ftop = Math.max(12, Math.min(top, vh - TH - 12));
+  if (pos === 'top' && ftop + TH > r.top - GAP)      ftop = Math.max(12, r.top - GAP - TH);
+  if (pos === 'bottom' && ftop < r.bottom + GAP)     ftop = Math.min(vh - TH - 12, r.bottom + GAP);
+  tip.style.top  = ftop + 'px';
   tip.style.left = Math.max(12, Math.min(left, vw - TW - 12)) + 'px';
 }
 
@@ -2815,8 +2869,6 @@ function _hideImgHover() {
 }
 </script>
 
-
-<!-- Map image hover popup -->
 <div id="map-img-hover">
   <img id="map-hover-img" alt="Issue photo" style="display:none" />
   <div id="map-hover-info" style="padding:10px 11px 6px;display:flex;flex-direction:column;gap:4px">

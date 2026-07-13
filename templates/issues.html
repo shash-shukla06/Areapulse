@@ -283,23 +283,59 @@ async function toggleIssueAction(issueId, action, btn) {
 function setTag(el, val) {
   activeTag = val;
   document.querySelectorAll('#tag-chips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active'); loadIssues();
+  el.classList.add('active'); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
+}
+
+loadIssues();
 }
 function setStatus(el, val) {
   activeStatus = val;
   document.querySelectorAll('#status-chips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active'); loadIssues();
+  el.classList.add('active'); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
+}
+
+loadIssues();
 }
 function setSev(el, val) {
   activeSev = val;
   document.querySelectorAll('#sev-chips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active'); loadIssues();
+  el.classList.add('active'); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
+}
+
+loadIssues();
 }
 
 let searchTimer;
 function debounceSearch() {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { searchQ = document.getElementById('search-input').value.trim(); loadIssues(); }, 300);
+  searchTimer = setTimeout(() => { searchQ = document.getElementById('search-input').value.trim(); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
+}
+
+loadIssues(); }, 300);
 }
 
 function loadIssues() {
@@ -354,15 +390,13 @@ function renderGrid(issues) {
     const escalatedBadge = issue.is_escalated ? `<span class="badge badge-escalated">↑ Escalated</span>` : '';
     const sevBadge = issue.severity ? `<span class="badge badge-${issue.severity}">${issue.severity}</span>` : '';
 
-    // FIX: cards always have an image-shaped slot. If the user uploaded a photo,
-    // show it. Otherwise, show a circle with the reporter's initials so all
-    // cards in the grid stay aligned at the same height.
+    // FIX: cards always have an image-shaped slot. If the issue has a photo,
+    // load it from the /issue/{id}/image endpoint. Otherwise show initials avatar.
+    // Uses has_image flag (lightweight — no base64 in list API response).
     const reporterInitials = (issue.user || 'A').slice(0, 2).toUpperCase();
-    const imgHTML = issue.image
-      ? `<img src="${issue.image}" class="issue-full-card-img" loading="lazy"/>`
-      : `<div class="issue-full-card-avatar" title="No photo uploaded">
-           <div class="issue-full-card-avatar-circle">${escHtml(reporterInitials)}</div>
-         </div>`;
+    // Always try the image endpoint. _imgErr() handles the fallback avatar swap.
+    const imgHTML = `<img src="/issue/${issue.id}/image" class="issue-full-card-img" loading="lazy"
+      data-initials="${reporterInitials}" onerror="_imgErr(this)"/>`;
 
     return `
     <div class="issue-full-card" onclick="openDetail(${issue.id})">
@@ -420,7 +454,16 @@ async function verifyIssue(id, btn) {
       btn.classList.remove('card-btn-active-verify');
       showToast('Verification removed');
     }
-    loadIssues();
+    // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
+}
+
+loadIssues();
   } else {
     showToast(d.error || 'Verification failed');
   }
@@ -447,7 +490,16 @@ async function escalateIssue(id, btn) {
       btn.classList.remove('card-btn-active-escalate');
       showToast('Escalation removed');
     }
-    loadIssues();
+    // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
+}
+
+loadIssues();
   } else if (d.error === 'verification_required') {
     showToast(d.message || 'Please verify the issue before escalating it.', 4000);
   } else {
@@ -491,7 +543,16 @@ async function upvoteDetail(id) {
   const d = await r.json();
   if (d.status==='ok') {
     showToast(d.action === 'added' ? '+2 pts' : 'Upvote removed');
-    loadIssues(); closeModal('detail-modal');
+    // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
+}
+
+loadIssues(); closeModal('detail-modal');
   }
 }
 
@@ -587,6 +648,15 @@ function copyDispatch() {
   navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`)
     .then(() => showToast('Email copied to clipboard ✓'))
     .catch(() => showToast('Could not copy — please select and copy manually'));
+}
+
+// Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+function _imgErr(img) {
+  const initials = img.dataset.initials || '??';
+  const div = document.createElement('div');
+  div.className = 'issue-full-card-avatar';
+  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
+  img.parentNode.replaceChild(div, img);
 }
 
 loadIssues();
