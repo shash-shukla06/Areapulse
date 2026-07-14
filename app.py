@@ -44,6 +44,10 @@ from services.auth_service import AuthError
 app = Flask(__name__, static_folder='static')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB
 
+# Image URL cache — avoids N×DB hits when the All Issues page loads card thumbnails.
+# Maps issue_id (int) → image URL/data-URL string, or None (confirmed no photo).
+_image_url_cache = {}
+
 # ── Phase 0 Fix 1: SECRET_KEY — crash in production if absent/default ─────────
 _DEV_SECRET   = 'areapulse-dev-secret-2026'
 _APP_ENV       = os.environ.get('APP_ENV', os.environ.get('FLASK_ENV', 'development')).lower()
@@ -674,40 +678,57 @@ def auth_google_callback():
 def issue_image_api(issue_id):
     """
     Return the image for a single issue.
-    Used by the map marker hover preview — images are stripped from
-    the public /issues list endpoint for size, so we serve them on demand.
- 
     Returns:
       200 + image bytes  — issue has a photo
       204 No Content     — issue exists but has no photo
       404                — issue not found
     """
+    # ── Fast path: dedicated image cache ─────────────────────────────────────
+    # (Separate from the fallback cache which strips image fields.)
+    if issue_id in _image_url_cache:
+        img = _image_url_cache[issue_id]
+        if not img:
+            return '', 204
+        if img.startswith('http'):
+            return redirect(img, 302)
+        if img.startswith('data:'):
+            try:
+                header, data = img.split(',', 1)
+                mime         = header.split(':')[1].split(';')[0]
+                from flask import Response
+                resp = Response(base64.b64decode(data), mimetype=mime)
+                resp.headers['Cache-Control'] = 'public, max-age=86400'
+                return resp
+            except Exception as e:
+                print(f'[issue_image] cache decode error #{issue_id}: {e}')
+                _image_url_cache.pop(issue_id, None)   # evict bad entry, fall through
+
+    # ── Slow path: DB fetch ───────────────────────────────────────────────────
     issue = get_issue_by_id(issue_id)
     if not issue:
         return '', 404
- 
+
     img = issue.get('image') or ''
+    _image_url_cache[issue_id] = img or None   # cache result (None = confirmed no photo)
+
     if not img:
-        return '', 204   # issue exists, no photo
- 
-    # Data URL  (base64 stored directly in DB)
+        return '', 204                          # exists, no photo
+
     if img.startswith('data:'):
         try:
-            header, data   = img.split(',', 1)
-            mime           = header.split(':')[1].split(';')[0]
-            img_bytes      = base64.b64decode(data)
+            header, data = img.split(',', 1)
+            mime         = header.split(':')[1].split(';')[0]
             from flask import Response
-            resp = Response(img_bytes, mimetype=mime)
-            resp.headers['Cache-Control'] = 'public, max-age=86400'  # cache 1 day
+            resp = Response(base64.b64decode(data), mimetype=mime)
+            resp.headers['Cache-Control'] = 'public, max-age=86400'
             return resp
         except Exception as e:
-            print(f'[issue_image] decode error for #{issue_id}: {e}')
+            print(f'[issue_image] decode error #{issue_id}: {e}')
             return '', 500
- 
-    # Object storage URL (R2 / S3)
+
     if img.startswith('http'):
         return redirect(img, 302)
- 
+
     return '', 404
  
 @app.route('/issues')
@@ -721,34 +742,32 @@ def issues_api():
         print(f"[issues_api] get_issues failed: {type(e).__name__}: {e}")
         return jsonify([])
 
-    # ── Bulk escalation: collect overdue IDs then do ONE DB call ─────────────
-    # Old approach: up to 5 separate connection checkouts inside the loop.
-    # New approach: collect all overdue IDs, issue one UPDATE, zero extra connections.
-    overdue_ids = []
-    MAX_ESCALATIONS_PER_REQUEST = 5
+    # ── SLA display fields only — bulk escalation FULLY DISABLED ─────────────
+    # All auto-escalation on read is commented out. We only compute SLA display
+    # fields (sla_state, time labels) so the UI can show them. No issue is ever
+    # marked escalated here, and there is NO DB write on read.
     for i in issues:
         try:
             sla = calculate_sla(i)
             i.update(sla)
-            if (sla['sla_state'] == 'overdue'
-                    and not i.get('escalated')
-                    and i.get('status') != 'resolved'
-                    and len(overdue_ids) < MAX_ESCALATIONS_PER_REQUEST):
-                overdue_ids.append(int(i.get('id')))
         except Exception as sla_err:
             print(f"[issues_api] SLA calc failed for id={i.get('id')}: {sla_err}")
 
-    if overdue_ids:
-        try:
-            _bulk_escalate(overdue_ids)
-            # Reflect escalation in the in-memory dicts we're about to return
-            id_set = set(overdue_ids)
-            for i in issues:
-                if int(i.get('id', -1)) in id_set:
-                    i['escalated'] = True
-                    i['status']    = 'escalated'
-        except Exception as esc_err:
-            print(f"[issues_api] bulk escalate failed: {esc_err}")
+    # --- bulk escalation disabled (commented out) ---
+    # overdue_ids = []
+    # MAX_ESCALATIONS_PER_REQUEST = 5
+    # for i in issues:
+    #     if (sla['sla_state'] == 'overdue' and not i.get('escalated')
+    #             and i.get('status') != 'resolved'
+    #             and len(overdue_ids) < MAX_ESCALATIONS_PER_REQUEST):
+    #         overdue_ids.append(int(i.get('id')))
+    # if overdue_ids:
+    #     _bulk_escalate(overdue_ids)
+    #     id_set = set(overdue_ids)
+    #     for i in issues:
+    #         if int(i.get('id', -1)) in id_set:
+    #             i['escalated'] = True
+    #             i['status']    = 'escalated'
 
     enriched = []
     for i in issues:
@@ -769,6 +788,10 @@ def issues_api():
     for i in enriched:
         if not is_gov:
             i.pop('contact', None)
+        # Preserve has_image BEFORE stripping image/image_hash so frontend knows
+        # which cards have photos without fetching /issue/<id>/image for every card.
+        if 'has_image' not in i:
+            i['has_image'] = bool(i.get('image') or i.get('image_hash'))
         i.pop('image', None)      # base64 images → 2MB → stripped here
         i.pop('image_hash', None)
 
@@ -830,6 +853,9 @@ def report_api():
         return jsonify({'error': errors[0], 'errors': errors}), 400
 
     result = issue_service.submit_report(submission)
+    # Evict image cache for this issue so the new photo is served immediately
+    if result.data.get('id'):
+        _image_url_cache.pop(int(result.data['id']), None)
     return jsonify(result.data), result.status_code
 
 
@@ -1965,9 +1991,8 @@ def ngo_dashboard():
 @app.route('/ngo/commit', methods=['POST'])
 def ngo_commit():
     """
-    NGO commitment endpoint — kept for external portal data API calls.
-    Writes to _ngo_commitments_store (in-memory fallback) until Phase 7
-    wires this to the ngo_commitments Postgres table.
+    NGO commitment endpoint — writes to ngo_commitments Postgres table.
+    Falls back to in-memory list for firebase/memory modes.
     """
     ngo = session.get('ngo_role')
     if not ngo:
@@ -1979,16 +2004,41 @@ def ngo_commit():
         return jsonify({'error': 'Both area and tag required'}), 400
     if tag not in [t.lower() for t in ngo.get('tags', [])]:
         return jsonify({'error': 'Your NGO focus does not include this category'}), 403
-    for c in _ngo_commitments_store:
-        if c['ngo_username'] == ngo['username'] and c['area'] == area and c['tag'] == tag:
-            return jsonify({'status': 'already_committed', 'area': area, 'tag': tag})
-    _ngo_commitments_store.append({
-        'ngo_username': ngo['username'],
-        'ngo_name': ngo['name'],
-        'area': area, 'tag': tag,
-        'title': area + ' ' + tag.title() + ' Initiative',
-        'committed_at': time.time(),
-    })
+
+    from database import _state as _db_state
+    if _db_state.get('mode') == 'postgres':
+        try:
+            with _db_state['pg_pool'].connection() as conn:
+                with conn.cursor() as cur:
+                    # Check for existing commitment
+                    cur.execute(
+                        "SELECT id FROM ngo_commitments WHERE ngo_username=%s AND area=%s AND tag=%s",
+                        (ngo['username'], area, tag)
+                    )
+                    if cur.fetchone():
+                        return jsonify({'status': 'already_committed', 'area': area, 'tag': tag})
+                    cur.execute(
+                        """INSERT INTO ngo_commitments (ngo_username, area, tag)
+                           VALUES (%s, %s, %s)""",
+                        (ngo['username'], area, tag)
+                    )
+                conn.commit()
+        except Exception as e:
+            print(f'[ngo_commit] Postgres write failed: {e}')
+            return jsonify({'error': 'Database error, please try again'}), 500
+    else:
+        # Firebase / memory fallback
+        for c in _ngo_commitments_store:
+            if c['ngo_username'] == ngo['username'] and c['area'] == area and c['tag'] == tag:
+                return jsonify({'status': 'already_committed', 'area': area, 'tag': tag})
+        _ngo_commitments_store.append({
+            'ngo_username': ngo['username'],
+            'ngo_name': ngo['name'],
+            'area': area, 'tag': tag,
+            'title': area + ' ' + tag.title() + ' Initiative',
+            'committed_at': time.time(),
+        })
+
     return jsonify({'status': 'ok', 'area': area, 'tag': tag})
 
 

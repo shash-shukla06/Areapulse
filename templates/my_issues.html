@@ -267,7 +267,11 @@ async function load() {
     const escalatedBadge = issue.is_escalated ? '<span class="badge badge-escalated">↑ Escalated</span>' : '';
     return `
     <div class="my-issue-card" onclick="openDetail(${issue.id})">
-      <img class="my-issue-card-img" src="/issue/${issue.id}/image" loading="lazy" data-initials="${(issue.user||'A').slice(0,2).toUpperCase()}" onerror="_imgErr(this)"/>${(issue.user||'A').slice(0,2).toUpperCase()}</div>'"/>
+      ${issue.has_image
+        ? `<img class="my-issue-card-img" src="/issue/${issue.id}/image" loading="lazy"
+             data-initials="${(issue.user||'A').slice(0,2).toUpperCase()}" onerror="_imgErr(this)"/>`
+        : `<div class="my-issue-img-placeholder">${(issue.user||'A').slice(0,2).toUpperCase()}</div>`
+      }
       <div class="my-issue-body">
         <div class="my-issue-header">
           <div style="display:flex;gap:6px;flex-wrap:wrap">

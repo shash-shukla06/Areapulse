@@ -249,93 +249,29 @@ const CURRENT_USER = "{{ current_user or '' }}";
 let activeTag = '', activeStatus = '', activeSev = '', searchQ = '';
 let allIssues = [];
 
-async function toggleIssueAction(issueId, action, btn) {
-  try {
-    const res = await fetch(`/issue/${issueId}/toggle-action`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ action })
-    });
-
-    const data = await res.json();
-
-    if (!data.success) {
-      alert(data.error || 'Action failed');
-      return;
-    }
-
-    if (action === 'verify') {
-      btn.classList.toggle('card-btn-active-verify', data.is_verified);
-    }
-
-    if (action === 'escalate') {
-      btn.classList.toggle('card-btn-active-escalate', data.is_escalated);
-    }
-
-  } catch (err) {
-    console.error(err);
-    alert('Server error');
-  }
-}
-
 function setTag(el, val) {
   activeTag = val;
   document.querySelectorAll('#tag-chips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active'); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
-function _imgErr(img) {
-  const initials = img.dataset.initials || '??';
-  const div = document.createElement('div');
-  div.className = 'issue-full-card-avatar';
-  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
-  img.parentNode.replaceChild(div, img);
-}
-
-loadIssues();
+  el.classList.add('active');
+  loadIssues();
 }
 function setStatus(el, val) {
   activeStatus = val;
   document.querySelectorAll('#status-chips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active'); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
-function _imgErr(img) {
-  const initials = img.dataset.initials || '??';
-  const div = document.createElement('div');
-  div.className = 'issue-full-card-avatar';
-  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
-  img.parentNode.replaceChild(div, img);
-}
-
-loadIssues();
+  el.classList.add('active');
+  loadIssues();
 }
 function setSev(el, val) {
   activeSev = val;
   document.querySelectorAll('#sev-chips .chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active'); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
-function _imgErr(img) {
-  const initials = img.dataset.initials || '??';
-  const div = document.createElement('div');
-  div.className = 'issue-full-card-avatar';
-  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
-  img.parentNode.replaceChild(div, img);
-}
-
-loadIssues();
+  el.classList.add('active');
+  loadIssues();
 }
 
 let searchTimer;
 function debounceSearch() {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => { searchQ = document.getElementById('search-input').value.trim(); // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
-function _imgErr(img) {
-  const initials = img.dataset.initials || '??';
-  const div = document.createElement('div');
-  div.className = 'issue-full-card-avatar';
-  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
-  img.parentNode.replaceChild(div, img);
-}
-
-loadIssues(); }, 300);
+  searchTimer = setTimeout(() => { searchQ = document.getElementById('search-input').value.trim(); loadIssues(); }, 300);
 }
 
 function loadIssues() {
@@ -394,9 +330,12 @@ function renderGrid(issues) {
     // load it from the /issue/{id}/image endpoint. Otherwise show initials avatar.
     // Uses has_image flag (lightweight — no base64 in list API response).
     const reporterInitials = (issue.user || 'A').slice(0, 2).toUpperCase();
-    // Always try the image endpoint. _imgErr() handles the fallback avatar swap.
-    const imgHTML = `<img src="/issue/${issue.id}/image" class="issue-full-card-img" loading="lazy"
-      data-initials="${reporterInitials}" onerror="_imgErr(this)"/>`;
+    // Only load the image endpoint when has_image is true — prevents N extra DB
+    // queries for issues that have no photo. Shows initials avatar instantly instead.
+    const imgHTML = issue.has_image
+      ? `<img src="/issue/${issue.id}/image" class="issue-full-card-img" loading="lazy"
+           data-initials="${reporterInitials}" onerror="_imgErr(this)"/>`
+      : `<div class="issue-full-card-avatar"><div class="issue-full-card-avatar-circle">${reporterInitials}</div></div>`;
 
     return `
     <div class="issue-full-card" onclick="openDetail(${issue.id})">
@@ -454,15 +393,7 @@ async function verifyIssue(id, btn) {
       btn.classList.remove('card-btn-active-verify');
       showToast('Verification removed');
     }
-    // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
-function _imgErr(img) {
-  const initials = img.dataset.initials || '??';
-  const div = document.createElement('div');
-  div.className = 'issue-full-card-avatar';
-  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
-  img.parentNode.replaceChild(div, img);
-}
-
+    
 loadIssues();
   } else {
     showToast(d.error || 'Verification failed');
@@ -490,15 +421,7 @@ async function escalateIssue(id, btn) {
       btn.classList.remove('card-btn-active-escalate');
       showToast('Escalation removed');
     }
-    // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
-function _imgErr(img) {
-  const initials = img.dataset.initials || '??';
-  const div = document.createElement('div');
-  div.className = 'issue-full-card-avatar';
-  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
-  img.parentNode.replaceChild(div, img);
-}
-
+    
 loadIssues();
   } else if (d.error === 'verification_required') {
     showToast(d.message || 'Please verify the issue before escalating it.', 4000);
@@ -513,7 +436,7 @@ function openDetail(id) {
   const baseStatus = (issue.status === 'resolved') ? 'resolved' : 'open';
   document.getElementById('detail-content').innerHTML = `
     <button class="modal-close" onclick="closeModal('detail-modal')">✕</button>
-    ${issue.image ? `<img src="${issue.image}" style="width:100%;border-radius:8px;margin-bottom:16px;max-height:220px;object-fit:cover"/>` : ''}
+    ${issue.has_image ? `<img src="/issue/${issue.id}/image" style="width:100%;border-radius:8px;margin-bottom:16px;max-height:220px;object-fit:cover" onerror="this.style.display='none'"/>` : ''}
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px">
       <span class="badge tag-${issue.tag||'other'}">${TAG_LABELS[issue.tag]||'Other'}</span>
       <span class="badge badge-${baseStatus}">${baseStatus}</span>
@@ -543,15 +466,7 @@ async function upvoteDetail(id) {
   const d = await r.json();
   if (d.status==='ok') {
     showToast(d.action === 'added' ? '+2 pts' : 'Upvote removed');
-    // Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
-function _imgErr(img) {
-  const initials = img.dataset.initials || '??';
-  const div = document.createElement('div');
-  div.className = 'issue-full-card-avatar';
-  div.innerHTML = `<div class="issue-full-card-avatar-circle">${initials}</div>`;
-  img.parentNode.replaceChild(div, img);
-}
-
+    
 loadIssues(); closeModal('detail-modal');
   }
 }
@@ -650,7 +565,7 @@ function copyDispatch() {
     .catch(() => showToast('Could not copy — please select and copy manually'));
 }
 
-// Swap broken <img> for initials avatar when /issue/{id}/image returns 204/404
+
 function _imgErr(img) {
   const initials = img.dataset.initials || '??';
   const div = document.createElement('div');

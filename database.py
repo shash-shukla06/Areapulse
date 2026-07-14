@@ -69,6 +69,12 @@ _cache = {
 }
 _CACHE_TTL = 300  # 5 minutes
 
+# ── FALLBACK CACHE ─────────────────────────────────────
+_fallback = {
+    'issues': [],
+    'ts':     0.0,
+}
+
 def _get_cached_issues():
     now = time.time()
     if _cache['issues'] is not None and (now - _cache['issues_ts']) < _CACHE_TTL:
@@ -108,24 +114,34 @@ def init_db():
             # after a Neon hiccup — never set this below connect_timeout.
             _state['pg_pool'] = ConnectionPool(
                 dsn,
-                min_size=1, max_size=3,
+                min_size=0, max_size=2,
                 open=True,
-                timeout=15,
-                max_idle=60,
+                timeout=3,
+                max_idle=120,
+                max_lifetime=600,
                 kwargs={
-                    "connect_timeout": 10,
+                    "connect_timeout": 5,
                     "keepalives":       1,
                     "keepalives_idle":  30,
                     "keepalives_interval": 5,
                     "keepalives_count": 3,
+                    "prepare_threshold": None,
                 },
                 configure=_ensure_pg_schema,
                 check=ConnectionPool.check_connection,
             )
+            with _state['pg_pool'].connection(timeout=5) as _c:
+                with _c.cursor() as _cur:
+                    _cur.execute("SELECT 1")
+                    _cur.fetchone()
             _state['mode'] = 'postgres'
             print('[database] Postgres connected (primary)')
-            # Seed if empty (safe — uses ON CONFLICT DO NOTHING)
             _seed_postgres_if_empty()
+            if not _state.get('issues'):
+                try:
+                    _seed_memory()
+                except Exception:
+                    pass
             return
         except Exception as e:
             print(f'[database] Postgres connection failed ({type(e).__name__}: {e}), trying Firebase...')
@@ -315,7 +331,6 @@ def _ensure_pg_schema(conn):
     -- ever claim the same ID.  The sequence starts after the current MAX
     -- so existing seed data is not disturbed.
     CREATE SEQUENCE IF NOT EXISTS issues_id_seq;
-    SELECT setval('issues_id_seq', GREATEST((SELECT COALESCE(MAX(id), 0) FROM issues), 1), true);
     ALTER TABLE issues ALTER COLUMN id SET DEFAULT nextval('issues_id_seq');
     """
     with conn.cursor() as cur:
@@ -330,14 +345,15 @@ def _pg_row_to_issue(row):
     elif hasattr(row, '_asdict'):
         r = row._asdict()
     else:
-        # Fallback: assume positional — expand to match SELECT * order
+        # Positional fallback — matches _ISSUE_COLS order (no image column)
         keys = [
             'id','user_name','area','description','severity','tag','status',
-            'lat','lng','landmark','contact','image','image_hash','timestamp',
+            'lat','lng','landmark','contact','image_hash','timestamp',
             'upvotes','verified','escalated','resolved',
             'is_verified','is_escalated','status_history',
             'escalation_reason','escalated_at','resolved_at','assigned_to',
             'ai_confidence','verified_by','upvoters','last_updated_at','last_updated_by',
+            'has_image',
         ]
         r = {k: row[i] if i < len(row) else None for i, k in enumerate(keys)}
 
@@ -347,6 +363,13 @@ def _pg_row_to_issue(row):
         result['user'] = result.pop('user_name')
     elif 'user_name' in result:
         result['user'] = result.pop('user_name')
+
+    # has_image: from the computed column in _ISSUE_COLS; fallback to image_hash
+    if 'has_image' not in result or result.get('has_image') is None:
+        result['has_image'] = bool(result.get('image_hash'))
+    else:
+        result['has_image'] = bool(result['has_image'])
+
     # Ensure status_history is a list, not a JSONB string
     sh = result.get('status_history')
     if isinstance(sh, str):
@@ -441,6 +464,13 @@ def _seed_postgres_if_empty():
                        ON CONFLICT (id) DO NOTHING""",
                     ngo_rows,
                 )
+                # CRITICAL: bump the id sequence past the highest seeded id so the
+                # next real citizen insert (which uses nextval) doesn't collide with
+                # an existing seeded row (that would fail the insert → #AP-null).
+                cur.execute(
+                    "SELECT setval('issues_id_seq', "
+                    "GREATEST((SELECT COALESCE(MAX(id),0) FROM issues), 1), true)"
+                )
             conn.commit()
         print(f'[database] Postgres seeded with {len(issue_rows)} issues, {len(ngo_rows)} NGOs')
     except Exception as e:
@@ -454,47 +484,77 @@ def get_areas():
     return sorted(AREA_COORDS.keys())
 
 
+# Explicit column list — intentionally excludes the `image` column (can be MB of base64).
+# The /issue/<id>/image endpoint serves images on demand. has_image lets the frontend
+# know which cards have a photo without fetching the blob.
+_ISSUE_COLS = (
+    "id, user_name, area, description, severity, tag, status, "
+    "lat, lng, landmark, contact, image_hash, timestamp, upvotes, "
+    "verified, escalated, resolved, is_verified, is_escalated, status_history, "
+    "escalation_reason, escalated_at, resolved_at, assigned_to, ai_confidence, "
+    "verified_by, upvoters, last_updated_at, last_updated_by, "
+    "(image IS NOT NULL AND image != '') AS has_image"
+)
+
+
 def get_issues(tag=None, status=None, limit=300):
     """List issues — postgres → firebase (cached) → memory."""
     # ── Postgres ───────────────────────────────────────
     if _state['mode'] == 'postgres':
         last_error = None
-        for attempt in range(2):
+        for attempt in range(1):
             try:
                 with _state['pg_pool'].connection() as conn:
                     with conn.cursor() as cur:
                         params = []
                         if tag and status:
-                            q = ("SELECT * FROM issues WHERE tag=%s AND status=%s "
+                            q = (f"SELECT {_ISSUE_COLS} FROM issues WHERE tag=%s AND status=%s "
                                  "ORDER BY timestamp DESC LIMIT %s")
                             params = [tag, status, limit]
                         elif tag:
-                            q = ("SELECT * FROM issues WHERE tag=%s "
+                            q = (f"SELECT {_ISSUE_COLS} FROM issues WHERE tag=%s "
                                  "ORDER BY timestamp DESC LIMIT %s")
                             params = [tag, limit]
                         elif status:
-                            q = ("SELECT * FROM issues WHERE status=%s "
+                            q = (f"SELECT {_ISSUE_COLS} FROM issues WHERE status=%s "
                                  "ORDER BY timestamp DESC LIMIT %s")
                             params = [status, limit]
                         else:
-                            q = "SELECT * FROM issues ORDER BY timestamp DESC LIMIT %s"
+                            q = f"SELECT {_ISSUE_COLS} FROM issues ORDER BY timestamp DESC LIMIT %s"
                             params = [limit]
                         cur.execute(q, params)
                         rows = cur.fetchall()
                         if rows and hasattr(rows[0], '_asdict'):
-                            return [_pg_row_to_issue(r) for r in rows]
+                            out = [_pg_row_to_issue(r) for r in rows]
                         elif cur.description:
                             cols = [d.name for d in cur.description]
-                            return [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))})
+                            out = [_pg_row_to_issue({cols[i]: row[i] for i in range(len(cols))})
                                     for row in rows]
-                        return []
+                        else:
+                            out = []
+                        # Refresh the fallback snapshot on unfiltered reads so a later
+                        # DB hiccup still serves recent data (including new issues).
+                        if not tag and not status:
+                            _fallback['issues'] = out
+                            _fallback['ts'] = time.time()
+                        return out
             except psycopg.Error as e:
                 last_error = e
-                print(f'[database] get_issues attempt {attempt+1}/2 failed: {type(e).__name__}: {e}')
+                print(f'[database] get_issues attempt {attempt+1}/1 failed: {type(e).__name__}: {e}')
                 if attempt == 0:
                     time.sleep(0.5)
                     continue
         print(f'[database] get_issues failed after retry: {last_error}')
+        fb = _fallback['issues'] or list(_state.get('issues') or [])
+        if fb:
+            age = int(time.time() - _fallback['ts']) if _fallback['issues'] else -1
+            src = 'snapshot' if _fallback['issues'] else 'memory seeds'
+            print(f'[database] serving fallback {src} ({len(fb)} issues' + (f', {age}s old)' if age >= 0 else ')'))
+            results = list(fb)
+            if tag:    results = [i for i in results if i.get('tag') == tag]
+            if status: results = [i for i in results if (i.get('status') or 'open') == status]
+            results.sort(key=lambda x: x.get('timestamp', 0), reverse=True)
+            return results[:limit]
         return []
 
     # ── Firebase (cached) ──────────────────────────────
@@ -685,8 +745,41 @@ def insert_issue(user, area, description, severity, tag,
                          lat, lng, landmark, contact, image, image_hash, ts,
                          0, False, False, False),
                     )
-                    issue_id = cur.fetchone()[0]
+                    row = cur.fetchone()
+                    issue_id = row[0] if row else None
                 conn.commit()
+            if issue_id is None:
+                print('[database] insert_issue: no id returned — resyncing sequence and retrying')
+                try:
+                    with _state['pg_pool'].connection() as conn2:
+                        with conn2.cursor() as cur2:
+                            cur2.execute(
+                                "SELECT setval('issues_id_seq', "
+                                "GREATEST((SELECT COALESCE(MAX(id),0) FROM issues), 1), true)"
+                            )
+                            cur2.execute(
+                                """INSERT INTO issues
+                                    (user_name, area, description, severity, tag, status,
+                                     lat, lng, landmark, contact, image, image_hash, timestamp,
+                                     upvotes, verified, escalated, resolved)
+                                   VALUES (%s, %s, %s, %s, %s, %s,
+                                           %s, %s, %s, %s, %s, %s, %s,
+                                           %s, %s, %s, %s)
+                                   RETURNING id""",
+                                (user, area, description, severity, tag, 'open',
+                                 lat, lng, landmark, contact, image, image_hash, ts,
+                                 0, False, False, False),
+                            )
+                            row2 = cur2.fetchone()
+                            issue_id = row2[0] if row2 else None
+                        conn2.commit()
+                    if issue_id:
+                        print(f'[database] insert_issue retry succeeded: id={issue_id}')
+                    else:
+                        print('[database] insert_issue retry also returned None')
+                except Exception as se:
+                    print(f'[database] insert_issue retry failed: {se}')
+                    return None
             return issue_id
         except Exception as e:
             print(f'[database] Postgres insert_issue failed: {e}')
