@@ -1005,7 +1005,7 @@ def areas_api():
 #  Data API routes (/gov/all, /gov/update-status) remain here
 #  as the external portal calls this backend as its data source.
 # ═══════════════════════════════════════════════════════
-_GOV_PORTAL = 'https://problem-map-ai-d677.onrender.com'
+_GOV_PORTAL = 'https://problem-map-79i8.onrender.com'
 
 
 @app.route('/gov')
