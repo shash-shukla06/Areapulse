@@ -14,7 +14,7 @@ Merged v3 changes:
 import os, time, json, base64
 import urllib.request as _ureq
 import json as _json
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response, abort
 
 try:
     from dotenv import load_dotenv
@@ -26,7 +26,7 @@ from database import (
     init_db, insert_issue, get_issues, upvote_issue,
     get_all_ngos, get_nearby_ngos, get_areas, AREA_COORDS,
     insert_spam_issue, find_nearby_duplicate, is_rate_limited,
-    calculate_sla, escalate_issue, get_issue_by_id,
+    calculate_sla, escalate_issue, get_issue_by_id, get_issue_image,
     update_issue_status, get_issues_for_gov,
     log_duplicate_merge, get_all_image_hashes, get_recent_reports,
     SLA_HOURS, CROWD_ESCALATION_THRESHOLD,
@@ -729,7 +729,8 @@ def issues_api():
     for i in enriched:
         if not is_gov:
             i.pop('contact', None)
-        i.pop('image', None)      # base64 images → 2MB → stripped here
+        i['has_image'] = bool(i.get('image'))
+        i.pop('image', None)      # base64 images → 2MB → stripped here; fetch via /issue/<id>/image
         i.pop('image_hash', None)
 
     return jsonify(enriched)
@@ -1618,7 +1619,8 @@ def my_issues_data():
             i.update(calculate_sla(i))
         except Exception:
             pass
-        i.pop('image', None)   # strip base64 — not needed in list view, reduces 1MB to ~30KB
+        i['has_image'] = bool(i.get('image'))
+        i.pop('image', None)   # strip base64 — not needed in list view; fetch via /issue/<id>/image
         enriched.append(i)
     enriched.sort(key=lambda i: i.get("timestamp") or 0, reverse=True)
     return jsonify(enriched)
@@ -1638,6 +1640,28 @@ def user_stats():
         "total_resolved": resolved,
         "points": points,
     })
+
+
+@app.route("/issue/<int:issue_id>/image")
+def issue_image(issue_id):
+    """Serves the stored data-URI image as a real image response, so list/grid
+    views can lazy-load it via <img src> instead of embedding base64 inline.
+    Uses a column-only lookup (not the full row) to keep this cheap against
+    the small Postgres connection pool when many cards load in parallel."""
+    image = get_issue_image(issue_id)
+    if not image or not image.startswith('data:') or ';base64,' not in image:
+        abort(404)
+    header, b64data = image.split(';base64,', 1)
+    mimetype = header[len('data:'):] or 'application/octet-stream'
+    try:
+        raw = base64.b64decode(b64data)
+    except Exception:
+        abort(404)
+    resp = Response(raw, mimetype=mimetype)
+    # Images never change for a given issue id once uploaded, so cache hard —
+    # avoids re-hitting the DB pool on repeat views within the browser cache lifetime.
+    resp.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
+    return resp
 
 
 @app.route("/issue/<int:issue_id>/detail")

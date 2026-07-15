@@ -1790,7 +1790,7 @@ function openDetail(id) {
     <div class="detail-title">${esc(trunc(i.description, 80))}</div>`;
 
   document.getElementById('detail-body').innerHTML = `
-    ${i.image ? `<img src="${i.image}" class="detail-img" alt="issue photo"/>` : ''}
+    ${i.has_image ? `<img src="/issue/${i.id}/image" class="detail-img" alt="issue photo"/>` : ''}
     <div class="detail-desc">${esc(i.description)}</div>
     <div class="detail-table">
       <div class="dt-row"><span class="dt-label">Area</span><span class="dt-value">${esc(i.area||'Delhi')}</span></div>

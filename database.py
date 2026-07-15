@@ -1328,6 +1328,27 @@ def bulk_escalate(issue_ids: list, reason: str = 'sla_breach') -> int:
     return count
 
 
+def get_issue_image(issue_id):
+    """Lightweight lookup for just the image column — avoids pulling the full
+    row (description, status_history, etc.) for every card's image request."""
+    issue_id = int(issue_id)
+
+    if _state['mode'] == 'postgres':
+        try:
+            with _state['pg_pool'].connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute("SELECT image FROM issues WHERE id = %s", (issue_id,))
+                    row = cur.fetchone()
+                    if row:
+                        return row[0] if not hasattr(row, '_asdict') else row.image
+        except Exception as e:
+            print(f'[database] Postgres image lookup failed: {e}')
+        return None
+
+    issue = get_issue_by_id(issue_id)
+    return issue.get('image') if issue else None
+
+
 def get_issue_by_id(issue_id):
     issue_id = int(issue_id)
 

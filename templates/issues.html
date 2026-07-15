@@ -358,8 +358,8 @@ function renderGrid(issues) {
     // show it. Otherwise, show a circle with the reporter's initials so all
     // cards in the grid stay aligned at the same height.
     const reporterInitials = (issue.user || 'A').slice(0, 2).toUpperCase();
-    const imgHTML = issue.image
-      ? `<img src="${issue.image}" class="issue-full-card-img" loading="lazy"/>`
+    const imgHTML = issue.has_image
+      ? `<img src="/issue/${issue.id}/image" class="issue-full-card-img" loading="lazy"/>`
       : `<div class="issue-full-card-avatar" title="No photo uploaded">
            <div class="issue-full-card-avatar-circle">${escHtml(reporterInitials)}</div>
          </div>`;
@@ -461,7 +461,7 @@ function openDetail(id) {
   const baseStatus = (issue.status === 'resolved') ? 'resolved' : 'open';
   document.getElementById('detail-content').innerHTML = `
     <button class="modal-close" onclick="closeModal('detail-modal')">✕</button>
-    ${issue.image ? `<img src="${issue.image}" style="width:100%;border-radius:8px;margin-bottom:16px;max-height:220px;object-fit:cover"/>` : ''}
+    ${issue.has_image ? `<img src="/issue/${issue.id}/image" style="width:100%;border-radius:8px;margin-bottom:16px;max-height:220px;object-fit:cover"/>` : ''}
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px">
       <span class="badge tag-${issue.tag||'other'}">${TAG_LABELS[issue.tag]||'Other'}</span>
       <span class="badge badge-${baseStatus}">${baseStatus}</span>
