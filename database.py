@@ -121,7 +121,16 @@ def init_db():
     # pause instead of permanently pinning the whole worker to Firebase
     # over one slow wake-up. Budget stays well under gunicorn's --timeout 60.
     if dsn and _PG_OK:
-        pg_attempts, pg_timeout, pg_retry_delay = 3, 10, 3
+        # connect_timeout must be shorter than pg_timeout: if they're equal,
+        # the pool's own checkout wait and the underlying TCP connect attempt
+        # expire at the same instant, so our own PoolTimeout wrapper fires
+        # before the inner connect error ever gets raised (and logged via the
+        # psycopg.pool WARNING handler above) — we saw exactly this, every
+        # attempt logging only the generic "couldn't get a connection"
+        # message with no real cause. A shorter connect_timeout lets the
+        # real error surface first, with time left in the outer budget for
+        # the pool to log it.
+        pg_attempts, pg_timeout, pg_connect_timeout, pg_retry_delay = 3, 10, 5, 3
         for attempt in range(1, pg_attempts + 1):
             try:
                 # Pool tuning — keepalives prevent SSL/TCP dead connections from
@@ -140,7 +149,7 @@ def init_db():
                     max_idle=120,
                     max_lifetime=600,
                     kwargs={
-                        "connect_timeout": pg_timeout,
+                        "connect_timeout": pg_connect_timeout,
                         "keepalives":       1,
                         "keepalives_idle":  30,
                         "keepalives_interval": 5,
@@ -166,7 +175,7 @@ def init_db():
             except Exception as e:
                 if _state.get('pg_pool'):
                     try:
-                        _state['pg_pool'].close()
+                        _state['pg_pool'].close(timeout=2)
                     except Exception:
                         pass
                     _state['pg_pool'] = None
