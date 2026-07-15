@@ -2210,8 +2210,8 @@ async function submitReport() {
       closeModal('report-modal');
       resetReportForm();
       loadIssues();
-    } else if (d.status === 'ok') {
-  
+    } else if (d.status === 'ok' && d.id != null) {
+
   document.getElementById('sc-report-id').textContent = `#AP-${d.id}`;
   document.getElementById('sc-tag-badge').textContent  = TAG_LABELS[d.tag] || d.tag || 'Civic Issue';
   document.getElementById('sc-points').textContent     = `+${d.points_earned || 5} pts earned`;
@@ -2222,7 +2222,9 @@ async function submitReport() {
   document.getElementById('success-modal').classList.add('open');
 }
      else {
-      showToast(d.error || 'Submission failed');
+      // Covers explicit errors and the ok-but-no-id case (server-side bug,
+      // never show a "#AP-null" success card for it).
+      showToast(d.error || 'Submission failed — please try again');
     }
   } catch(e) {
     showToast('Network error');

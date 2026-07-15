@@ -292,6 +292,10 @@ def submit_report(submission: ReportSubmission) -> ReportResult:
         print(f'[issue_service] ✗ insert failed: {detail}')
         return ReportResult(_db_error(detail), status_code=500)
 
+    if issue_id is None:
+        print('[issue_service] ✗ insert returned no id — refusing to report success')
+        return ReportResult(_db_error('Insert did not return an id'), status_code=500)
+
     nearby = _ngo_repo.get_nearby(lat, lng, tag, limit=3) if (lat and lng) else []
     return ReportResult(_ok(issue_id, tag, nearby))
 

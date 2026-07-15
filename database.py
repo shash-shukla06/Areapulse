@@ -729,58 +729,56 @@ def insert_issue(user, area, description, severity, tag,
 
     # ── Postgres: let the sequence assign the ID atomically (RETURNING id) ───
     if _state['mode'] == 'postgres':
-        try:
-            with _state['pg_pool'].connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        """INSERT INTO issues
+        insert_sql = """INSERT INTO issues
                             (user_name, area, description, severity, tag, status,
                              lat, lng, landmark, contact, image, image_hash, timestamp,
                              upvotes, verified, escalated, resolved)
                            VALUES (%s, %s, %s, %s, %s, %s,
                                    %s, %s, %s, %s, %s, %s, %s,
                                    %s, %s, %s, %s)
-                           RETURNING id""",
-                        (user, area, description, severity, tag, 'open',
-                         lat, lng, landmark, contact, image, image_hash, ts,
-                         0, False, False, False),
-                    )
+                           RETURNING id"""
+        params = (user, area, description, severity, tag, 'open',
+                  lat, lng, landmark, contact, image, image_hash, ts,
+                  0, False, False, False)
+
+        def _resync_and_retry(trigger: str):
+            print(f'[database] insert_issue: {trigger} — resyncing sequence and retrying')
+            try:
+                with _state['pg_pool'].connection() as conn2:
+                    with conn2.cursor() as cur2:
+                        cur2.execute(
+                            "SELECT setval('issues_id_seq', "
+                            "GREATEST((SELECT COALESCE(MAX(id),0) FROM issues), 1), true)"
+                        )
+                        cur2.execute(insert_sql, params)
+                        row2 = cur2.fetchone()
+                        retried_id = row2[0] if row2 else None
+                    conn2.commit()
+                if retried_id:
+                    print(f'[database] insert_issue retry succeeded: id={retried_id}')
+                else:
+                    print('[database] insert_issue retry also returned None')
+                return retried_id
+            except Exception as se:
+                print(f'[database] insert_issue retry failed: {se}')
+                return None
+
+        try:
+            with _state['pg_pool'].connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(insert_sql, params)
                     row = cur.fetchone()
                     issue_id = row[0] if row else None
                 conn.commit()
             if issue_id is None:
-                print('[database] insert_issue: no id returned — resyncing sequence and retrying')
-                try:
-                    with _state['pg_pool'].connection() as conn2:
-                        with conn2.cursor() as cur2:
-                            cur2.execute(
-                                "SELECT setval('issues_id_seq', "
-                                "GREATEST((SELECT COALESCE(MAX(id),0) FROM issues), 1), true)"
-                            )
-                            cur2.execute(
-                                """INSERT INTO issues
-                                    (user_name, area, description, severity, tag, status,
-                                     lat, lng, landmark, contact, image, image_hash, timestamp,
-                                     upvotes, verified, escalated, resolved)
-                                   VALUES (%s, %s, %s, %s, %s, %s,
-                                           %s, %s, %s, %s, %s, %s, %s,
-                                           %s, %s, %s, %s)
-                                   RETURNING id""",
-                                (user, area, description, severity, tag, 'open',
-                                 lat, lng, landmark, contact, image, image_hash, ts,
-                                 0, False, False, False),
-                            )
-                            row2 = cur2.fetchone()
-                            issue_id = row2[0] if row2 else None
-                        conn2.commit()
-                    if issue_id:
-                        print(f'[database] insert_issue retry succeeded: id={issue_id}')
-                    else:
-                        print('[database] insert_issue retry also returned None')
-                except Exception as se:
-                    print(f'[database] insert_issue retry failed: {se}')
-                    return None
+                return _resync_and_retry('no id returned')
             return issue_id
+        except psycopg.errors.UniqueViolation as e:
+            # The id sequence has fallen behind the table's actual max id
+            # (e.g. after seeding rows with explicit ids) — nextval() collided
+            # with an existing row. This used to be swallowed by the generic
+            # except below and surface to the client as "#AP-null".
+            return _resync_and_retry(f'id collision ({e})')
         except Exception as e:
             print(f'[database] Postgres insert_issue failed: {e}')
             return None  # don't fall through to memory store in postgres mode
