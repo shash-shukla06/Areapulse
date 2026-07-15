@@ -116,11 +116,11 @@ def init_db():
                 dsn,
                 min_size=0, max_size=2,
                 open=True,
-                timeout=3,
+                timeout=15,
                 max_idle=120,
                 max_lifetime=600,
                 kwargs={
-                    "connect_timeout": 5,
+                    "connect_timeout": 15,
                     "keepalives":       1,
                     "keepalives_idle":  30,
                     "keepalives_interval": 5,
@@ -130,7 +130,7 @@ def init_db():
                 configure=_ensure_pg_schema,
                 check=ConnectionPool.check_connection,
             )
-            with _state['pg_pool'].connection(timeout=5) as _c:
+            with _state['pg_pool'].connection(timeout=15) as _c:
                 with _c.cursor() as _cur:
                     _cur.execute("SELECT 1")
                     _cur.fetchone()
