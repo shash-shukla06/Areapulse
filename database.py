@@ -115,50 +115,67 @@ def init_db():
     dsn = os.environ.get('DATABASE_URL', '').strip()
 
     # ── Attempt 1: PostgreSQL ──────────────────────────
+    # Neon's free-tier compute autosuspends when idle, so how long a cold
+    # start takes to wake varies — a single roll of the dice can lose that
+    # race even with a generous timeout. Retry a few times with a short
+    # pause instead of permanently pinning the whole worker to Firebase
+    # over one slow wake-up. Budget stays well under gunicorn's --timeout 60.
     if dsn and _PG_OK:
-        try:
-            # Pool tuning — keepalives prevent SSL/TCP dead connections from
-            # going undetected (the ssl/tls alert bad record mac error).
-            # TCP keepalives probe the Neon connection every 30s and detect
-            # failures within 15s (5s interval × 3 probes), so the pool
-            # discards dead connections before a request tries to use them.
-            # reconnect_timeout is left at default (300s) so the pool's
-            # background worker has 5 full minutes to restore connections
-            # after a Neon hiccup — never set this below connect_timeout.
-            _state['pg_pool'] = ConnectionPool(
-                dsn,
-                min_size=0, max_size=2,
-                open=True,
-                timeout=15,
-                max_idle=120,
-                max_lifetime=600,
-                kwargs={
-                    "connect_timeout": 15,
-                    "keepalives":       1,
-                    "keepalives_idle":  30,
-                    "keepalives_interval": 5,
-                    "keepalives_count": 3,
-                    "prepare_threshold": None,
-                },
-                configure=_ensure_pg_schema,
-                check=ConnectionPool.check_connection,
-            )
-            with _state['pg_pool'].connection(timeout=15) as _c:
-                with _c.cursor() as _cur:
-                    _cur.execute("SELECT 1")
-                    _cur.fetchone()
-            _state['mode'] = 'postgres'
-            print('[database] Postgres connected (primary)')
-            _seed_postgres_if_empty()
-            if not _state.get('issues'):
-                try:
-                    _seed_memory()
-                except Exception:
-                    pass
-            return
-        except Exception as e:
-            print(f'[database] Postgres connection failed ({type(e).__name__}: {e}), trying Firebase...')
-            _state['pg_pool'] = None
+        pg_attempts, pg_timeout, pg_retry_delay = 3, 10, 3
+        for attempt in range(1, pg_attempts + 1):
+            try:
+                # Pool tuning — keepalives prevent SSL/TCP dead connections from
+                # going undetected (the ssl/tls alert bad record mac error).
+                # TCP keepalives probe the Neon connection every 30s and detect
+                # failures within 15s (5s interval × 3 probes), so the pool
+                # discards dead connections before a request tries to use them.
+                # reconnect_timeout is left at default (300s) so the pool's
+                # background worker has 5 full minutes to restore connections
+                # after a Neon hiccup — never set this below connect_timeout.
+                _state['pg_pool'] = ConnectionPool(
+                    dsn,
+                    min_size=0, max_size=2,
+                    open=True,
+                    timeout=pg_timeout,
+                    max_idle=120,
+                    max_lifetime=600,
+                    kwargs={
+                        "connect_timeout": pg_timeout,
+                        "keepalives":       1,
+                        "keepalives_idle":  30,
+                        "keepalives_interval": 5,
+                        "keepalives_count": 3,
+                        "prepare_threshold": None,
+                    },
+                    configure=_ensure_pg_schema,
+                    check=ConnectionPool.check_connection,
+                )
+                with _state['pg_pool'].connection(timeout=pg_timeout) as _c:
+                    with _c.cursor() as _cur:
+                        _cur.execute("SELECT 1")
+                        _cur.fetchone()
+                _state['mode'] = 'postgres'
+                print(f'[database] Postgres connected (primary, attempt {attempt}/{pg_attempts})')
+                _seed_postgres_if_empty()
+                if not _state.get('issues'):
+                    try:
+                        _seed_memory()
+                    except Exception:
+                        pass
+                return
+            except Exception as e:
+                if _state.get('pg_pool'):
+                    try:
+                        _state['pg_pool'].close()
+                    except Exception:
+                        pass
+                    _state['pg_pool'] = None
+                more = attempt < pg_attempts
+                print(f'[database] Postgres connection attempt {attempt}/{pg_attempts} failed '
+                      f'({type(e).__name__}: {e})' + (f' — retrying in {pg_retry_delay}s...' if more else ''))
+                if more:
+                    time.sleep(pg_retry_delay)
+        print(f'[database] Postgres unavailable after {pg_attempts} attempts, trying Firebase...')
 
     # ── Attempt 2: Firebase Firestore ──────────────────
     try:
