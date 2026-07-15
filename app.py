@@ -14,7 +14,7 @@ Merged v3 changes:
 import os, time, json, base64
 import urllib.request as _ureq
 import json as _json
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for, Response
 
 try:
     from dotenv import load_dotenv
@@ -697,7 +697,7 @@ def issue_image_api(issue_id):
                 mime         = header.split(':')[1].split(';')[0]
                 from flask import Response
                 resp = Response(base64.b64decode(data), mimetype=mime)
-                resp.headers['Cache-Control'] = 'public, max-age=86400'
+                resp.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
                 return resp
             except Exception as e:
                 print(f'[issue_image] cache decode error #{issue_id}: {e}')
@@ -720,7 +720,7 @@ def issue_image_api(issue_id):
             mime         = header.split(':')[1].split(';')[0]
             from flask import Response
             resp = Response(base64.b64decode(data), mimetype=mime)
-            resp.headers['Cache-Control'] = 'public, max-age=86400'
+            resp.headers['Cache-Control'] = 'public, max-age=2592000, immutable'
             return resp
         except Exception as e:
             print(f'[issue_image] decode error #{issue_id}: {e}')
@@ -792,7 +792,7 @@ def issues_api():
         # which cards have photos without fetching /issue/<id>/image for every card.
         if 'has_image' not in i:
             i['has_image'] = bool(i.get('image') or i.get('image_hash'))
-        i.pop('image', None)      # base64 images → 2MB → stripped here
+        i.pop('image', None)      # base64 images → 2MB → stripped here; fetch via /issue/<id>/image
         i.pop('image_hash', None)
 
     return jsonify(enriched)
@@ -1684,7 +1684,8 @@ def my_issues_data():
             i.update(calculate_sla(i))
         except Exception:
             pass
-        i.pop('image', None)   # strip base64 — not needed in list view, reduces 1MB to ~30KB
+        i['has_image'] = bool(i.get('image'))
+        i.pop('image', None)   # strip base64 — not needed in list view; fetch via /issue/<id>/image
         enriched.append(i)
     enriched.sort(key=lambda i: i.get("timestamp") or 0, reverse=True)
     return jsonify(enriched)
