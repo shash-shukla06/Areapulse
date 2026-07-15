@@ -28,6 +28,17 @@ try:
     from psycopg_pool import ConnectionPool
     _PG_OK = True
     print('[database] psycopg + pool available')
+
+    # psycopg_pool logs each failed connection attempt (the real underlying
+    # error — auth, DNS, refused, etc.) via logging, not print(). Without a
+    # handler those warnings are silently dropped, leaving only the generic
+    # "PoolTimeout: couldn't get a connection after N sec" wrapper visible.
+    import logging as _logging
+    _pool_logger = _logging.getLogger("psycopg.pool")
+    _pool_logger.setLevel(_logging.INFO)
+    _pool_handler = _logging.StreamHandler()
+    _pool_handler.setFormatter(_logging.Formatter('[psycopg.pool] %(message)s'))
+    _pool_logger.addHandler(_pool_handler)
 except ImportError:
     print('[database] psycopg not installed — Postgres unavailable')
 
