@@ -33,9 +33,11 @@ try:
     # error — auth, DNS, refused, etc.) via logging, not print(). Without a
     # handler those warnings are silently dropped, leaving only the generic
     # "PoolTimeout: couldn't get a connection after N sec" wrapper visible.
+    # WARNING, not INFO — psycopg_pool logs every routine checkout/checkin
+    # at INFO, which would spam every DB-touching request forever.
     import logging as _logging
     _pool_logger = _logging.getLogger("psycopg.pool")
-    _pool_logger.setLevel(_logging.INFO)
+    _pool_logger.setLevel(_logging.WARNING)
     _pool_handler = _logging.StreamHandler()
     _pool_handler.setFormatter(_logging.Formatter('[psycopg.pool] %(message)s'))
     _pool_logger.addHandler(_pool_handler)
