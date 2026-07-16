@@ -1978,10 +1978,8 @@ function renderMarkers(issues) {
     const jLat = +i.lat + radius * Math.cos(angle);
     const jLng = +i.lng + radius * Math.sin(angle);
     const m = L.marker([jLat, jLng], { icon: makeIcon(i) });
-    m.bindPopup(popupTagHTML(i), { offset:[0,-2], autoPan:false, closeButton:false });
     m.on('click', (e) => {
       L.DomEvent.stopPropagation(e);
-      m.openPopup();
       openDetail(i.id);
     });
     m.on('mouseover', (e) => {
