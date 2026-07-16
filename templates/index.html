@@ -1959,7 +1959,7 @@ function makeIcon(i) {
 function popupTagHTML(i) {
   const tag = i.tag || 'other';
   const sev = i.severity || 'medium';
-  return `<div class="popup-tag" onclick="openDetail(${i.id})">
+  return `<div class="popup-tag">
     <span class="pt-ref">#AP-${i.id}</span>
     <span class="pt-tag">${(TAG_LABELS[tag]||'Other').toUpperCase()}</span>
     <span class="pt-sev ${sev}">${sev.toUpperCase()}</span>
@@ -1967,18 +1967,30 @@ function popupTagHTML(i) {
 }
 function renderMarkers(issues) {
   markerLayer.clearLayers();
+  const coordCount = {};
   issues.forEach(i => {
     if (!i.lat || !i.lng) return;
-    const m = L.marker([i.lat, i.lng], { icon: makeIcon(i) });
+    const key = `${(+i.lat).toFixed(4)},${(+i.lng).toFixed(4)}`;
+    coordCount[key] = (coordCount[key] || 0) + 1;
+    const n = coordCount[key];
+    const angle  = (n - 1) * 2.4;
+    const radius = n > 1 ? 0.0001 * Math.ceil((n - 1) / 6) : 0;
+    const jLat = +i.lat + radius * Math.cos(angle);
+    const jLng = +i.lng + radius * Math.sin(angle);
+    const m = L.marker([jLat, jLng], { icon: makeIcon(i) });
     m.bindPopup(popupTagHTML(i), { offset:[0,-2], autoPan:false, closeButton:false });
-    m.on('click',     () => { map.setView([i.lat, i.lng], 15, { animate:true }); m.openPopup(); });
+    m.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);
+      m.openPopup();
+      openDetail(i.id);
+    });
     m.on('mouseover', (e) => {
       const mapRect = document.getElementById('map').getBoundingClientRect();
-      const sx = mapRect.left + e.containerPoint.x;
-      const sy = mapRect.top  + e.containerPoint.y;
-      _showImgHover(i.id, i.tag, i.area, sx, sy);
+      _showImgHover(i.id, i.tag, i.area,
+        mapRect.left + e.containerPoint.x,
+        mapRect.top  + e.containerPoint.y);
     });
-    m.on('mouseout',  ()  => _hideImgHover());
+    m.on('mouseout', () => _hideImgHover());
     markerLayer.addLayer(m);
   });
 }
