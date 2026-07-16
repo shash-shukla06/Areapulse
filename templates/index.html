@@ -1749,7 +1749,7 @@ function makeIcon(i) {
 function popupTagHTML(i) {
   const tag = i.tag || 'other';
   const sev = i.severity || 'medium';
-  return `<div class="popup-tag" onclick="openDetail(${i.id})">
+  return `<div class="popup-tag">
     <span class="pt-ref">#AP-${i.id}</span>
     <span class="pt-tag">${(TAG_LABELS[tag]||'Other').toUpperCase()}</span>
     <span class="pt-sev ${sev}">${sev.toUpperCase()}</span>
@@ -1761,7 +1761,20 @@ function renderMarkers(issues) {
     if (!i.lat || !i.lng) return;
     const m = L.marker([i.lat, i.lng], { icon: makeIcon(i) });
     m.bindPopup(popupTagHTML(i), { offset:[0,-2], autoPan:false, closeButton:false });
-    m.on('click', () => { map.setView([i.lat, i.lng], 15, { animate:true }); m.openPopup(); });
+
+    m.on('click', (e) => {
+      L.DomEvent.stopPropagation(e);   // stop event bubbling to map
+      m.openPopup();
+      openDetail(i.id);
+    });
+
+    m.on('mouseover', (e) => {
+      const mapRect = document.getElementById('map').getBoundingClientRect();
+      _showImgHover(i.id, i.tag, i.area,
+        mapRect.left + e.containerPoint.x,
+        mapRect.top  + e.containerPoint.y);
+    });
+    m.on('mouseout', () => _hideImgHover());
     markerLayer.addLayer(m);
   });
 }
