@@ -63,7 +63,8 @@ from typing import Optional
 #  GROQ  (core LLM / vision)
 # ─────────────────────────────────────────────────────────────────────────────
 _client = None
-_MODEL  = 'meta-llama/llama-4-scout-17b-16e-instruct'
+_MODEL  = 'llama-3.2-11b-vision-preview'
+_MODEL_TEXT = 'openai/gpt-oss-120b'    
 
 try:
     from groq import Groq
