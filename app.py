@@ -31,6 +31,7 @@ from database import (
     log_duplicate_merge, get_all_image_hashes, get_recent_reports,
     SLA_HOURS, CROWD_ESCALATION_THRESHOLD,
     bulk_escalate as _bulk_escalate,
+    toggle_verify_issue, toggle_escalate_issue,
 )
 from classifier import auto_classify, severity_from_text
 import ai_engine
@@ -887,7 +888,12 @@ def api_health_db():
     try:
         t0 = time.time()
         print("[HEALTH] Requesting connection from pool...")
-        with _state['pg_pool'].connection() as conn:
+        # Short, dedicated timeout — this is a monitoring probe, not a user
+        # request, and it must not compete with real traffic for the same
+        # 2-connection budget at the same 10s timeout every other caller uses.
+        # If the pool is genuinely busy, fail fast and report that, rather
+        # than queueing behind real requests for up to 10 seconds.
+        with _state['pg_pool'].connection(timeout=2) as conn:
             print("[HEALTH] ✓ Connection acquired")
             print(f"[HEALTH] Connection object : {conn}")
             with conn.cursor() as cur:
@@ -928,12 +934,17 @@ def firestore_health():
     if _state.get('mode') == 'postgres':
         try:
             t0 = _t.time()
-            with _state['pg_pool'].connection() as conn:
+            # Same reasoning as /api/health/db — a short dedicated timeout so
+            # this monitoring probe fails fast instead of queueing behind
+            # real user requests on the shared 2-connection pool. This route
+            # does TWO checkouts per call; each one now has its own short
+            # budget instead of two full-length (10s) waits.
+            with _state['pg_pool'].connection(timeout=2) as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT 1")
                     cur.fetchone()
             info['roundtrip_ms'] = round((_t.time() - t0) * 1000, 1)
-            with _state['pg_pool'].connection() as conn:
+            with _state['pg_pool'].connection(timeout=2) as conn:
                 with conn.cursor() as cur:
                     cur.execute("SELECT COUNT(*) FROM issues")
                     info['issues_count'] = cur.fetchone()[0]
@@ -1774,34 +1785,17 @@ def issue_detail(issue_id):
 @app.route('/verify/<int:issue_id>', methods=['POST'])
 def verify_issue(issue_id):
     try:
-        data           = request.get_json(silent=True) or {}
-        user           = data.get('user', 'anonymous')
+        data = request.get_json(silent=True) or {}
+        user = data.get('user', 'anonymous')
         if not session.get('gov_role') and not _require_admin():
             return jsonify({'error': 'Unauthorised'}), 403
-        issue = get_issue_by_id(issue_id)
-        if not issue:
+
+        action = toggle_verify_issue(issue_id, user=user)
+        if action == 'not_found':
             return jsonify({'error': 'Issue not found'}), 404
-        current = bool(issue.get('is_verified', False))
-        new_val = not current
-        from database import _state
-        if _state.get('mode') == 'postgres':
-            with _state['pg_pool'].connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "UPDATE issues SET is_verified=%s, verified=%s, verified_by=%s WHERE id=%s",
-                        (new_val, new_val, user if new_val else None, issue_id)
-                    )
-                conn.commit()
-        elif _state.get('mode') == 'firebase':
-            _state['fs_db'].collection('issues').document(str(issue_id)).update({
-                'is_verified': new_val, 'verified': new_val,
-                'verified_by': user if new_val else None,
-            })
-        else:
-            issue['is_verified'] = new_val
-            issue['verified']    = new_val
-            issue['verified_by'] = user if new_val else None
-        return jsonify({'status': 'ok', 'action': 'removed' if current else 'added'})
+        if action == 'error':
+            return jsonify({'error': 'Database error, please try again'}), 500
+        return jsonify({'status': 'ok', 'action': action})
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({'error': str(e)[:120]}), 500
@@ -1810,33 +1804,17 @@ def verify_issue(issue_id):
 @app.route('/ngo/escalate/<int:issue_id>', methods=['POST'])
 def escalate_issue_route(issue_id):
     try:
-        issue = get_issue_by_id(issue_id)
-        if not issue:
+        action = toggle_escalate_issue(issue_id, require_verified=True)
+        if action == 'not_found':
             return jsonify({'error': 'Issue not found'}), 404
-        if not issue.get('is_verified', False) and not issue.get('is_escalated', False):
+        if action == 'not_verified':
             return jsonify({
                 'error':   'verification_required',
                 'message': 'Please verify the issue before escalating it.'
             }), 400
-        current = bool(issue.get('is_escalated', False))
-        new_val = not current
-        from database import _state
-        if _state.get('mode') == 'postgres':
-            with _state['pg_pool'].connection() as conn:
-                with conn.cursor() as cur:
-                    cur.execute(
-                        "UPDATE issues SET is_escalated=%s, escalated=%s, escalated_at=%s WHERE id=%s",
-                        (new_val, new_val, time.time() if new_val else None, issue_id)
-                    )
-                conn.commit()
-        elif _state.get('mode') == 'firebase':
-            _state['fs_db'].collection('issues').document(str(issue_id)).update({
-                'is_escalated': new_val, 'escalated': new_val,
-            })
-        else:
-            issue['is_escalated'] = new_val
-            issue['escalated']    = new_val
-        return jsonify({'status': 'ok', 'action': 'removed' if current else 'added'})
+        if action == 'error':
+            return jsonify({'error': 'Database error, please try again'}), 500
+        return jsonify({'status': 'ok', 'action': action})
     except Exception as e:
         import traceback; traceback.print_exc()
         return jsonify({'error': str(e)[:120]}), 500

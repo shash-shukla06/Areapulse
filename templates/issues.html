@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}All Issues — Problem Map{% endblock %}
 {% block extra_head %}
+<script src="{{ url_for('static', filename='js/issues-store.js') }}"></script>
 <style>
   @media (max-width: 720px) {
   .issues-layout { flex-direction: column; overflow-y: auto; }
@@ -11,7 +12,7 @@
   .issues-grid { grid-template-columns: 1fr; }
  }
 
- /* ═══ Mobile rework — collapsible filter sheet, scrollable card list ═══ */
+ 
  @media (max-width: 768px){
   /* Make the whole layout scroll naturally inside page-content */
   .issues-layout{
@@ -274,16 +275,16 @@ function debounceSearch() {
   searchTimer = setTimeout(() => { searchQ = document.getElementById('search-input').value.trim(); loadIssues(); }, 300);
 }
 
-function loadIssues() {
-  let url = '/issues?';
-  if (activeTag) url += `tag=${encodeURIComponent(activeTag)}&`;
-  if (activeStatus) url += `status=${encodeURIComponent(activeStatus)}&`;
-  if (searchQ) url += `q=${encodeURIComponent(searchQ)}&`;
-
-  fetch(url).then(r=>r.json()).then(issues => {
+function loadIssues(opts) {
+  IssuesStore.getIssues({ tag: activeTag, status: activeStatus, force: (opts && opts.force) || false }).then(issues => {
     allIssues = issues;
 
     let filtered = activeSev ? issues.filter(i=>(i.severity||'medium')===activeSev) : issues;
+
+    if (searchQ) {
+      const q = searchQ.toLowerCase();
+      filtered = filtered.filter(i => (i.description||'').toLowerCase().includes(q) || (i.area||'').toLowerCase().includes(q) || (i.tag||'').toLowerCase().includes(q));
+    }
 
     if (activeStatus === 'escalated') filtered = filtered.filter(i => i.is_escalated);
     if (activeStatus === 'verified')  filtered = filtered.filter(i => i.is_verified);
@@ -394,6 +395,7 @@ async function verifyIssue(id, btn) {
       showToast('Verification removed');
     }
     
+IssuesStore.invalidate();
 loadIssues();
   } else {
     showToast(d.error || 'Verification failed');
@@ -422,6 +424,7 @@ async function escalateIssue(id, btn) {
       showToast('Escalation removed');
     }
     
+IssuesStore.invalidate();
 loadIssues();
   } else if (d.error === 'verification_required') {
     showToast(d.message || 'Please verify the issue before escalating it.', 4000);
@@ -467,6 +470,7 @@ async function upvoteDetail(id) {
   if (d.status==='ok') {
     showToast(d.action === 'added' ? '+2 pts' : 'Upvote removed');
     
+IssuesStore.invalidate();
 loadIssues(); closeModal('detail-modal');
   }
 }

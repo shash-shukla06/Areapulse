@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}My Reports — Problem Map{% endblock %}
 {% block extra_head %}
+<script src="{{ url_for('static', filename='js/issues-store.js') }}"></script>
 <style>
   /* Allow the My Reports page to scroll on all screen sizes.
      Base.html has .page-content { overflow:hidden } which traps overflow. */
@@ -240,13 +241,12 @@ function getStatusSteps(issue) {
   });
 }
 
-async function load() {
-  const [issueRes, statsRes] = await Promise.all([
-    fetch(`/my-issues-data?user=${encodeURIComponent(CURRENT_USER)}`),
-    fetch(`/user/stats?name=${encodeURIComponent(CURRENT_USER)}`)
+async function load(opts) {
+  const force = (opts && opts.force) || false;
+  const [issues, stats] = await Promise.all([
+    IssuesStore.getMyIssues({ user: CURRENT_USER, force }),
+    fetch(`/user/stats?name=${encodeURIComponent(CURRENT_USER)}`).then(r => r.json())
   ]);
-  const issues = await issueRes.json();
-  const stats = await statsRes.json();
 
   document.getElementById('s-total').textContent = stats.total_reported || 0;
   document.getElementById('s-resolved').textContent = stats.total_resolved || 0;

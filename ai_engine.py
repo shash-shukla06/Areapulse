@@ -63,8 +63,8 @@ from typing import Optional
 #  GROQ  (core LLM / vision)
 # ─────────────────────────────────────────────────────────────────────────────
 _client = None
-_MODEL  = 'llama-3.2-11b-vision-preview'
-_MODEL_TEXT = 'openai/gpt-oss-120b'    
+_MODEL = "qwen/qwen3.6-27b"
+_MODEL_TEXT = "qwen/qwen3.6-27b" 
 
 try:
     from groq import Groq
@@ -176,6 +176,126 @@ def engine_status() -> dict:
 
 
 # ═════════════════════════════════════════════════════════════════════════════
+#  SHARED GROQ JSON CALLER
+#
+#  qwen/qwen3.6-27b is a reasoning model. Left to itself it narrates its
+#  reasoning ("Step 1: ... Conclusion: ...") instead of returning JSON,
+#  which is what Llama-4-Scout never did. This wrapper is used by every
+#  function that needs strict JSON back from Groq (vision, spam, AI-image
+#  detection, cross-modal). It stacks every available lever to stop that:
+#
+#    1. A strict system message (system prompts outweigh user prompts,
+#       and it's the first thing the model reads).
+#    2. reasoning_format='hidden'   — Groq-specific kwarg for reasoning
+#       models (qwen3.x, deepseek-r1, etc.) that strips the <think> trace
+#       out of message.content entirely.
+#    3. response_format={'type':'json_object'} — forces the model into
+#       strict JSON mode; the prompt must mention "JSON" somewhere, which
+#       all of ours already do.
+#    4. temperature=0 by default — reasoning models ramble more at
+#       higher temperature.
+#
+#  (2) and (3) are opportunistic: not every groq SDK version / model pairing
+#  supports both kwargs. We try the strongest combo first and step down
+#  through fallbacks rather than hard-failing the whole request if Groq
+#  rejects an unrecognized parameter.
+# ═════════════════════════════════════════════════════════════════════════════
+
+_NO_REASONING_SYSTEM = """You are a backend JSON API endpoint, not a chatbot or assistant.
+
+ABSOLUTE RULES — breaking any of these is a system failure, not a stylistic choice:
+- Do NOT explain your reasoning.
+- Do NOT think step by step out loud.
+- Do NOT write analysis, observations, bullet points, or narration.
+- Do NOT write phrases like "Step 1", "Conclusion", "Let's look at...", "The most prominent feature is...".
+- Do NOT use markdown, headings, or code fences.
+- Output exactly ONE JSON object and nothing else — no text before it, no text after it.
+- The FIRST character you output MUST be {
+- The LAST character you output MUST be }
+- Your entire response must be parseable by a strict JSON parser with zero preprocessing.
+
+If you are unsure of an answer, still return valid JSON with your best-guess field values.
+Never explain the uncertainty in prose — encode it in the "confidence" field instead."""
+
+
+def _call_groq_json(content, max_tokens: int = 500, temperature: float = 0.0) -> str:
+    """
+    Call Groq chat completions and return the raw text response, using every
+    available lever to keep a reasoning model (qwen3.x etc.) from rambling
+    instead of emitting JSON. Falls back gracefully if reasoning_format /
+    response_format aren't supported by the current SDK/model pairing.
+
+    `content` is either a plain string (text-only prompt) or a list of
+    content blocks, e.g. [{'type':'image_url',...}, {'type':'text',...}]
+    for vision calls.
+
+    Raises the underlying exception only if every fallback variant fails
+    (e.g. auth error, rate limit, network issue) — callers should still
+    wrap this in their own try/except as before.
+    """
+    messages = [
+        {'role': 'system', 'content': _NO_REASONING_SYSTEM},
+        {'role': 'user', 'content': content},
+    ]
+
+    # Order matters. reasoning_format='hidden' ALONE goes first — it's the
+    # gentlest option. response_format={'type':'json_object'} is riskiest:
+    # it makes Groq run a strict server-side schema check, and if the
+    # model's visible content is empty (reasoning ate the whole token
+    # budget) that check hard-fails with json_validate_failed /
+    # failed_generation: '' instead of just returning empty text. So we
+    # only reach for it after the plain reasoning_format attempt.
+    kwargs_variants = [
+        dict(reasoning_format='hidden'),
+        dict(reasoning_format='hidden', response_format={'type': 'json_object'}),
+        dict(response_format={'type': 'json_object'}),
+        dict(),
+    ]
+
+    # Hidden reasoning tokens are still deducted from max_tokens even though
+    # they never appear in message.content. Pad the budget on any variant
+    # that uses reasoning_format so the model has room left to actually
+    # write the JSON after it finishes "thinking".
+    REASONING_PADDING = 700
+
+    last_err = None
+    for extra_kwargs in kwargs_variants:
+        call_max_tokens = max_tokens + REASONING_PADDING if extra_kwargs.get('reasoning_format') else max_tokens
+        try:
+            resp = _client.chat.completions.create(
+                model=_MODEL,
+                messages=messages,
+                max_tokens=call_max_tokens,
+                temperature=temperature,
+                **extra_kwargs,
+            )
+            text = (resp.choices[0].message.content or '').strip()
+            if not text:
+                # Groq returned 200 but with nothing usable — treat like a
+                # rejection and step down to the next variant instead of
+                # returning an empty string for _extract_json to choke on.
+                last_err = RuntimeError(
+                    'Groq returned empty content (reasoning likely consumed max_tokens)'
+                )
+                continue
+            return text
+        except Exception as e:
+            last_err = e
+            msg = str(e).lower()
+            # Step down the ladder for kwarg rejections AND for the
+            # empty-generation / JSON-validator failure mode seen with
+            # response_format=json_object on this reasoning model.
+            if any(x in msg for x in ('reasoning_format', 'response_format',
+                                       'unrecognized', 'unsupported', 'unknown parameter',
+                                       'unexpected keyword',
+                                       'json_validate_failed', 'failed to validate json',
+                                       'failed_generation')):
+                continue
+            raise
+    raise last_err
+
+
+# ═════════════════════════════════════════════════════════════════════════════
 #  CROSS-MODAL TAG SYNONYMS
 # ═════════════════════════════════════════════════════════════════════════════
 _TAG_SYNONYMS: dict = {
@@ -208,53 +328,178 @@ def _tags_compatible(tag_a: str, tag_b: str) -> bool:
 #  and never reaches the civic gate, preventing false approvals.
 # ═════════════════════════════════════════════════════════════════════════════
 
-_VISION_PROMPT = """You are AreaPulse, a civic issue detection AI for Delhi, India.
+_VISION_PROMPT = """You are AreaPulse Vision API.
 
-A citizen uploaded this photo claiming it shows a civic problem.
+IMPORTANT:
+You are NOT a chatbot.
+You are a backend API used by a production application.
 
-── STEP 0: AI-GENERATION CHECK (run first, before anything else) ────────────
-Is this image AI-generated, computer-rendered, digitally illustrated, or synthetically
-created? This includes: Midjourney, DALL-E, Stable Diffusion, Firefly, Canva AI,
-any 3D render, digital painting, CGI, or stock photo that was clearly not taken by
-a real phone camera in the real world.
+Your response is parsed directly using Python json.loads().
 
-Signals that this is NOT a real phone photo:
-  • Unnaturally perfect or cinematic lighting on roads/streets
-  • Unusually clean or overly dramatic scene composition
-  • Textures that look painted rather than photographed (too smooth or too stylized)
-  • Unrealistic color grading (overly vivid, HDR, neon-toned)
-  • Backgrounds that look blurred/out-of-focus in a camera-bokeh style
-  • Text overlays or watermarks typical of stock photos
-  • Suspiciously high image quality inconsistent with a citizen's phone snap
+If you output ANYTHING except one valid JSON object, the request fails.
 
-If ANY of these signals are present, set is_civic_issue = false with reason
-"image appears AI-generated or non-photographic".
+DO NOT output:
+- explanations
+- reasoning
+- markdown
+- ```json
+- comments
+- notes
+- apologies
+- introductions
+- extra text
 
-── STEP 1: GATE CHECK ───────────────────────────────────────────────────────
-Only if Step 0 passed: Is this image showing a real-world civic infrastructure problem?
+The FIRST character of your response MUST be {
+The LAST character of your response MUST be }
 
-Valid civic issues: road damage, pothole, waterlogging, garbage dump, broken streetlight,
-open drain, sewage overflow, electrical hazard, fallen tree, encroachment, debris, footpath.
+Return EXACTLY ONE JSON OBJECT.
 
-NOT a civic issue: selfies, food, text screenshots, blank walls, indoor objects,
-nature landscapes (unless showing damage), AI-rendered art, cartoons, news screenshots.
 
-Set is_civic_issue = false AND confidence ≤ 45 when this is clearly not a civic issue.
-Set is_civic_issue = true  AND confidence 70-98 when it is or could plausibly be one.
+=====================================================
+TASK
+=====================================================
 
-── STEP 2: CLASSIFY ─────────────────────────────────────────────────────────
-Only if is_civic_issue = true: identify the most prominent issue.
+A citizen uploaded a photo claiming it shows a civic issue.
 
-Respond ONLY with valid JSON, no markdown, no preamble:
+STEP 0 — AI IMAGE DETECTION
+
+Determine whether the image is AI-generated, computer-rendered, digitally illustrated, CGI, synthetic, or a stock illustration.
+
+Examples:
+- Midjourney
+- DALL-E
+- Stable Diffusion
+- Firefly
+- Canva AI
+- Flux
+- Ideogram
+- Leonardo AI
+- CGI
+- 3D Render
+
+Indicators include:
+
+• unrealistic lighting
+• overly perfect textures
+• cinematic composition
+• artificial HDR colors
+• painted appearance
+• impossible geometry
+• unrealistic asphalt
+• perfectly clean scenes
+• no camera imperfections
+• unrealistic blur
+• obvious AI artifacts
+
+If AI-generated:
+
+is_civic_issue = false
+
+category = "none"
+
+severity = "none"
+
+false_report_reason =
+"image appears AI-generated or non-photographic"
+
+
+=====================================================
+STEP 1
+=====================================================
+
+If the image is a REAL photograph,
+determine whether it contains a civic issue.
+
+Allowed categories
+
+pothole
+water
+garbage
+streetlight
+traffic
+noise
+sewage
+electricity
+tree
+other
+
+If NOT a civic issue:
+
+selfie
+food
+animals
+indoor objects
+screenshots
+documents
+news
+paintings
+artwork
+blank walls
+random landscapes
+
+Return
+
+is_civic_issue = false
+
+category = "none"
+
+severity = "none"
+
+
+=====================================================
+STEP 2
+=====================================================
+
+If it IS a civic issue:
+
+Determine
+
+category
+
+severity
+
+confidence
+
+description
+
+
+=====================================================
+OUTPUT RULES
+=====================================================
+
+Return EXACTLY this schema.
+
+Do NOT rename keys.
+
+Do NOT remove keys.
+
+Do NOT add keys.
+
 {
-  "is_civic_issue":      true|false,
-  "category":            "pothole|water|garbage|streetlight|traffic|noise|sewage|electricity|tree|other|none",
-  "severity":            "low|medium|high|none",
-  "confidence":          <integer 40-98>,
-  "description":         "<one clear sentence, max 25 words>",
-  "false_report_reason": null or "<brief reason why this is NOT a civic issue, max 15 words>",
-  "source":              "groq-llama4-scout"
-}"""
+  "is_civic_issue": true,
+  "category": "pothole",
+  "severity": "medium",
+  "confidence": 91,
+  "description": "Large pothole on the main road causing traffic risk.",
+  "false_report_reason": null,
+  "source": "qwen-3.6-27b"
+}
+
+Schema
+
+{
+  "is_civic_issue": boolean,
+  "category": "pothole|water|garbage|streetlight|traffic|noise|sewage|electricity|tree|other|none",
+  "severity": "low|medium|high|none",
+  "confidence": integer,
+  "description": string,
+  "false_report_reason": string|null,
+  "source": string
+}
+
+Return ONE JSON object only.
+Nothing before it.
+Nothing after it."""
 
 
 def analyze_image(image_b64: str, mime: str = 'image/jpeg') -> dict:
@@ -262,15 +507,16 @@ def analyze_image(image_b64: str, mime: str = 'image/jpeg') -> dict:
     if not _client:
         return {'error': 'AI vision not configured. Set GROQ_API_KEY.', '_status': 'not_configured'}
     try:
-        resp = _client.chat.completions.create(
-            model=_MODEL,
-            messages=[{'role': 'user', 'content': [
+        raw = _call_groq_json(
+            content=[
                 {'type': 'image_url', 'image_url': {'url': f'data:{mime};base64,{image_b64}'}},
                 {'type': 'text', 'text': _VISION_PROMPT},
-            ]}],
-            max_tokens=400, temperature=0.2,
+            ],
+            max_tokens=600, temperature=0,
         )
-        raw    = (resp.choices[0].message.content or '').strip()
+        print("=" * 80)
+        print(raw)
+        print("=" * 80)
         parsed = _extract_json(raw)
         if not parsed:
             return {'error': 'Unparseable AI response', 'raw': raw[:200], '_status': 'parse_error'}
@@ -465,12 +711,10 @@ def classify_spam(description: str, has_photo: bool = False) -> dict:
     # ── Layer 3: Groq LLM few-shot (~400 ms) ─────────────────────────────────
     if _client:
         try:
-            resp = _client.chat.completions.create(
-                model=_MODEL,
-                messages=[{'role': 'user', 'content': _SPAM_PROMPT + text[:600]}],
-                max_tokens=80, temperature=0.1,
+            raw = _call_groq_json(
+                content=_SPAM_PROMPT + text[:600],
+                max_tokens=250, temperature=0,
             )
-            raw    = resp.choices[0].message.content.strip()
             data   = _extract_json(raw) or {}
             verdict = (data.get('verdict') or 'REAL').lower().strip()
             if verdict not in ('real', 'spam', 'abuse', 'test'):
@@ -900,15 +1144,13 @@ def detect_ai_image(image_b64: str, mime: str = 'image/jpeg', filename: str = ''
                     'Real phone photos are almost always JPEG.'
                 )
 
-            resp = _client.chat.completions.create(
-                model=_MODEL,
-                messages=[{'role': 'user', 'content': [
+            raw = _call_groq_json(
+                content=[
                     {'type': 'image_url', 'image_url': {'url': f'data:{mime};base64,{image_b64}'}},
                     {'type': 'text', 'text': _AI_IMG_PROMPT + extra},
-                ]}],
-                max_tokens=150, temperature=0.1,
+                ],
+                max_tokens=400, temperature=0,
             )
-            raw    = (resp.choices[0].message.content or '').strip()
             parsed = _extract_json(raw) or {}
             groq_is_ai = bool(parsed.get('is_ai_generated', False))
             groq_conf  = int(parsed.get('confidence', 50))
@@ -1263,15 +1505,13 @@ def check_cross_modal_consistency(
 
     try:
         prompt = _CROSS_MODAL_PROMPT.replace('{description}', description[:400])
-        resp = _client.chat.completions.create(
-            model=_MODEL,
-            messages=[{'role': 'user', 'content': [
+        raw = _call_groq_json(
+            content=[
                 {'type': 'image_url', 'image_url': {'url': f'data:{mime};base64,{image_b64}'}},
                 {'type': 'text', 'text': prompt},
-            ]}],
-            max_tokens=120, temperature=0.1,
+            ],
+            max_tokens=350, temperature=0,
         )
-        raw    = (resp.choices[0].message.content or '').strip()
         parsed = _extract_json(raw) or {}
         result = (parsed.get('result') or 'mismatch').lower()
         conf   = int(parsed.get('confidence') or 70)
@@ -1479,14 +1719,28 @@ def _reject(reason: str, action: str, checks: dict, img_hash,
 # ═════════════════════════════════════════════════════════════════════════════
 
 def _extract_json(text: str) -> Optional[dict]:
-    """Extract first valid JSON object from a string."""
+    """
+    Extract the first valid JSON object from a string.
+
+    Tolerant of reasoning-model output: strips any leaked <think>...</think>
+    trace, then falls back from a direct parse → markdown code block →
+    a brace-balanced scan (handles nested {..}/[..], unlike a naive regex).
+    """
     if not text:
         return None
+
+    # Strip reasoning traces some models leak into content even with
+    # reasoning_format='hidden' set (belt and braces — literally).
+    text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL).strip()
+    if not text:
+        return None
+
     # Try direct parse first
     try:
         return json.loads(text)
     except Exception:
         pass
+
     # Try extracting from markdown code blocks
     m = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
     if m:
@@ -1494,13 +1748,27 @@ def _extract_json(text: str) -> Optional[dict]:
             return json.loads(m.group(1))
         except Exception:
             pass
-    # Try finding any JSON-like object
-    m = re.search(r'\{[^{}]*\}', text, re.DOTALL)
-    if m:
-        try:
-            return json.loads(m.group(0))
-        except Exception:
-            pass
+
+    # Brace-balanced scan — correctly handles nested objects/arrays inside
+    # the target object (e.g. "signals": [...]), unlike the old
+    # \{[^{}]*\} regex which breaks the moment there's any nesting.
+    start = text.find('{')
+    while start != -1:
+        depth = 0
+        for i in range(start, len(text)):
+            ch = text[i]
+            if ch == '{':
+                depth += 1
+            elif ch == '}':
+                depth -= 1
+                if depth == 0:
+                    candidate = text[start:i + 1]
+                    try:
+                        return json.loads(candidate)
+                    except Exception:
+                        break
+        start = text.find('{', start + 1)
+
     return None
 
 

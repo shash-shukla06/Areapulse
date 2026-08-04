@@ -1,6 +1,6 @@
 """
 Database layer — PostgreSQL primary if DATABASE_URL set, else Firebase Firestore,
-else in-memory with seed data.
+else in-memory.
 Single interface so app.py doesn't care which is active.
 
 v3 merge changes:
@@ -12,16 +12,36 @@ v3 merge changes:
   - All existing Firebase + memory functionality preserved unchanged
 
 v2 fixes (preserved):
-  - 200+ seed issues (was 32) spread across all Delhi areas
   - 5-minute in-memory cache for Firebase reads
-  - Graceful 429 quota handling: falls back to rich memory seed
-  - _seed_firebase_if_empty() now writes even when the read check fails
-"""
-import os, time, math, json, tempfile, threading, random
+  - Graceful 429 quota handling: falls back to memory mode
 
-# ═══════════════════════════════════════════════════════
-#  POSTGRESQL (primary)
-# ═══════════════════════════════════════════════════════
+v4 fixes (this pass — see AreaPulse_Final_Database_Architecture.md):
+  - upvote_issue: SELECT ... FOR UPDATE row lock + issue_votes junction table,
+    replacing the JSONB read-modify-write that lost concurrent upvotes
+  - update_issue_status: same row lock, plus old_status now captured from the
+    actual locked row instead of being absent/implicit in the history entry
+  - Composite/partial indexes matching get_issues()'s real query shapes
+  - pg_trgm GIN index for description search (replaces need for Elasticsearch
+    at this row count)
+  - CHECK constraint on status so bad values can't land regardless of app bugs
+  - Materialized view for stats/analytics so those queries stop competing with
+    request traffic for the 2-connection pool
+  - PII-masking view (public_issues_view) for anything served to the public feed
+  - RLS intentionally NOT enabled here — Phase 6 in the architecture doc requires
+    set_system_context() wired into bulk_escalate, escalate_issue, and
+    insert_spam_issue first, or FORCE ROW LEVEL SECURITY silently turns those
+    into no-ops. Do that migration separately.
+
+v5 fixes (this pass):
+  - Image storage moved to ImageKit — issues.image_url/image_key/thumbnail_url
+    replace base64-in-Postgres for new uploads; image stays for legacy rows
+    until backfill_images_to_imagekit() migrates them
+  - Seed-data generation removed — Postgres already holds real production
+    data, so _seed_postgres_if_empty / _seed_memory / _seed_firebase_if_empty
+    and the hardcoded _SEED_ISSUES/_SEED_NGOS/_USERS lists are gone. Memory
+    and Firebase modes now start empty rather than pre-populated.
+"""
+import os, time, math, json, tempfile, threading, uuid, base64, mimetypes
 _PG_OK = False
 try:
     import psycopg
@@ -29,12 +49,6 @@ try:
     _PG_OK = True
     print('[database] psycopg + pool available')
 
-    # psycopg_pool logs each failed connection attempt (the real underlying
-    # error — auth, DNS, refused, etc.) via logging, not print(). Without a
-    # handler those warnings are silently dropped, leaving only the generic
-    # "PoolTimeout: couldn't get a connection after N sec" wrapper visible.
-    # WARNING, not INFO — psycopg_pool logs every routine checkout/checkin
-    # at INFO, which would spam every DB-touching request forever.
     import logging as _logging
     _pool_logger = _logging.getLogger("psycopg.pool")
     _pool_logger.setLevel(_logging.WARNING)
@@ -44,12 +58,72 @@ try:
 except ImportError:
     print('[database] psycopg not installed — Postgres unavailable')
 
+_IK_OK = False
+try:
+    from imagekitio import ImageKit
+    _IK_OK = True
+    print('[database] imagekitio available')
+except ImportError:
+    print('[database] imagekitio not installed — ImageKit upload unavailable')
 
-# ═══════════════════════════════════════════════════════
-#  AREA COORDINATES + SLA CONSTANTS
-#  Moved to domain/constants.py (Phase 3).
-#  Re-exported here so existing callers (app.py, templates) keep working.
-# ═══════════════════════════════════════════════════════
+_IK_PRIVATE_KEY = os.environ.get('IMAGEKIT_PRIVATE_KEY', '').strip()
+_ik_client = None
+
+
+def _get_imagekit_client():
+    global _ik_client
+    if _ik_client is not None:
+        return _ik_client
+    if not (_IK_OK and _IK_PRIVATE_KEY):
+        return None
+    _ik_client = ImageKit(private_key=_IK_PRIVATE_KEY)
+    return _ik_client
+
+
+def _build_image_folder(prefix):
+    now = time.gmtime()
+    return f"/{prefix}/{now.tm_year:04d}/{now.tm_mon:02d}"
+
+
+def _build_image_filename(ext):
+    ext = ext.lstrip('.') or 'jpg'
+    return f"{uuid.uuid4().hex}.{ext}"
+
+
+def upload_image_to_imagekit(image_bytes, content_type='image/jpeg', prefix='issues'):
+    client = _get_imagekit_client()
+    if client is None or not image_bytes:
+        return None, None, None
+    ext = (mimetypes.guess_extension(content_type) or '.jpg')
+    if ext == '.jpe':
+        ext = '.jpg'
+    file_name = _build_image_filename(ext)
+    folder = _build_image_folder(prefix)
+    try:
+        response = client.files.upload(
+            file=image_bytes,
+            file_name=file_name,
+            folder=folder,
+            use_unique_file_name=False,
+        )
+        return response.file_id, response.url, response.thumbnail_url
+    except Exception as e:
+        print(f'[database] ImageKit upload failed: {e}')
+        return None, None, None
+
+
+def delete_image_from_imagekit(file_id):
+    client = _get_imagekit_client()
+    if client is None or not file_id:
+        return False
+    try:
+        client.files.delete(file_id)
+        return True
+    except Exception as e:
+        print(f'[database] ImageKit delete failed: {e}')
+        return False
+
+
 from domain.constants import (
     AREA_COORDS,
     SLA_HOURS,
@@ -80,9 +154,8 @@ _cache = {
     'issues':    None,
     'issues_ts': 0.0,
 }
-_CACHE_TTL = 300  # 5 minutes
+_CACHE_TTL = 300 
 
-# ── FALLBACK CACHE ─────────────────────────────────────
 _fallback = {
     'issues': [],
     'ts':     0.0,
@@ -165,12 +238,6 @@ def init_db():
                         _cur.fetchone()
                 _state['mode'] = 'postgres'
                 print(f'[database] Postgres connected (primary, attempt {attempt}/{pg_attempts})')
-                _seed_postgres_if_empty()
-                if not _state.get('issues'):
-                    try:
-                        _seed_memory()
-                    except Exception:
-                        pass
                 return
             except Exception as e:
                 if _state.get('pg_pool'):
@@ -207,11 +274,9 @@ def init_db():
         _state['fs_db'] = firestore.client()
         _state['mode'] = 'firebase'
         print('[database] Firebase connected')
-        _seed_firebase_if_empty()
     except Exception as e:
         print(f'[database] Firebase unavailable ({type(e).__name__}), using in-memory mode')
         _state['mode'] = 'memory'
-        _seed_memory()
 
 
 # ═══════════════════════════════════════════════════════
@@ -292,6 +357,12 @@ def _ensure_pg_schema(conn):
     ALTER TABLE ngos   ADD COLUMN IF NOT EXISTS rating          REAL;
     ALTER TABLE ngos   ADD COLUMN IF NOT EXISTS area            TEXT;
     ALTER TABLE issues ADD COLUMN IF NOT EXISTS image_hash      TEXT;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS image_url       TEXT;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS image_key       TEXT;
+    ALTER TABLE issues ADD COLUMN IF NOT EXISTS thumbnail_url   TEXT;
+    ALTER TABLE spam_issues ADD COLUMN IF NOT EXISTS image_url  TEXT;
+    ALTER TABLE spam_issues ADD COLUMN IF NOT EXISTS image_key  TEXT;
+    ALTER TABLE spam_issues ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
     ALTER TABLE issues ADD COLUMN IF NOT EXISTS status_history  JSONB DEFAULT '[]'::jsonb;
     ALTER TABLE issues ADD COLUMN IF NOT EXISTS escalation_reason TEXT;
     ALTER TABLE issues ADD COLUMN IF NOT EXISTS escalated_at    DOUBLE PRECISION;
@@ -371,6 +442,70 @@ def _ensure_pg_schema(conn):
     -- so existing seed data is not disturbed.
     CREATE SEQUENCE IF NOT EXISTS issues_id_seq;
     ALTER TABLE issues ALTER COLUMN id SET DEFAULT nextval('issues_id_seq');
+
+    -- ═══════════════════════════════════════════════════════
+    -- v4: junction table for upvotes (replaces JSONB read-modify-write).
+    -- PK on (issue_id, user_name) makes double-voting impossible at the
+    -- database layer — no app-level "already in the list?" check needed,
+    -- and no lost updates when two upvotes for the same issue land at once.
+    -- ═══════════════════════════════════════════════════════
+    CREATE TABLE IF NOT EXISTS issue_votes (
+        issue_id    BIGINT NOT NULL REFERENCES issues(id) ON DELETE CASCADE,
+        user_name   TEXT NOT NULL,
+        voted_at    DOUBLE PRECISION DEFAULT EXTRACT(EPOCH FROM NOW()),
+        PRIMARY KEY (issue_id, user_name)
+    );
+    CREATE INDEX IF NOT EXISTS idx_issue_votes_issue ON issue_votes(issue_id);
+
+    -- v4: CHECK constraint on status — bad data can't land regardless of
+    -- app-layer bugs. Wrapped in a DO block since Postgres has no
+    -- ADD CONSTRAINT IF NOT EXISTS.
+    DO $$
+    BEGIN
+        IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint WHERE conname = 'chk_issues_status'
+        ) THEN
+            ALTER TABLE issues ADD CONSTRAINT chk_issues_status
+                CHECK (status IN ('open','acknowledged','in_progress','resolved','escalated'));
+        END IF;
+    END $$;
+
+    -- v4: composite/partial indexes matching get_issues()'s real query shapes
+    -- (tag+status together, and the common "not resolved" filter used by
+    -- get_issues_for_gov / SLA scans).
+    CREATE INDEX IF NOT EXISTS idx_issues_tag_status_time
+        ON issues(tag, status, timestamp DESC);
+    CREATE INDEX IF NOT EXISTS idx_issues_active_time
+        ON issues(timestamp DESC) WHERE status != 'resolved';
+
+    -- v4: trigram search — replaces need for Elasticsearch at this row count.
+    CREATE EXTENSION IF NOT EXISTS pg_trgm;
+    CREATE INDEX IF NOT EXISTS idx_issues_description_trgm
+        ON issues USING GIN (description gin_trgm_ops);
+
+    -- v4: PII-masking view — anything serving the public feed should select
+    -- from this, not from issues directly, so `contact` never leaks.
+    CREATE OR REPLACE VIEW public_issues_view AS
+    SELECT id, user_name, area, description, severity, tag, status,
+           lat, lng, landmark, image_hash, timestamp, upvotes,
+           verified, escalated, resolved, is_verified, is_escalated,
+           escalation_reason, escalated_at, resolved_at, assigned_to,
+           ai_confidence, verified_by, last_updated_at, last_updated_by
+    FROM issues;
+
+    -- v4: materialized view for stats/analytics so those queries stop
+    -- competing with request traffic for the 2-connection pool. Refresh
+    -- lazily via refresh_stats_if_stale() below, not on every read.
+    CREATE MATERIALIZED VIEW IF NOT EXISTS issue_stats_mv AS
+    SELECT tag,
+           status,
+           COUNT(*)                                   AS issue_count,
+           AVG(upvotes)::NUMERIC(10,2)                 AS avg_upvotes,
+           MAX(timestamp)                              AS latest_timestamp
+    FROM issues
+    GROUP BY tag, status;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_issue_stats_mv_key
+        ON issue_stats_mv(tag, status);
     """
     with conn.cursor() as cur:
         cur.execute(ddl)
@@ -387,7 +522,8 @@ def _pg_row_to_issue(row):
         # Positional fallback — matches _ISSUE_COLS order (no image column)
         keys = [
             'id','user_name','area','description','severity','tag','status',
-            'lat','lng','landmark','contact','image_hash','timestamp',
+            'lat','lng','landmark','contact','image_hash','image_url','image_key',
+            'thumbnail_url','timestamp',
             'upvotes','verified','escalated','resolved',
             'is_verified','is_escalated','status_history',
             'escalation_reason','escalated_at','resolved_at','assigned_to',
@@ -435,87 +571,6 @@ def _pg_next_id(conn, table):
         return cur.fetchone()[0]
 
 
-def _seed_postgres_if_empty():
-    """Seed Postgres with sample data if issues table is empty."""
-    try:
-        with _state['pg_pool'].connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM issues")
-                count = cur.fetchone()[0]
-                if count > 0:
-                    print(f'[database] Postgres already has {count} issues, skipping seed')
-                    return
-    except Exception as e:
-        print(f'[database] Could not check Postgres emptiness: {e}')
-        return
-
-    # Import seed data and insert
-    try:
-        now = time.time()
-        issue_rows = []
-        for idx, (area, tag, sev, desc) in enumerate(_SEED_ISSUES):
-            lat, lng = AREA_COORDS.get(area, (28.6139, 77.2090))
-            lat += (idx % 9 - 4) * 0.0018
-            lng += ((idx // 9) % 9 - 4) * 0.0018
-            age_hours = (idx * 2.3) % (24 * 25)
-            issue_id = idx + 1
-            issue_rows.append((
-                issue_id, _USERS[idx % len(_USERS)], area, desc, sev, tag,
-                'resolved' if idx % 9 == 0 else ('escalated' if idx % 11 == 0 else 'open'),
-                round(lat, 6), round(lng, 6), '', '', None, None,
-                now - (age_hours * 3600), (idx * 7) % 20,
-                False, idx % 11 == 0, idx % 9 == 0,
-                False, idx % 11 == 0, '[]',
-                None, None, None, None, None, None,
-            ))
-
-        ngo_rows = []
-        for idx, (name, focus, tag, rating, area, phone, email) in enumerate(_SEED_NGOS):
-            lat, lng = AREA_COORDS.get(area, (28.6139, 77.2090))
-            ngo_rows.append((
-                idx + 1, name, focus, tag, float(rating), area, phone, email,
-                lat + 0.005, lng + 0.005, (idx * 3) % 25 + 5,
-            ))
-
-        with _state['pg_pool'].connection() as conn:
-            with conn.cursor() as cur:
-                cur.executemany(
-                    """INSERT INTO issues
-                        (id, user_name, area, description, severity, tag, status,
-                         lat, lng, landmark, contact, image, image_hash, timestamp,
-                         upvotes, verified, escalated, resolved,
-                         is_verified, is_escalated, status_history,
-                         escalation_reason, escalated_at, resolved_at,
-                         assigned_to, ai_confidence, verified_by)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s,
-                               %s, %s, %s, %s, %s, %s, %s,
-                               %s, %s, %s, %s,
-                               %s, %s, %s,
-                               %s, %s, %s,
-                               %s, %s, %s)
-                       ON CONFLICT (id) DO NOTHING""",
-                    issue_rows,
-                )
-                cur.executemany(
-                    """INSERT INTO ngos
-                        (id, name, focus, tag, rating, area, phone, email, lat, lng, issues_resolved)
-                       VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                       ON CONFLICT (id) DO NOTHING""",
-                    ngo_rows,
-                )
-                # CRITICAL: bump the id sequence past the highest seeded id so the
-                # next real citizen insert (which uses nextval) doesn't collide with
-                # an existing seeded row (that would fail the insert → #AP-null).
-                cur.execute(
-                    "SELECT setval('issues_id_seq', "
-                    "GREATEST((SELECT COALESCE(MAX(id),0) FROM issues), 1), true)"
-                )
-            conn.commit()
-        print(f'[database] Postgres seeded with {len(issue_rows)} issues, {len(ngo_rows)} NGOs')
-    except Exception as e:
-        print(f'[database] Postgres seed failed: {e}')
-
-
 # ═══════════════════════════════════════════════════════
 #  GETTERS
 # ═══════════════════════════════════════════════════════
@@ -528,11 +583,12 @@ def get_areas():
 # know which cards have a photo without fetching the blob.
 _ISSUE_COLS = (
     "id, user_name, area, description, severity, tag, status, "
-    "lat, lng, landmark, contact, image_hash, timestamp, upvotes, "
+    "lat, lng, landmark, contact, image_hash, image_url, image_key, thumbnail_url, "
+    "timestamp, upvotes, "
     "verified, escalated, resolved, is_verified, is_escalated, status_history, "
     "escalation_reason, escalated_at, resolved_at, assigned_to, ai_confidence, "
     "verified_by, upvoters, last_updated_at, last_updated_by, "
-    "(image IS NOT NULL AND image != '') AS has_image"
+    "(image_url IS NOT NULL OR (image IS NOT NULL AND image != '')) AS has_image"
 )
 
 
@@ -541,7 +597,8 @@ def get_issues(tag=None, status=None, limit=300):
     # ── Postgres ───────────────────────────────────────
     if _state['mode'] == 'postgres':
         last_error = None
-        for attempt in range(1):
+        pg_read_attempts = 2
+        for attempt in range(pg_read_attempts):
             try:
                 with _state['pg_pool'].connection() as conn:
                     with conn.cursor() as cur:
@@ -579,11 +636,11 @@ def get_issues(tag=None, status=None, limit=300):
                         return out
             except psycopg.Error as e:
                 last_error = e
-                print(f'[database] get_issues attempt {attempt+1}/1 failed: {type(e).__name__}: {e}')
-                if attempt == 0:
+                print(f'[database] get_issues attempt {attempt+1}/{pg_read_attempts} failed: {type(e).__name__}: {e}')
+                if attempt < pg_read_attempts - 1:
                     time.sleep(0.5)
                     continue
-        print(f'[database] get_issues failed after retry: {last_error}')
+        print(f'[database] get_issues failed after {pg_read_attempts} attempts: {last_error}')
         fb = _fallback['issues'] or list(_state.get('issues') or [])
         if fb:
             age = int(time.time() - _fallback['ts']) if _fallback['issues'] else -1
@@ -621,7 +678,7 @@ def get_issues(tag=None, status=None, limit=300):
         if status: results = [i for i in results if (i.get('status') or 'open') == status]
         return results[:limit]
 
-    # ── Pure memory mode ───────────────────────────────
+
     results = list(_state['issues'])
     if tag:    results = [i for i in results if i.get('tag') == tag]
     if status: results = [i for i in results if (i.get('status') or 'open') == status]
@@ -737,7 +794,7 @@ def get_recent_reports(hours: int = 24) -> list:
         except Exception as e:
             print(f'[database] get_recent_reports Postgres failed: {e}')
 
-    # Fallback for firebase + memory (uses get_issues which is cached)
+  
     issues = get_issues(limit=500)
     return [
         {
@@ -753,31 +810,139 @@ def get_recent_reports(hours: int = 24) -> list:
     ]
 
 
+def refresh_stats_if_stale(max_age_seconds: int = 300) -> bool:
+    """
+    Refresh issue_stats_mv if it's older than max_age_seconds.
+    Call this from the stats/analytics endpoint, not on every request —
+    that's the whole point of the materialized view. Returns True if a
+    refresh actually ran.
+    CONCURRENTLY requires the unique index created in _ensure_pg_schema
+    and avoids locking the view against concurrent reads.
+    """
+    if _state['mode'] != 'postgres':
+        return False
+    try:
+        with _state['pg_pool'].connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("""
+                    SELECT EXTRACT(EPOCH FROM NOW()) - COALESCE(
+                        (SELECT MAX(latest_timestamp) FROM issue_stats_mv), 0
+                    )
+                """)
+                age = cur.fetchone()[0]
+                if age is None or age < max_age_seconds:
+                    return False
+                cur.execute("REFRESH MATERIALIZED VIEW CONCURRENTLY issue_stats_mv")
+            conn.commit()
+        return True
+    except Exception as e:
+        print(f'[database] refresh_stats_if_stale failed: {e}')
+        return False
+
+
+def backfill_images_to_imagekit(batch_size=25):
+    if _state['mode'] != 'postgres':
+        return {'migrated': 0, 'failed': 0}
+
+    migrated = 0
+    failed = 0
+    try:
+        with _state['pg_pool'].connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT id, image FROM issues "
+                    "WHERE image IS NOT NULL AND image != '' AND image_url IS NULL "
+                    "LIMIT %s",
+                    (batch_size,),
+                )
+                rows = cur.fetchall()
+    except Exception as e:
+        print(f'[database] backfill_images_to_imagekit query failed: {e}')
+        return {'migrated': 0, 'failed': 0}
+
+    for issue_id, b64_image in rows:
+        try:
+            raw = base64.b64decode(b64_image.split(',')[-1])
+            image_key, image_url, thumbnail_url = upload_image_to_imagekit(
+                raw, content_type='image/jpeg', prefix='issues'
+            )
+            if not image_url:
+                failed += 1
+                continue
+            with _state['pg_pool'].connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "UPDATE issues SET image_url = %s, image_key = %s, "
+                        "thumbnail_url = %s, image = NULL WHERE id = %s",
+                        (image_url, image_key, thumbnail_url, issue_id),
+                    )
+                conn.commit()
+            migrated += 1
+        except Exception as e:
+            print(f'[database] backfill_images_to_imagekit failed for issue {issue_id}: {e}')
+            failed += 1
+
+    if migrated or failed:
+        _invalidate_cache()
+    return {'migrated': migrated, 'failed': failed}
+
+
+def delete_issue_image(issue_id):
+    if _state['mode'] != 'postgres':
+        return False
+    try:
+        with _state['pg_pool'].connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT image_key FROM issues WHERE id = %s", (issue_id,))
+                row = cur.fetchone()
+                image_key = row[0] if row else None
+                if not image_key:
+                    return False
+                cur.execute(
+                    "UPDATE issues SET image_url = NULL, image_key = NULL, "
+                    "thumbnail_url = NULL WHERE id = %s",
+                    (issue_id,),
+                )
+            conn.commit()
+        return delete_image_from_imagekit(image_key)
+    except Exception as e:
+        print(f'[database] delete_issue_image failed: {e}')
+        return False
+
+
 # ═══════════════════════════════════════════════════════
 #  WRITERS
 # ═══════════════════════════════════════════════════════
 def insert_issue(user, area, description, severity, tag,
                  landmark='', contact='', lat=None, lng=None, image=None,
-                 image_hash=None):
-    # For Firebase and memory modes we still need a pre-assigned ID so we can
-    # build the in-memory record dict before writing.  For Postgres we let the
-    # database assign the ID atomically via the sequence (Phase 0 Fix 4).
+                 image_hash=None, image_bytes=None, image_content_type='image/jpeg'):
     ts = time.time()
 
     _invalidate_cache()
 
-    # ── Postgres: let the sequence assign the ID atomically (RETURNING id) ───
+    image_url = None
+    image_key = None
+    thumbnail_url = None
+    if image_bytes:
+        image_key, image_url, thumbnail_url = upload_image_to_imagekit(
+            image_bytes, content_type=image_content_type, prefix='issues'
+        )
+
     if _state['mode'] == 'postgres':
         insert_sql = """INSERT INTO issues
                             (user_name, area, description, severity, tag, status,
-                             lat, lng, landmark, contact, image, image_hash, timestamp,
+                             lat, lng, landmark, contact, image, image_hash,
+                             image_url, image_key, thumbnail_url, timestamp,
                              upvotes, verified, escalated, resolved)
                            VALUES (%s, %s, %s, %s, %s, %s,
-                                   %s, %s, %s, %s, %s, %s, %s,
+                                   %s, %s, %s, %s, %s, %s,
+                                   %s, %s, %s, %s,
                                    %s, %s, %s, %s)
                            RETURNING id"""
         params = (user, area, description, severity, tag, 'open',
-                  lat, lng, landmark, contact, image, image_hash, ts,
+                  lat, lng, landmark, contact,
+                  (image if not image_url else None), image_hash,
+                  image_url, image_key, thumbnail_url, ts,
                   0, False, False, False)
 
         def _resync_and_retry(trigger: str):
@@ -830,8 +995,11 @@ def insert_issue(user, area, description, severity, tag,
         'id': issue_id, 'user': user, 'area': area,
         'description': description, 'severity': severity, 'tag': tag,
         'status': 'open', 'landmark': landmark, 'contact': contact,
-        'lat': lat, 'lng': lng, 'image': image,
+        'lat': lat, 'lng': lng,
+        'image': (image if not image_url else None),
         'image_hash': image_hash,
+        'image_url': image_url, 'image_key': image_key,
+        'thumbnail_url': thumbnail_url,
         'timestamp': ts, 'upvotes': 0,
         'verified': False, 'escalated': False, 'resolved': False,
     }
@@ -849,45 +1017,67 @@ def insert_issue(user, area, description, severity, tag,
 
 
 def upvote_issue(issue_id, user):
-    upvoters = _state['upvoters'].setdefault(issue_id, set())
+    """
+    v4 fix: was a JSONB read-modify-write — two concurrent upvotes for the
+    same issue could both read the same `upvoters` array, both append/remove,
+    and whichever UPDATE committed last silently overwrote the other's vote
+    (classic lost update, invisible under low load, guaranteed under any
+    real concurrency).
+
+    Fixed with a junction table (`issue_votes`) whose primary key on
+    (issue_id, user_name) makes double-voting impossible at the database
+    layer, plus `SELECT ... FOR UPDATE` on the issues row so the toggle
+    check-then-act (already voted? remove : add) and the upvotes counter
+    update happen inside one serialized transaction. No app-level "is user
+    already in the list" check is needed or trusted anymore — the database
+    enforces it.
+    """
     _invalidate_cache()
 
     if _state['mode'] == 'postgres':
         try:
             with _state['pg_pool'].connection() as conn:
                 with conn.cursor() as cur:
-                    # Read current upvoters
-                    cur.execute(
-                        "SELECT upvoters FROM issues WHERE id = %s",
-                        (issue_id,),
-                    )
-                    row = cur.fetchone()
-                    if not row:
+                    # Lock the issues row first so the whole toggle+count is
+                    # serialized against any other upvote/status update on
+                    # this same issue.
+                    cur.execute("SELECT id FROM issues WHERE id = %s FOR UPDATE", (issue_id,))
+                    if cur.fetchone() is None:
                         return 'not_found'
-                    current_upvoters = row[0] or []
-                    if isinstance(current_upvoters, str):
-                        try:
-                            current_upvoters = json.loads(current_upvoters)
-                        except Exception:
-                            current_upvoters = []
-                    if not isinstance(current_upvoters, list):
-                        current_upvoters = []
 
-                    if user in current_upvoters:
-                        current_upvoters.remove(user)
+                    cur.execute(
+                        "SELECT 1 FROM issue_votes WHERE issue_id = %s AND user_name = %s",
+                        (issue_id, user),
+                    )
+                    already_voted = cur.fetchone() is not None
+
+                    if already_voted:
+                        cur.execute(
+                            "DELETE FROM issue_votes WHERE issue_id = %s AND user_name = %s",
+                            (issue_id, user),
+                        )
                         action = 'removed'
                     else:
-                        current_upvoters.append(user)
+                        cur.execute(
+                            "INSERT INTO issue_votes (issue_id, user_name) VALUES (%s, %s) "
+                            "ON CONFLICT (issue_id, user_name) DO NOTHING",
+                            (issue_id, user),
+                        )
                         action = 'added'
 
+                    # Recompute the cached counter from the source of truth
+                    # (the junction table) rather than incrementing blindly.
                     cur.execute(
-                    "UPDATE issues SET upvoters = %s, upvotes = GREATEST(0, upvotes + %s) WHERE id = %s",
-                    (json.dumps(current_upvoters), 1 if action == 'added' else -1, issue_id),
+                        """UPDATE issues SET upvotes = (
+                               SELECT COUNT(*) FROM issue_votes WHERE issue_id = %s
+                           ) WHERE id = %s""",
+                        (issue_id, issue_id),
                     )
                 conn.commit()
                 return action
         except Exception as e:
             print(f'[database] Postgres upvote failed: {e}')
+            return 'error'
 
     if _state['mode'] == 'firebase':
         try:
@@ -906,6 +1096,7 @@ def upvote_issue(issue_id, user):
         except Exception as e:
             print(f'[database] Firestore upvote failed: {e}')
 
+    upvoters = _state['upvoters'].setdefault(issue_id, set())
     for i in _state['issues']:
         if int(i.get('id', -1)) == int(issue_id):
             if user in upvoters:
@@ -951,316 +1142,6 @@ def _haversine(lat1, lng1, lat2, lng2):
     return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1-a))
 
 
-# ═══════════════════════════════════════════════════════
-#  SEED DATA  — 200 issues across all Delhi areas
-# ═══════════════════════════════════════════════════════
-# Format: (area, tag, severity, description)
-_SEED_ISSUES = [
-    # ── POTHOLES ──────────────────────────────────────────────────
-    ('Rohini',          'pothole','high',   'Large pothole on Sector 7 main road, multiple bike accidents reported this week'),
-    ('Karol Bagh',      'pothole','high',   'Deep crater near metro station exit, vehicles swerving dangerously'),
-    ('Dwarka',          'pothole','medium', 'Multiple potholes on Sector 10 internal road after monsoon'),
-    ('Pitampura',       'pothole','medium', 'Potholes near community centre causing daily traffic jams'),
-    ('Model Town',      'pothole','high',   'Deep pothole on E Block road, car suspension damaged last night'),
-    ('Mayur Vihar',     'pothole','medium', 'Phase 1 Extension road full of potholes, auto-rickshaws refusing route'),
-    ('Lajpat Nagar',    'pothole','low',    'Small potholes appearing near Central Market, needs preventive repair'),
-    ('Greater Kailash', 'pothole','low',    'M-Block market road needs resurfacing, potholes worsening'),
-    ('Nehru Place',     'pothole','medium', 'Potholes near IT park entrance, heavy vehicle damage'),
-    ('Janakpuri',       'pothole','high',   'Pothole-ridden road in C Block, school bus nearly overturned'),
-    ('Saket',           'pothole','medium', 'Select City Walk access road pothole causing traffic backlog'),
-    ('Vasant Kunj',     'pothole','low',    'Aruna Asaf Ali Marg developing potholes near mall'),
-    ('Rajouri Garden',  'pothole','high',   'Main metro feeder road completely broken, emergency needed'),
-    ('Punjabi Bagh',    'pothole','medium', 'West Avenue Road potholes accumulating near park'),
-    ('Okhla',           'pothole','high',   'Industrial area road dangerous for trucks, pothole 2 feet deep'),
-    ('Kalkaji',         'pothole','medium', 'Near Kalkaji Mandir, road surface broken after recent digging'),
-    ('Chandni Chowk',   'pothole','medium', 'Naya Bazar road pothole causing rickshaw accidents daily'),
-    ('Paharganj',       'pothole','high',   'Main Bazaar road pothole, tourist complaints rising'),
-    ('Civil Lines',     'pothole','low',    'Flagstaff Road developing potholes near ITO'),
-    ('Shahdara',        'pothole','medium', 'GT Road pothole cluster near Shahdara metro, peak-hour danger'),
-    # ── WATER ─────────────────────────────────────────────────────
-    ('Dwarka',          'water', 'high',   'Major water pipe burst flooding Sector 5 road, supply cut for 3 days'),
-    ('Janakpuri',       'water', 'medium', 'No water supply in C Block for 3 days, tanker request ignored'),
-    ('Civil Lines',     'water', 'medium', 'Water seepage from main road tap near ISBT, wastage for 2 weeks'),
-    ('Defence Colony',  'water', 'medium', 'Brown water from taps in C Block, possible contamination'),
-    ('Rohini',          'water', 'high',   'Underground pipe burst in Sector 15, road collapsing into sinkhole'),
-    ('Mehrauli',        'water', 'medium', 'Water supply only 30 minutes daily, residents using tankers'),
-    ('Karol Bagh',      'water', 'low',    'Slow water pressure in DDA flats, top floors getting no supply'),
-    ('Hauz Khas',       'water', 'high',   'Water contamination complaint, yellowish supply since yesterday'),
-    ('Pitampura',       'water', 'medium', 'Water meter reading incorrect, bill tripled this month'),
-    ('Preet Vihar',     'water', 'high',   'Pipeline burst near market, 500 families without water 24 hours'),
-    ('Vasant Vihar',    'water', 'low',    'Overhead tank overflow wasting hundreds of litres daily'),
-    ('Model Town',      'water', 'medium', 'Water timing changed without notice, residents miss supply window'),
-    ('Sarojini Nagar',  'water', 'high',   'Old colonial pipe burst, massive waterlogging near market'),
-    ('Laxmi Nagar',     'water', 'medium', 'Water supply contaminated after nearby construction'),
-    ('Patel Nagar',     'water', 'medium', 'No supply alternate days, official schedule not followed'),
-    # ── GARBAGE ───────────────────────────────────────────────────
-    ('Karol Bagh',      'garbage','medium', 'Overflowing dustbin near Ajmal Khan Road metro entrance, 3 days'),
-    ('Mehrauli',        'garbage','high',   'Illegal garbage dump near heritage zone growing daily'),
-    ('Shahdara',        'garbage','high',   'MCD garbage truck not visiting sector for over a week'),
-    ('Connaught Place', 'garbage','medium', 'Litter accumulation around inner circle benches and gardens'),
-    ('Nizamuddin',      'garbage','medium', 'Construction debris dumped illegally on Mathura Road service lane'),
-    ('Lajpat Nagar',    'garbage','high',   'Garbage pile near Central Market, causing stench and flies'),
-    ('Okhla',           'garbage','high',   'Industrial waste dumped in residential area, health hazard'),
-    ('Dwarka',          'garbage','medium', 'Sector 12 park dustbin overflowing, not cleared in 5 days'),
-    ('Rohini',          'garbage','medium', 'Sector 7 market garbage not collected, vendor complaints'),
-    ('Mukherjee Nagar', 'garbage','medium', 'Student hostel area overflowing bins, disease risk rising'),
-    ('Saket',           'garbage','low',    'Mall area garbage not cleared on Sundays, stench complaint'),
-    ('RK Puram',        'garbage','high',   'Community park used as garbage dump at night by nearby shops'),
-    ('Vasant Kunj',     'garbage','medium', 'DLF area garbage timing issue, bins full before truck comes'),
-    ('Kashmere Gate',   'garbage','high',   'Old Delhi wholesale market area garbage crisis, rodent sighting'),
-    ('Kalkaji',         'garbage','medium', 'Temple area garbage accumulation on festival days'),
-    # ── STREETLIGHT ───────────────────────────────────────────────
-    ('Lajpat Nagar',    'streetlight','low',    'Broken streetlight outside Central Market gate 3, existing since 2 weeks'),
-    ('Hauz Khas',       'streetlight','medium', 'Village road unlit at night, incidents increasing'),
-    ('Vasant Kunj',     'streetlight','medium', 'Five streetlights out on Nelson Mandela Road stretch'),
-    ('Sarojini Nagar',  'streetlight','medium', 'Market area dark after sunset, safety concern for women'),
-    ('Pitampura',       'streetlight','low',    'Solar light near park with dead battery, no maintenance'),
-    ('Rajouri Garden',  'streetlight','low',    'Street light flickering near metro pillar 405'),
-    ('INA',             'streetlight','medium', 'Underpass lights out for 2 months, accident reported'),
-    ('Mayur Vihar',     'streetlight','high',   'Entire Phase 3 road unlit, women attacked last week'),
-    ('Mukherjee Nagar', 'streetlight','medium', 'Coaching area unsafe at night, 4 lights non-functional'),
-    ('Mehrauli',        'streetlight','medium', 'Qutub area approach road dark at night'),
-    ('Civil Lines',     'streetlight','low',    'Parks Magistrate lane poorly lit, jogger safety concern'),
-    ('Lodhi Colony',    'streetlight','medium', 'Garden approach road pitch dark after 9pm'),
-    ('Nizamuddin',      'streetlight','low',    'Dargah approach lane completely unlit'),
-    ('Shahdara',        'streetlight','medium', 'Bus stand area dark, antisocial elements gathering'),
-    ('Preet Vihar',     'streetlight','high',   'Metro feeder road dark, two snatching incidents this week'),
-    # ── TRAFFIC ───────────────────────────────────────────────────
-    ('Chandni Chowk',   'traffic','medium', 'Traffic signal malfunctioning at Lal Quila intersection since Monday'),
-    ('Preet Vihar',     'traffic','medium', 'Signal timer too short on Ring Road junction, 2km jams nightly'),
-    ('Connaught Place', 'traffic','high',   'Illegal parking on inner circle blocking emergency vehicle lane'),
-    ('Dwarka',          'traffic','medium', 'Sector 9 market encroachment reducing road to single lane'),
-    ('Hauz Khas',       'traffic','high',   'Village road completely blocked by pub-goers parking'),
-    ('Rohini',          'traffic','medium', 'Sector 3 school zone no speed breakers, children at risk'),
-    ('Kashmere Gate',   'traffic','high',   'Bus terminal overflowing, blocking main GT Karnal Road'),
-    ('Okhla',           'traffic','medium', 'Industrial area truck movement blocking residential access'),
-    ('Laxmi Nagar',     'traffic','medium', 'Vikas Marg encroachment by vegetable market every morning'),
-    ('Janakpuri',       'traffic','high',   'Signal at B1-B2 junction broken for 4 days, accidents'),
-    ('Model Town',      'traffic','medium', 'Sabzi Mandi market vehicles blocking entire stretch 7-11am'),
-    ('Pitampura',       'traffic','low',    'Speed breaker removed during road work, not replaced'),
-    ('RK Puram',        'traffic','medium', 'Sector 4 crossroads no traffic police during peak hour'),
-    # ── SEWAGE ────────────────────────────────────────────────────
-    ('Saket',           'sewage', 'high',   'Sewage overflow near NSP housing complex, foul smell unbearable'),
-    ('Kashmere Gate',   'sewage', 'high',   'Open manhole on busy road near bus stand, no warning signs'),
-    ('Malviya Nagar',   'sewage', 'medium', 'Drain blocked behind District Court, flooding during rain'),
-    ('Mehrauli',        'sewage', 'high',   'Sewage seeping from Mehrauli drain into residential lanes'),
-    ('Okhla',           'sewage', 'high',   'Industrial effluent mixing with residential sewage drain'),
-    ('Shahdara',        'sewage', 'high',   'Main sewer collapsed under road near market, 50m exposure'),
-    ('Rohini',          'sewage', 'medium', 'Drainage blocked in Sector 11 colony after heavy rain'),
-    ('Laxmi Nagar',     'sewage', 'high',   'Sewage overflow entering ground floor homes in B Block'),
-    ('Chandni Chowk',   'sewage', 'high',   'Old sewer collapsed near Kinari Bazaar, health emergency'),
-    ('Preet Vihar',     'sewage','medium', 'Drain cover broken near school, open sewage gap'),
-    ('Patel Nagar',     'sewage','medium', 'Drainage not cleaned for months, mosquito breeding'),
-    ('Vasant Kunj',     'sewage','high',   'DLF Promenade back drain overflowing after last night rain'),
-    ('Janakpuri',       'sewage','medium', 'Colony drain blocked by tree roots, backing up in basement'),
-    ('Kalkaji',         'sewage','high',   'Sewage mixing with drinking water supply, urgent fix needed'),
-    # ── ELECTRICITY ───────────────────────────────────────────────
-    ('Hauz Khas',       'electricity','medium', 'Frequent power outages in SDA, transformer humming loudly'),
-    ('Laxmi Nagar',     'electricity','medium', 'Exposed live wires at chest height near market entrance'),
-    ('Patel Nagar',     'electricity','high',   'Daily 4-hour power cuts disrupting work-from-home'),
-    ('INA',             'electricity','low',    'Generator running 24/7 near residential building, noise + fumes'),
-    ('Defence Colony',  'electricity','medium', 'Electricity bill tripled, meter not checked in 6 months'),
-    ('Dwarka',          'electricity','high',   'Transformer tripped, Sector 6 without power 20+ hours'),
-    ('Mukherjee Nagar', 'electricity','medium', 'Power fluctuation damaging electronics, 3 inverters blown'),
-    ('Rohini',          'electricity','medium', 'New connection pending 4 months despite payment'),
-    ('Pitampura',       'electricity','high',   'Live wire hanging from pole after storm, sparking on tree'),
-    ('Sarojini Nagar',  'electricity','medium', 'Market area power cuts exactly 6-10pm daily for 2 weeks'),
-    ('Vasant Vihar',    'electricity','low',    'Electric meter reading appears incorrect, abnormal bill'),
-    ('Lodhi Colony',    'electricity','medium', 'Substation issue causing repeated outages in south block'),
-    ('Chandni Chowk',   'electricity','high',   'Open electrical box near school gate, children at risk'),
-    ('Nizamuddin',      'electricity','medium', 'Cable fault since Tuesday, no restoration schedule given'),
-    # ── NOISE ─────────────────────────────────────────────────────
-    ('Mukherjee Nagar', 'noise',  'low',    'Loud construction at night past 11 PM violating noise norms'),
-    ('INA',             'noise',  'medium', 'Banquet hall DJ past midnight every weekend'),
-    ('Paharganj',       'noise',  'high',   'Generator noise from 3 hotels all night, residents sleepless'),
-    ('Kashmere Gate',   'noise',  'medium', 'Loudspeaker from shop from 6am to 10pm daily'),
-    ('Hauz Khas',       'noise',  'high',   'Bar music till 3am in village, police complaint filed'),
-    ('Connaught Place', 'noise',  'medium', 'Road drilling at midnight for metro work, unbearable'),
-    ('Model Town',      'noise',  'low',    'Transformer humming very loud since new installation'),
-    ('Rohini',          'noise',  'medium', 'Construction blasting noise near hospital zone'),
-    ('Lajpat Nagar',    'noise',  'low',    'Market loudspeaker announcements disrupting nearby school'),
-    ('Vasant Kunj',     'noise',  'low',    'Mall loading dock night deliveries waking residents'),
-    # ── TREE ──────────────────────────────────────────────────────
-    ('Mayur Vihar',     'tree',   'medium', 'Fallen tree blocking lane near Phase 1 metro after storm'),
-    ('Punjabi Bagh',    'tree',   'low',    'Tree branch hanging dangerously over road near Club Road'),
-    ('Lodhi Colony',    'tree',   'low',    'Trees need pruning, branches touching 11kV power lines'),
-    ('Mehrauli',        'tree',   'high',   'Large dead tree leaning over residential building, urgent'),
-    ('Hauz Khas',       'tree',   'medium', 'Tree roots breaking footpath, tripping hazard near market'),
-    ('Civil Lines',     'tree',   'medium', 'Diseased tree spreading to others in Coronation Park'),
-    ('Vasant Vihar',    'tree',   'low',    'Tree planted too close to compound wall, cracking it'),
-    ('RK Puram',        'tree',   'high',   'Old peepal tree leaning at 45 degrees after rain'),
-    ('Saket',           'tree',   'medium', 'Tree roots blocking storm drain causing regular flooding'),
-    ('Greater Kailash', 'tree',   'low',    'M-Block green belt trees need seasonal trimming'),
-    # ── OTHER ─────────────────────────────────────────────────────
-    ('Connaught Place', 'other',  'medium', 'Stray dog pack near Rajiv Chowk metro exit, biting incidents'),
-    ('Saket',           'other',  'medium', 'Broken playground equipment in Select City park, sharp edges'),
-    ('Rohini',          'other',  'high',   'Open manhole on Sector 3 road, no cover, no barrier at night'),
-    ('Hauz Khas',       'other',  'medium', 'Footpath in village completely encroached by shops'),
-    ('RK Puram',        'other',  'low',    'Stray cattle on Sector 2 road, traffic hazard at night'),
-    ('Karol Bagh',      'other',  'medium', 'Illegal encroachment on public park behind metro'),
-    ('Dwarka',          'other',  'low',    'Abandoned vehicles in Sector 7 reducing road to one lane'),
-    ('Pitampura',       'other',  'medium', 'Public toilet non-functional for 2 months, open defecation'),
-    ('Vasant Kunj',     'other',  'low',    'Community water cooler installed but never connected'),
-    ('Janakpuri',       'other',  'high',   'Illegal construction blocking emergency access to society'),
-    ('Nizamuddin',      'other',  'medium', 'Waterlogging on main road after blocked storm drain'),
-    ('Paharganj',       'other',  'high',   'Open transformer pit near tourist area, safety emergency'),
-    ('Mukherjee Nagar', 'other',  'low',    'Parking lot encroachment on public park land'),
-    ('Laxmi Nagar',     'other',  'medium', 'Hospital gate always blocked by commercial vehicles'),
-    ('Kashmere Gate',   'other',  'medium', 'ISBT approach road encroached by hawkers, 2 lanes blocked'),
-]
-
-_SEED_NGOS = [
-    ('Delhi Green Mission',  'Sanitation & Waste Management', 'garbage',     4.6, 'Rohini',          '011-27551234', 'contact@delhigreen.org'),
-    ('Road Safety India',    'Road Infrastructure & Safety',  'pothole',     4.4, 'Dwarka',          '011-28567890', 'info@roadsafetyindia.in'),
-    ('Jal Seva Trust',       'Water & Sewage',                'water',       4.7, 'Hauz Khas',       '011-26960001', 'help@jalseva.org'),
-    ('Sahayata Foundation',  'General Civic Issues',          'other',       4.2, 'Connaught Place', '011-23347788', 'sahayata@gmail.com'),
-    ('Light Up Delhi',       'Street Lighting & Energy',      'streetlight', 4.3, 'Saket',           '011-29563322', 'lightup@delhi.org'),
-    ('SafeTraffic NGO',      'Traffic & Road Discipline',     'traffic',     4.1, 'Mayur Vihar',     '011-22720011', 'safetraffic@gmail.com'),
-    ('Tree Protect Delhi',   'Urban Trees & Green Cover',     'tree',        4.5, 'Pitampura',       '011-27340099', 'treeprotect@gmail.com'),
-    ('Aman Bijli Sewak',     'Electricity & Power',           'electricity', 4.0, 'Lajpat Nagar',    '011-29832200', 'amanbijli@gmail.com'),
-    ('Nirmal Delhi',         'Sanitation & Cleanliness',      'garbage',     4.4, 'Karol Bagh',      '011-25721100', 'nirmal@delhi.in'),
-    ('Drain Watch',          'Sewage & Drainage',             'sewage',      4.2, 'Mehrauli',        '011-26642244', 'drainwatch@ngo.in'),
-    ('Sound Free Society',   'Noise Pollution',               'noise',       4.0, 'Greater Kailash', '011-29242266', 'soundfree@gmail.com'),
-    ('Citizen Watch Delhi',  'General Reporting',             'other',       4.3, 'Civil Lines',     '011-23949900', 'citizen@watchdelhi.org'),
-    ('Sahayog Trust',        'Multi-issue NGO',               'other',       4.1, 'Janakpuri',       '011-25551122', 'sahayog@ngo.org'),
-    ('Yamuna Bachao',        'Water Bodies',                  'water',       4.6, 'Kashmere Gate',   '011-23862244', 'yamuna@bachao.in'),
-    ('Pothole Patrol',       'Roads & Potholes',              'pothole',     4.5, 'Model Town',      '011-27123344', 'patrol@potholes.in'),
-    ('Bijli Bachao',         'Power & Streetlights',          'electricity', 4.2, 'Vasant Kunj',     '011-26891133', 'bijli@bachao.org'),
-]
-
-_USERS = ['priya','arjun','meera','rohit','kavita','sanjay','neha','deepak',
-          'garv_chopra','shashwat_s','civic_reporter','rwa_secretary','anonymous']
-
-
-def _seed_memory():
-    """Seed in-memory store with 200 issues + NGOs. Spread over time for realism."""
-    now = time.time()
-    for idx, (area, tag, sev, desc) in enumerate(_SEED_ISSUES):
-        lat, lng = AREA_COORDS.get(area, (28.6139, 77.2090))
-        # Scatter markers so they don't stack exactly
-        lat += (idx % 9 - 4) * 0.0018
-        lng += ((idx // 9) % 9 - 4) * 0.0018
-        issue_id = _next_int_id('issues')
-        age_hours = (idx * 2.3) % (24 * 25)    # spread over 25 days
-        _state['issues'].append({
-            'id':          issue_id,
-            'user':        _USERS[idx % len(_USERS)],
-            'area':        area,
-            'description': desc,
-            'severity':    sev,
-            'tag':         tag,
-            'status':      'resolved' if idx % 9 == 0 else ('escalated' if idx % 11 == 0 else 'open'),
-            'lat':         round(lat, 6),
-            'lng':         round(lng, 6),
-            'landmark':    '',
-            'contact':     '',
-            'image':       None,
-            'timestamp':   now - (age_hours * 3600),
-            'upvotes':     (idx * 7) % 20,
-            'verified':    False,
-            'escalated':   idx % 11 == 0,
-            'resolved':    idx % 9 == 0,
-        })
-    for idx, (name, focus, tag, rating, area, phone, email) in enumerate(_SEED_NGOS):
-        lat, lng = AREA_COORDS.get(area, (28.6139, 77.2090))
-        ngo_id = _next_int_id('ngos')
-        _state['ngos'].append({
-            'id': ngo_id, 'name': name, 'focus': focus, 'tag': tag, 'rating': rating,
-            'area': area, 'phone': phone, 'email': email,
-            'lat': lat + 0.005, 'lng': lng + 0.005,
-        })
-    print(f'[database] Seeded {len(_state["issues"])} issues and {len(_state["ngos"])} NGOs into memory')
-
-
-def _seed_firebase_if_empty():
-    """
-    Seed Firebase with sample data if the collection is empty.
-    FIXED: handles 429 quota errors gracefully.
-    """
-    try:
-        existing = list(_state['fs_db'].collection('issues').limit(1).stream())
-        if existing:
-            print(f'[database] Firebase already has data, skipping seed')
-            _seed_memory()
-            return
-    except Exception as e:
-        print(f'[database] Could not check Firebase emptiness: {e}')
-        _seed_memory()
-        _try_write_seeds_to_firebase()
-        return
-
-    # Firebase is empty AND readable — seed it
-    print('[database] Seeding Firebase with sample data...')
-    now = time.time()
-    seeded = 0
-    for idx, (area, tag, sev, desc) in enumerate(_SEED_ISSUES):
-        lat, lng = AREA_COORDS.get(area, (28.6139, 77.2090))
-        lat += (idx % 9 - 4) * 0.0018
-        lng += ((idx // 9) % 9 - 4) * 0.0018
-        try:
-            iid = _next_int_id('issues')
-            age_hours = (idx * 2.3) % (24 * 25)
-            _state['fs_db'].collection('issues').document(str(iid)).set({
-                'id': iid, 'user': _USERS[idx % len(_USERS)],
-                'area': area, 'description': desc, 'severity': sev, 'tag': tag,
-                'status': 'resolved' if idx % 9 == 0 else ('escalated' if idx % 11 == 0 else 'open'),
-                'lat': round(lat, 6), 'lng': round(lng, 6),
-                'landmark': '', 'contact': '', 'image': None,
-                'timestamp': now - (age_hours * 3600),
-                'upvotes': (idx * 7) % 20,
-                'verified': False, 'escalated': idx % 11 == 0, 'resolved': idx % 9 == 0,
-            })
-            seeded += 1
-        except Exception as e:
-            print(f'[database] Issue seed error #{idx}: {e}')
-
-    for idx, (name, focus, tag, rating, area, phone, email) in enumerate(_SEED_NGOS):
-        lat, lng = AREA_COORDS.get(area, (28.6139, 77.2090))
-        try:
-            nid = _next_int_id('ngos')
-            _state['fs_db'].collection('ngos').document(str(nid)).set({
-                'id': nid, 'name': name, 'focus': focus, 'tag': tag, 'rating': rating,
-                'area': area, 'phone': phone, 'email': email,
-                'lat': lat + 0.005, 'lng': lng + 0.005,
-            })
-        except Exception as e:
-            print(f'[database] NGO seed error: {e}')
-
-    print(f'[database] Firebase seeded with {seeded} issues, {len(_SEED_NGOS)} NGOs')
-    _seed_memory()
-
-
-def _try_write_seeds_to_firebase():
-    """Write seeds to Firebase in the background (fire-and-forget)."""
-    def _write():
-        now = time.time()
-        written = 0
-        for idx, (area, tag, sev, desc) in enumerate(_SEED_ISSUES):
-            lat, lng = AREA_COORDS.get(area, (28.6139, 77.2090))
-            lat += (idx % 9 - 4) * 0.0018
-            lng += ((idx // 9) % 9 - 4) * 0.0018
-            try:
-                iid = idx + 1000  # offset to avoid conflicts
-                age_hours = (idx * 2.3) % (24 * 25)
-                _state['fs_db'].collection('issues').document(str(iid)).set({
-                    'id': iid, 'user': _USERS[idx % len(_USERS)],
-                    'area': area, 'description': desc, 'severity': sev, 'tag': tag,
-                    'status': 'resolved' if idx % 9 == 0 else 'open',
-                    'lat': round(lat, 6), 'lng': round(lng, 6),
-                    'landmark': '', 'contact': '', 'image': None,
-                    'timestamp': now - (age_hours * 3600),
-                    'upvotes': (idx * 7) % 20,
-                    'verified': False, 'escalated': False, 'resolved': idx % 9 == 0,
-                })
-                written += 1
-                time.sleep(0.05)  # rate limit writes
-            except Exception as e:
-                print(f'[database] Background seed write {idx} failed: {e}')
-                break
-        print(f'[database] Background seed wrote {written} issues to Firebase')
-    t = threading.Thread(target=_write, daemon=True)
-    t.start()
-
 
 # ═══════════════════════════════════════════════════════
 #  SPAM / DUPLICATE / SLA / ESCALATION
@@ -1269,11 +1150,23 @@ def _try_write_seeds_to_firebase():
 def insert_spam_issue(user, description, tag, severity, area,
                       lat=None, lng=None, image=None,
                       spam_verdict='spam', spam_reason='unspecified',
-                      spam_confidence=0):
+                      spam_confidence=0, image_bytes=None,
+                      image_content_type='image/jpeg'):
+    image_url = None
+    image_key = None
+    thumbnail_url = None
+    if image_bytes:
+        image_key, image_url, thumbnail_url = upload_image_to_imagekit(
+            image_bytes, content_type=image_content_type, prefix='spam'
+        )
+
     record = {
         'user': user, 'description': description, 'tag': tag,
         'severity': severity, 'area': area, 'lat': lat, 'lng': lng,
-        'image': image, 'timestamp': time.time(),
+        'image': (image if not image_url else None),
+        'image_url': image_url, 'image_key': image_key,
+        'thumbnail_url': thumbnail_url,
+        'timestamp': time.time(),
         'spam_verdict': spam_verdict, 'spam_reason': spam_reason,
         'spam_confidence': spam_confidence,
     }
@@ -1285,10 +1178,12 @@ def insert_spam_issue(user, description, tag, severity, area,
                     cur.execute(
                         """INSERT INTO spam_issues
                             (user_name, description, tag, severity, area, lat, lng,
-                             image, spam_verdict, spam_reason, spam_confidence)
-                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                             image, image_url, image_key, thumbnail_url,
+                             spam_verdict, spam_reason, spam_confidence)
+                           VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)""",
                         (user, description, tag, severity, area, lat, lng,
-                         image, spam_verdict, spam_reason, spam_confidence),
+                         record['image'], image_url, image_key, thumbnail_url,
+                         spam_verdict, spam_reason, spam_confidence),
                     )
                 conn.commit()
             return
@@ -1490,27 +1385,143 @@ def get_issue_by_id(issue_id):
     return None
 
 
-_ALLOWED_STATUSES = {'open', 'acknowledged', 'in_progress', 'resolved', 'escalated'}
-
-def update_issue_status(issue_id, new_status, updated_by='gov', note=''):
+def toggle_verify_issue(issue_id, user=None):
     issue_id = int(issue_id)
-    new_status = (new_status or '').lower().strip()
-    if new_status not in _ALLOWED_STATUSES: return None
-    now = time.time()
-    history_entry = {'status': new_status, 'changed_at': now,
-                     'changed_by': updated_by, 'note': (note or '')[:200]}
     _invalidate_cache()
 
     if _state['mode'] == 'postgres':
         try:
             with _state['pg_pool'].connection() as conn:
                 with conn.cursor() as cur:
-                    # Read current status_history
-                    cur.execute("SELECT status_history FROM issues WHERE id = %s", (issue_id,))
+                    cur.execute(
+                        "SELECT is_verified FROM issues WHERE id = %s FOR UPDATE",
+                        (issue_id,),
+                    )
+                    row = cur.fetchone()
+                    if not row:
+                        return 'not_found'
+                    new_val = not bool(row[0])
+                    cur.execute(
+                        "UPDATE issues SET is_verified=%s, verified=%s, verified_by=%s WHERE id=%s",
+                        (new_val, new_val, user if new_val else None, issue_id),
+                    )
+                conn.commit()
+            return 'added' if new_val else 'removed'
+        except Exception as e:
+            print(f'[database] toggle_verify_issue failed: {e}')
+            return 'error'
+
+    issue = get_issue_by_id(issue_id)
+    if not issue:
+        return 'not_found'
+    new_val = not bool(issue.get('is_verified', False))
+
+    if _state['mode'] == 'firebase':
+        try:
+            _state['fs_db'].collection('issues').document(str(issue_id)).update({
+                'is_verified': new_val, 'verified': new_val,
+                'verified_by': user if new_val else None,
+            })
+        except Exception as e:
+            print(f'[database] Firestore verify toggle failed: {e}')
+            return 'error'
+    else:
+        issue['is_verified'] = new_val
+        issue['verified']    = new_val
+        issue['verified_by'] = user if new_val else None
+
+    return 'added' if new_val else 'removed'
+
+
+def toggle_escalate_issue(issue_id, require_verified=False):
+    issue_id = int(issue_id)
+    _invalidate_cache()
+
+    if _state['mode'] == 'postgres':
+        try:
+            with _state['pg_pool'].connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT is_verified, is_escalated FROM issues WHERE id = %s FOR UPDATE",
+                        (issue_id,),
+                    )
+                    row = cur.fetchone()
+                    if not row:
+                        return 'not_found'
+                    is_verified, is_escalated = row
+                    if require_verified and not is_verified and not is_escalated:
+                        return 'not_verified'
+                    new_val = not bool(is_escalated)
+                    cur.execute(
+                        "UPDATE issues SET is_escalated=%s, escalated=%s, escalated_at=%s WHERE id=%s",
+                        (new_val, new_val, time.time() if new_val else None, issue_id),
+                    )
+                conn.commit()
+            return 'added' if new_val else 'removed'
+        except Exception as e:
+            print(f'[database] toggle_escalate_issue failed: {e}')
+            return 'error'
+
+    issue = get_issue_by_id(issue_id)
+    if not issue:
+        return 'not_found'
+    is_verified  = bool(issue.get('is_verified', False))
+    is_escalated = bool(issue.get('is_escalated', False))
+    if require_verified and not is_verified and not is_escalated:
+        return 'not_verified'
+    new_val = not is_escalated
+
+    if _state['mode'] == 'firebase':
+        try:
+            _state['fs_db'].collection('issues').document(str(issue_id)).update({
+                'is_escalated': new_val, 'escalated': new_val,
+            })
+        except Exception as e:
+            print(f'[database] Firestore escalate toggle failed: {e}')
+            return 'error'
+    else:
+        issue['is_escalated'] = new_val
+        issue['escalated']    = new_val
+
+    return 'added' if new_val else 'removed'
+
+
+_ALLOWED_STATUSES = {'open', 'acknowledged', 'in_progress', 'resolved', 'escalated'}
+
+def update_issue_status(issue_id, new_status, updated_by='gov', note=''):
+    """
+    v4 fix: was a read-then-write of status_history with no row lock — two
+    concurrent status changes on the same issue could both read the same
+    history array, both append, and the later commit would silently drop
+    the earlier one's entry from the audit trail (same lost-update shape
+    as the old upvote bug). Also, old_status was never actually recorded
+    on the history entry itself, only implied by the previous list item.
+
+    Fixed with SELECT ... FOR UPDATE to serialize concurrent status
+    changes on this issue, and old_status is now read explicitly from the
+    locked row and stored on the entry, not inferred or hardcoded.
+    """
+    issue_id = int(issue_id)
+    new_status = (new_status or '').lower().strip()
+    if new_status not in _ALLOWED_STATUSES: return None
+    now = time.time()
+    _invalidate_cache()
+
+    if _state['mode'] == 'postgres':
+        try:
+            with _state['pg_pool'].connection() as conn:
+                with conn.cursor() as cur:
+                    # Lock the row before reading status_history/status so a
+                    # concurrent update on the same issue can't interleave
+                    # with this read-modify-write.
+                    cur.execute(
+                        "SELECT status, status_history FROM issues WHERE id = %s FOR UPDATE",
+                        (issue_id,),
+                    )
                     row = cur.fetchone()
                     if not row:
                         return None
-                    history = row[0] or []
+                    old_status, history = row[0], row[1] or []
                     if isinstance(history, str):
                         try:
                             history = json.loads(history)
@@ -1518,6 +1529,14 @@ def update_issue_status(issue_id, new_status, updated_by='gov', note=''):
                             history = []
                     if not isinstance(history, list):
                         history = []
+
+                    history_entry = {
+                        'old_status': old_status,
+                        'status': new_status,
+                        'changed_at': now,
+                        'changed_by': updated_by,
+                        'note': (note or '')[:200],
+                    }
                     history.append(history_entry)
 
                     updates = {
@@ -1534,7 +1553,9 @@ def update_issue_status(issue_id, new_status, updated_by='gov', note=''):
                     values = list(updates.values()) + [issue_id]
                     cur.execute(f"UPDATE issues SET {set_clause} WHERE id = %s", values)
 
-                    # Return the updated record — capture description BEFORE commit
+                    # Return the updated record — still inside the same
+                    # locked transaction, so this reflects exactly what we
+                    # just wrote.
                     cur.execute("SELECT * FROM issues WHERE id = %s", (issue_id,))
                     row = cur.fetchone()
                     rdict = None
@@ -1552,8 +1573,13 @@ def update_issue_status(issue_id, new_status, updated_by='gov', note=''):
             snap = doc_ref.get()
             if not snap.exists: return None
             data = snap.to_dict()
+            old_status = data.get('status')
             history = data.get('status_history', [])
-            history.append(history_entry)
+            history.append({
+                'old_status': old_status, 'status': new_status,
+                'changed_at': now, 'changed_by': updated_by,
+                'note': (note or '')[:200],
+            })
             updates = {'status': new_status, 'status_history': history,
                        'last_updated_at': now, 'last_updated_by': updated_by}
             if new_status == 'resolved':
@@ -1565,7 +1591,12 @@ def update_issue_status(issue_id, new_status, updated_by='gov', note=''):
 
     for issue in _state['issues']:
         if int(issue.get('id', -1)) == issue_id:
-            issue.setdefault('status_history', []).append(history_entry)
+            old_status = issue.get('status')
+            issue.setdefault('status_history', []).append({
+                'old_status': old_status, 'status': new_status,
+                'changed_at': now, 'changed_by': updated_by,
+                'note': (note or '')[:200],
+            })
             issue['status'] = new_status; issue['last_updated_at'] = now
             issue['last_updated_by'] = updated_by
             if new_status == 'resolved':

@@ -1591,6 +1591,7 @@ input, textarea, select { font-size:16px; }
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='js/issues-store.js') }}"></script>
 <script>
 const CURRENT_USER    = {{ current_user | tojson }};
 const EMAIL_AVAILABLE = {{ email_available | tojson }};
@@ -1829,8 +1830,8 @@ function locateMe() {
   navigator.geolocation.getCurrentPosition(pos => { map.setView([pos.coords.latitude, pos.coords.longitude], 15, { animate:true }); showToast('Location locked'); }, () => showToast('Location access denied'));
 }
 
-function loadIssues() {
-  fetch('/issues').then(r => r.json()).then(issues => {
+function loadIssues(opts) {
+  IssuesStore.getIssues({ force: (opts && opts.force) || false }).then(issues => {
     allIssues = issues || [];
     updateAllCounts(allIssues);
     applyFiltering();
@@ -2064,6 +2065,7 @@ async function upvoteDetail(id) {
     if (d.status === 'ok') {
       if (d.escalated_now) showToast('⚡ Crowd-escalated to higher authority!', 'warn');
       else showToast(d.action === 'added' ? '+2 pts' : 'Upvote removed', 'success');
+      IssuesStore.invalidate();
       loadIssues(); closeDetail();
     }
   } catch(e) { showToast('Network error'); }
@@ -2077,6 +2079,7 @@ async function upvote(id, btn) {
       const count = parseInt(span.textContent || 0);
       if (d.action === 'added') { span.textContent = count + 1; btn.classList.add('active'); }
       else { span.textContent = Math.max(count - 1, 0); btn.classList.remove('active'); }
+      IssuesStore.invalidate();
       if (d.escalated_now) { showToast('⚡ This issue just hit 25 upvotes — auto-escalated!', 'warn'); loadIssues(); }
       else { showToast(d.action === 'added' ? '+2 pts' : 'Upvote removed', 'success'); }
     }
@@ -2219,6 +2222,7 @@ async function submitReport() {
       showToast(d.message || `Added your voice to #AP-${d.merged_with}`, 'warn');
       closeModal('report-modal');
       resetReportForm();
+      IssuesStore.invalidate();
       loadIssues();
     } else if (d.status === 'ok' && d.id != null) {
 
@@ -2228,6 +2232,7 @@ async function submitReport() {
 
   closeModal('report-modal');
   resetReportForm();
+  IssuesStore.invalidate();
   loadIssues();
   document.getElementById('success-modal').classList.add('open');
 }
