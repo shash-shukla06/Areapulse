@@ -268,7 +268,7 @@ async function load(opts) {
     return `
     <div class="my-issue-card" onclick="openDetail(${issue.id})">
       ${issue.has_image
-        ? `<img class="my-issue-card-img" src="/issue/${issue.id}/image" loading="lazy"
+        ? `<img class="my-issue-card-img" src="${issue.image_url || `/issue/${issue.id}/image`}" loading="lazy"
              data-initials="${(issue.user||'A').slice(0,2).toUpperCase()}" onerror="_imgErr(this)"/>`
         : `<div class="my-issue-img-placeholder">${(issue.user||'A').slice(0,2).toUpperCase()}</div>`
       }
@@ -429,7 +429,7 @@ function renderDetail(d) {
   // Hero
   const hero = true
     ? `<div class="detail-hero">
-         <img src="/issue/${issue.id}/image" onerror="this.parentElement.style.display='none'"/>
+         <img src="${issue.image_url || `/issue/${issue.id}/image`}" onerror="this.parentElement.style.display='none'"/>
          <div class="detail-hero-overlay">
            <div class="detail-hero-title">${escHtml(tagLabel)} — ${escHtml(issue.area || 'Delhi')}</div>
          </div>

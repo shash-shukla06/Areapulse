@@ -334,7 +334,7 @@ function renderGrid(issues) {
     // Only load the image endpoint when has_image is true — prevents N extra DB
     // queries for issues that have no photo. Shows initials avatar instantly instead.
     const imgHTML = issue.has_image
-      ? `<img src="/issue/${issue.id}/image" class="issue-full-card-img" loading="lazy"
+      ? `<img src="${issue.image_url || `/issue/${issue.id}/image`}" class="issue-full-card-img" loading="lazy"
            data-initials="${reporterInitials}" onerror="_imgErr(this)"/>`
       : `<div class="issue-full-card-avatar"><div class="issue-full-card-avatar-circle">${reporterInitials}</div></div>`;
 
@@ -439,7 +439,7 @@ function openDetail(id) {
   const baseStatus = (issue.status === 'resolved') ? 'resolved' : 'open';
   document.getElementById('detail-content').innerHTML = `
     <button class="modal-close" onclick="closeModal('detail-modal')">✕</button>
-    ${issue.has_image ? `<img src="/issue/${issue.id}/image" style="width:100%;border-radius:8px;margin-bottom:16px;max-height:220px;object-fit:cover" onerror="this.style.display='none'"/>` : ''}
+    ${issue.has_image ? `<img src="${issue.image_url || `/issue/${issue.id}/image`}" style="width:100%;border-radius:8px;margin-bottom:16px;max-height:220px;object-fit:cover" onerror="this.style.display='none'"/>` : ''}
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px">
       <span class="badge tag-${issue.tag||'other'}">${TAG_LABELS[issue.tag]||'Other'}</span>
       <span class="badge badge-${baseStatus}">${baseStatus}</span>

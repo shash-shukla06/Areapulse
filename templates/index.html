@@ -2018,7 +2018,7 @@ function openDetail(id) {
     <div class="detail-title">${esc(trunc(i.description, 80))}</div>`;
 
   document.getElementById('detail-body').innerHTML = `
-    ${i.has_image ? `<img src="/issue/${i.id}/image" class="detail-img" alt="issue photo"/>` : ''}
+    ${i.has_image ? `<img src="${i.image_url || `/issue/${i.id}/image`}" class="detail-img" alt="issue photo"/>` : ''}
     <div class="detail-desc">${esc(i.description)}</div>
     <div class="detail-table">
       <div class="dt-row"><span class="dt-label">Area</span><span class="dt-value">${esc(i.area||'Delhi')}</span></div>
@@ -2849,6 +2849,12 @@ function _showImgHover(id, tag, area, sx, sy) {
     popup.classList.add('visible');
 
     // ── Load photo if available (non-blocking — already shown info) ──────
+    // Direct image_url (ImageKit CDN) — skip the DB-backed proxy entirely.
+    if (issue.image_url) {
+      img.src = issue.image_url;
+      img.style.display = 'block';
+      return;
+    }
     if (_imgCache[id] === null) {
       img.style.display = 'none';
       return;

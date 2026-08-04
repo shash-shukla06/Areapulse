@@ -792,7 +792,7 @@ def issues_api():
         # Preserve has_image BEFORE stripping image/image_hash so frontend knows
         # which cards have photos without fetching /issue/<id>/image for every card.
         if 'has_image' not in i:
-            i['has_image'] = bool(i.get('image') or i.get('image_hash'))
+            i['has_image'] = bool(i.get('image_url') or i.get('image') or i.get('image_hash'))
         i.pop('image', None)      # base64 images → 2MB → stripped here; fetch via /issue/<id>/image
         i.pop('image_hash', None)
 
@@ -1695,7 +1695,7 @@ def my_issues_data():
             i.update(calculate_sla(i))
         except Exception:
             pass
-        i['has_image'] = bool(i.get('image'))
+        i['has_image'] = bool(i.get('image_url') or i.get('image'))
         i.pop('image', None)   # strip base64 — not needed in list view; fetch via /issue/<id>/image
         enriched.append(i)
     enriched.sort(key=lambda i: i.get("timestamp") or 0, reverse=True)

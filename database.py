@@ -40,6 +40,23 @@ v5 fixes (this pass):
     data, so _seed_postgres_if_empty / _seed_memory / _seed_firebase_if_empty
     and the hardcoded _SEED_ISSUES/_SEED_NGOS/_USERS lists are gone. Memory
     and Firebase modes now start empty rather than pre-populated.
+
+v6 fix (this pass):
+  - _ensure_pg_schema no longer runs as the pool's per-connection `configure`
+    callback. With min_size=0, every new physical connection the pool opened
+    (a second concurrent request, or any connection recycled after max_idle/
+    max_lifetime) re-ran the ENTIRE schema DDL — CREATE EXTENSION, several
+    CREATE INDEX statements, a DO block, and a CREATE MATERIALIZED VIEW that
+    performs a real GROUP BY the first time it runs — synchronously, inside
+    that request's connection-checkout timeout. Two connections opening near
+    -simultaneously could contend for the same catalog locks, stalling both
+    past the 10s pool timeout. Production logs showed exactly this shape: one
+    request succeeds right after boot, then every subsequent request fails
+    with PoolTimeout, indefinitely — not a slow Neon wake-up, a repeated,
+    avoidable DDL cost on ordinary connection growth. Fixed by running
+    _ensure_pg_schema exactly once, explicitly, on the connection already
+    opened for the startup liveness check — new connections opened later by
+    the pool skip DDL entirely since the schema already exists.
 """
 import os, time, math, json, tempfile, threading, uuid, base64, mimetypes
 _PG_OK = False
@@ -229,10 +246,17 @@ def init_db():
                         "keepalives_count": 3,
                         "prepare_threshold": None,
                     },
-                    configure=_ensure_pg_schema,
                     check=ConnectionPool.check_connection,
                 )
                 with _state['pg_pool'].connection(timeout=pg_timeout) as _c:
+                    with _c.cursor() as _cur:
+                        _cur.execute("SELECT pg_advisory_lock(727271001)")
+                    try:
+                        _ensure_pg_schema(_c)
+                    finally:
+                        with _c.cursor() as _cur:
+                            _cur.execute("SELECT pg_advisory_unlock(727271001)")
+                        _c.commit()
                     with _c.cursor() as _cur:
                         _cur.execute("SELECT 1")
                         _cur.fetchone()
@@ -539,9 +563,12 @@ def _pg_row_to_issue(row):
     elif 'user_name' in result:
         result['user'] = result.pop('user_name')
 
-    # has_image: from the computed column in _ISSUE_COLS; fallback to image_hash
+    # has_image: from the computed column in _ISSUE_COLS when present (get_issues());
+    # get_issue_by_id() uses SELECT * with no computed column, so fall back to
+    # checking image_url (ImageKit) / image (legacy base64) directly — image_hash
+    # alone isn't reliable here since it's caller-supplied, not guaranteed present.
     if 'has_image' not in result or result.get('has_image') is None:
-        result['has_image'] = bool(result.get('image_hash'))
+        result['has_image'] = bool(result.get('image_url') or result.get('image'))
     else:
         result['has_image'] = bool(result['has_image'])
 
