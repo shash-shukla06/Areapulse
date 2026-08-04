@@ -1,7 +1,7 @@
 const IssuesStore = (() => {
   const PREFIX = 'areapulse_cache_v1';
-  const ISSUES_TTL_MS = 30000;
-  const MY_ISSUES_TTL_MS = 30000;
+  const ISSUES_TTL_MS = 120000;
+  const MY_ISSUES_TTL_MS = 120000;
 
   function readKey(key, ttlMs) {
     try {

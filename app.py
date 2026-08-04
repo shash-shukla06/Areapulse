@@ -709,7 +709,7 @@ def issue_image_api(issue_id):
     if not issue:
         return '', 404
 
-    img = issue.get('image') or ''
+    img = issue.get('image_url') or issue.get('image') or ''
     _image_url_cache[issue_id] = img or None   # cache result (None = confirmed no photo)
 
     if not img:
@@ -2115,6 +2115,26 @@ def admin_list_banned():
         'banned_users': dict(ai_engine._banned_users),
         'total': len(ai_engine._banned_users),
     })
+
+
+@app.route('/admin/backfill-images', methods=['POST'])
+def admin_backfill_images():
+    """
+    POST /admin/backfill-images — migrate remaining legacy base64 images to
+    ImageKit, batch_size at a time. Re-runnable: only ever picks up rows
+    that still have image_url IS NULL, so call it repeatedly (or on a
+    schedule) until 'migrated' comes back 0 with no 'failed'.
+
+    This is the permanent fix for /issue/<id>/image PoolTimeouts on old
+    issues — once a row has image_url set, its photo is served directly
+    from ImageKit's CDN and never touches Postgres again.
+    """
+    if not _require_admin():
+        return jsonify({'error': 'Unauthorised'}), 401
+    from database import backfill_images_to_imagekit
+    batch_size = int(request.args.get('batch_size', 25))
+    result = backfill_images_to_imagekit(batch_size=batch_size)
+    return jsonify(result)
 
 
 # ═══════════════════════════════════════════════════════

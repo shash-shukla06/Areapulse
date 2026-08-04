@@ -624,7 +624,7 @@ def get_issues(tag=None, status=None, limit=300):
     # ── Postgres ───────────────────────────────────────
     if _state['mode'] == 'postgres':
         last_error = None
-        pg_read_attempts = 2
+        pg_read_attempts = 3
         for attempt in range(pg_read_attempts):
             try:
                 with _state['pg_pool'].connection() as conn:
