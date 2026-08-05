@@ -1079,7 +1079,16 @@ input, textarea, select { font-size:16px; }
   border-top:1px solid var(--border-mid);
   border-left:1px solid var(--border-mid);
 }
-#_tour-overlay { display:none; position:fixed; inset:0; z-index:99990; }
+#_tour-overlay {
+  display:none; position:fixed; inset:0; z-index:99990;
+  /* Only the semi-opaque dim background should ever intercept clicks.
+     Previously this had no pointer-events rule at all, so any state where
+     the overlay was display:block with a transparent/empty background
+     (centered-tooltip steps, or a stuck/orphaned tour) silently blocked
+     every click on the page while looking completely normal. */
+  pointer-events:none;
+}
+#_tour-overlay.dimmed { pointer-events:auto; }
 
 #map-img-hover {
   display:none; position:fixed; z-index:8500; pointer-events:none;
@@ -2003,6 +2012,17 @@ function panToIssue(id) {
 function openDetail(id) {
   const i = allIssues.find(x => x.id === id);
   if (!i) return;
+
+  // On mobile, panels are meant to be mutually exclusive (one full-screen
+  // sheet at a time). left-panel/right-panel can be left .open from a prior
+  // tap, and opening the detail card on top of them is what produces the
+  // "dimmed map + stacked panels" stuck look. Force them closed first.
+  if (window.matchMedia('(max-width:768px)').matches) {
+    document.getElementById('left-panel')?.classList.remove('open');
+    document.getElementById('right-panel')?.classList.remove('open');
+    document.querySelector('.mobile-backdrop')?.classList.remove('show');
+  }
+
   document.querySelectorAll('.issue-card.active').forEach(c => c.classList.remove('active'));
   const c = document.getElementById(`card-${id}`);
   if (c) { c.classList.add('active'); c.scrollIntoView({ behavior:'smooth', block:'nearest' }); }
@@ -2360,7 +2380,7 @@ document.getElementById('tb-search').addEventListener('input', e => {
   renderIssues(filtered); renderMarkers(filtered);
 });
 document.querySelectorAll('.modal-overlay').forEach(el => { el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); }); });
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeNavMenu(); closeDetail(); closeAIDrawer(); document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeNavMenu(); closeDetail(); closeAIDrawer(); document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open')); if (document.getElementById('_tour-tip')?.style.display !== 'none' && typeof _tourSkip === 'function') { _tourSkip(); } } });
 
 loadIssues();
 setInterval(() => { if (_autoRefresh) loadIssues(); }, 60000);
@@ -2551,13 +2571,28 @@ function _initMobileChrome(){
     }
   }));
 
-  // ─── 6. Backdrop follows any panel state change ───
+  // ─── 6. Backdrop follows any panel state change, and self-heals if more
+  //        than one panel is ever open at once (panels are meant to be
+  //        mutually exclusive on mobile — this is the guard that prevents
+  //        the "dimmed map + stacked panels" stuck state) ───
+  const PANEL_IDS = ['left-panel','right-panel','ai-drawer','detail-card'];
+  let _healing = false;
   const watcher = new MutationObserver(() => {
-    const anyOpen = ['left-panel','right-panel','ai-drawer','detail-card']
-      .some(id => { const el = document.getElementById(id); return el && el.classList.contains('open'); });
+    if (_healing) return;
+    const openPanels = PANEL_IDS.filter(id => {
+      const el = document.getElementById(id);
+      return el && el.classList.contains('open');
+    });
+    if (openPanels.length > 1) {
+      // Keep only the most recently opened panel; force-close the rest.
+      _healing = true;
+      openPanels.slice(0, -1).forEach(id => document.getElementById(id)?.classList.remove('open'));
+      _healing = false;
+    }
+    const anyOpen = openPanels.length > 0;
     backdrop.classList.toggle('show', anyOpen);
   });
-  ['left-panel','right-panel','ai-drawer','detail-card'].forEach(id => {
+  PANEL_IDS.forEach(id => {
     const el = document.getElementById(id);
     if (el) watcher.observe(el, {attributes:true, attributeFilter:['class']});
   });
@@ -2622,19 +2657,99 @@ const _STEPS = [
 
 let _ti = 0;
 
+// Safety net: force every panel/backdrop the tour can touch back to a clean
+// closed state. Called before starting a tour and on page unload, so a tour
+// that gets interrupted (nav away, JS error, closed tab mid-step) can never
+// leave the UI permanently stuck with panels open + the dark backdrop showing.
+function _tourHardReset() {
+  ['left-panel','right-panel'].forEach(id => {
+    document.getElementById(id)?.classList.remove('open');
+  });
+  document.getElementById('nav-menu')?.classList.remove('open');
+  document.getElementById('nav-backdrop')?.classList.remove('show');
+  const link = document.querySelector('#nav-menu a[href="/my-reports"]');
+  if (link) link.classList.remove('tour-highlight');
+  ['_tour-overlay','_tour-spot','_tour-tip'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = 'none';
+  });
+  document.getElementById('_tour-overlay')?.classList.remove('dimmed');
+}
+
+let _tourWatchdog = null;
+
 function _tourStart(force) {
   if (!force && localStorage.getItem('ap_tour_done')) return;
+  _tourHardReset();               // clear out any state left by a prior interrupted tour
   localStorage.removeItem('ap_tour_done');
   _ti = 0;
   ['_tour-overlay','_tour-spot','_tour-tip'].forEach(id => {
     document.getElementById(id).style.display = 'block';
   });
   _tourRender();
+  _tourArmWatchdog();
 }
 
-function _tourRender(retry) {
+// Belt-and-suspenders: no matter what else goes wrong (a future selector
+// change, a browser quirk, an extension interfering with layout), the tour
+// can never block the page for more than ~20s of inactivity. Any real user
+// interaction with the tour (Next/Skip) re-arms it; if it fires, it's
+// treated exactly like the user hit Skip.
+function _tourArmWatchdog() {
+  clearTimeout(_tourWatchdog);
+  _tourWatchdog = setTimeout(() => {
+    if (document.getElementById('_tour-tip')?.style.display !== 'none') {
+      _tourSkip();
+    }
+  }, 20000);
+}
+
+// If a tour is left mid-flight (tab closed, navigated away, crashed), make
+// sure it doesn't persist as "in progress" — next load starts clean instead
+// of resuming into a half-open panel state.
+window.addEventListener('beforeunload', () => {
+  if (document.getElementById('_tour-tip')?.style.display !== 'none') {
+    _tourHardReset();
+  }
+});
+
+function _tourRender(retryCount) {
+  retryCount = retryCount || 0;
   const step  = _STEPS[_ti];
   const total = _STEPS.length;
+
+  // Find target element first (try multiple selectors) — before touching any
+  // UI — so a not-yet-injected element (e.g. the mobile FAB, which
+  // _initMobileChrome() injects asynchronously) can be retried without ever
+  // having shown the tooltip/overlay in a half-set-up state.
+  const el = step.sel.split(',').map(s => document.querySelector(s.trim())).find(e => {
+    if (!e) return false;
+    const r = e.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  });
+
+  // Element not found/visible yet (e.g. nav menu still animating open, or
+  // mobile FAB not yet injected). Retry with backoff up to ~3s total instead
+  // of a single 450ms attempt — on slower devices/extensions the mobile
+  // chrome injection can take longer than that. If it never appears, skip
+  // this step entirely rather than showing a target-less tooltip, which is
+  // what was leaving an invisible full-screen overlay with no visible tour
+  // box — i.e. "everything looks normal but nothing can be clicked".
+  if (!el && !step.center) {
+    if (retryCount < 6) {
+      setTimeout(() => {
+        // Guard: if the tour was skipped/closed during the retry delay, don't resurrect it.
+        if (document.getElementById('_tour-tip')?.style.display !== 'none') {
+          _tourRender(retryCount + 1);
+        }
+      }, 450);
+      return;
+    }
+    // Give up on this step — skip to the next one instead of rendering blind.
+    if (_ti < _STEPS.length - 1) { _ti++; _tourRender(); return; }
+    _tourSkip();
+    return;
+  }
 
   document.getElementById('_tour-counter').textContent = `STEP ${_ti+1} OF ${total}`;
   document.getElementById('_tour-title').textContent   = step.title;
@@ -2650,24 +2765,12 @@ function _tourRender(retry) {
   // Run onEnter hook (e.g. open the nav menu before highlighting a link inside it)
   if (step.onEnter) { try { step.onEnter(); } catch(e) {} }
 
-  // Find target element (try multiple selectors)
-  const el = step.sel.split(',').map(s => document.querySelector(s.trim())).find(e => {
-    if (!e) return false;
-    const r = e.getBoundingClientRect();
-    return r.width > 0 && r.height > 0;
-  });
-
-  // Element not found/visible yet (e.g. nav menu still animating open, or
-  // mobile FAB not yet injected) — retry once after a short delay instead
-  // of silently falling back to center mode.
-  if (!el && !step.center && !retry) {
-    setTimeout(() => _tourRender(true), 450);
-    return;
-  }
-
   if (!el || step.center) {
-    // No spotlight — hide overlay dim + center the tooltip so UI stays visible
-    document.getElementById('_tour-overlay').style.background = 'transparent';
+    // No spotlight — hide overlay dim + center the tooltip so UI stays visible.
+    // pointer-events stays off here so the transparent overlay can't block clicks.
+    const ov = document.getElementById('_tour-overlay');
+    ov.style.background = 'transparent';
+    ov.classList.remove('dimmed');
     document.getElementById('_tour-spot').style.display       = 'none';
     document.getElementById('_tour-arrow').style.display      = 'none';
     const tip = document.getElementById('_tour-tip');
@@ -2675,16 +2778,19 @@ function _tourRender(retry) {
     tip.style.left      = '50%';
     tip.style.transform = 'translate(-50%,-50%)';
   } else {
-    document.getElementById('_tour-overlay').style.background = '';
+    const ov = document.getElementById('_tour-overlay');
+    ov.style.background = '';
     if (step.noSpot) {
       // CSS animation handles the highlight — no box-shadow spotlight needed
       document.getElementById('_tour-spot').style.display  = 'none';
       document.getElementById('_tour-arrow').style.display = 'none';
-      document.getElementById('_tour-overlay').style.background = 'transparent';
+      ov.style.background = 'transparent';
+      ov.classList.remove('dimmed');
       const tip = document.getElementById('_tour-tip');
       tip.style.transform = '';
       _placeTip(el);
     } else {
+      ov.classList.add('dimmed');
       document.getElementById('_tour-spot').style.display  = 'block';
       document.getElementById('_tour-arrow').style.display = 'block';
       const tip = document.getElementById('_tour-tip');
@@ -2785,6 +2891,7 @@ function _tourNext() {
   if (_ti < _STEPS.length - 1) {
     _ti++;
     _tourRender();
+    _tourArmWatchdog();
   } else {
     _tourSkip();
   }
@@ -2793,15 +2900,24 @@ function _tourNext() {
 function _tourSkip() {
   const cur = _STEPS[_ti];
   if (cur && cur.onExit) { try { cur.onExit(); } catch(e) {} }
+  clearTimeout(_tourWatchdog);
   ['_tour-overlay','_tour-spot','_tour-tip'].forEach(id => {
     document.getElementById(id).style.display = 'none';
   });
+  document.getElementById('_tour-overlay')?.classList.remove('dimmed');
   localStorage.setItem('ap_tour_done', '1');
 }
 
-// Reposition on resize
+// Reposition on resize — debounced so rapid resize bursts (DevTools
+// open/close, browser extensions that resize the viewport to capture
+// screenshots, etc.) don't spam re-renders mid-transition, which was a
+// reliable way to catch the tour in a target-not-found state.
+let _tourResizeTimer = null;
 window.addEventListener('resize', () => {
-  if (document.getElementById('_tour-tip').style.display !== 'none') _tourRender();
+  clearTimeout(_tourResizeTimer);
+  _tourResizeTimer = setTimeout(() => {
+    if (document.getElementById('_tour-tip').style.display !== 'none') _tourRender();
+  }, 200);
 });
 
 setTimeout(_tourStart, 1500);
