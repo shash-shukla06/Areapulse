@@ -359,6 +359,39 @@ button, input, select, textarea { font-family:inherit; }
 .report-fab svg { width:18px; height:18px; stroke:#000; }
 .report-fab:hover { background:var(--accent-2); box-shadow:0 8px 30px rgba(248,192,35,0.6); }
 .report-fab:active { transform:scale(.97); }
+
+/* Report-button tour highlight — replaces the dim spotlight for step 1.
+   A pulsing glow ring around the button + a bouncing arrow above it,
+   both scoped to just the button. No full-screen dim. */
+@keyframes tour-fab-pulse {
+  0%,100% { box-shadow:0 6px 22px rgba(248,192,35,0.45), 0 0 0 0 rgba(248,192,35,0.85); }
+  50%     { box-shadow:0 8px 30px rgba(248,192,35,0.7),  0 0 0 12px rgba(248,192,35,0); }
+}
+@keyframes tour-fab-arrow-bounce {
+  0%,100% { transform:translate(-50%, 0); }
+  50%     { transform:translate(-50%, -8px); }
+}
+.report-fab.tour-highlight,
+.tool-btn.report.tour-highlight,
+#m-fab-report.tour-highlight {
+  position:relative;
+  animation:tour-fab-pulse 1.4s ease-in-out infinite;
+  z-index:105;
+}
+.report-fab.tour-highlight::before,
+.tool-btn.report.tour-highlight::before,
+#m-fab-report.tour-highlight::before {
+  content:'▼';
+  position:absolute;
+  left:50%; bottom:calc(100% + 14px);
+  transform:translate(-50%, 0);
+  color:var(--accent);
+  font-size:22px;
+  line-height:1;
+  text-shadow:0 0 8px rgba(248,192,35,0.8), 0 2px 4px rgba(0,0,0,0.5);
+  animation:tour-fab-arrow-bounce 1s ease-in-out infinite;
+  pointer-events:none;
+}
 .ai-fab { position:fixed; bottom:36px; right:24px; z-index:100; width:52px; height:52px; border-radius:50%; background:var(--bg-3); border:1px solid var(--border-mid); color:var(--accent); cursor:pointer; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 20px rgba(0,0,0,0.5); transition:transform .12s, border-color .15s, background .15s; }
 .ai-fab svg { width:22px; height:22px; }
 .ai-fab:hover { background:var(--bg-4); border-color:var(--accent); }
@@ -2611,10 +2644,22 @@ window.addEventListener('load', _initMobileChrome);
 window.addEventListener('pageshow', _initMobileChrome);
 const _STEPS = [
   {
-    sel:    '.report-fab, .bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report',
-    title:  'Report a civic issue',
-    body:   'See the + REPORT button at the bottom of your screen. Tap it to report any problem — pothole, broken streetlight, garbage dump. Upload a photo and AI classifies it instantly.',
-    tipPos: 'top',
+    sel:     '.report-fab, .bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report',
+    title:   'Report a civic issue',
+    body:    'See the + REPORT button at the bottom of your screen. Tap it to report any problem — pothole, broken streetlight, garbage dump. Upload a photo and AI classifies it instantly.',
+    tipPos:  'top',
+    noSpot:  true,
+    onEnter: () => {
+      // Add the highlight class to whichever Report button is actually visible
+      // (desktop .report-fab vs mobile #m-fab-report), matching the same
+      // selector list used to find the target element for positioning.
+      document.querySelectorAll('.report-fab, .bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report')
+        .forEach(el => el.classList.add('tour-highlight'));
+    },
+    onExit: () => {
+      document.querySelectorAll('.report-fab, .bottom-toolbar .tool-btn.report, .tool-btn.report, #m-fab-report')
+        .forEach(el => el.classList.remove('tour-highlight'));
+    },
   },
   {
     sel:   '.map-marker',
