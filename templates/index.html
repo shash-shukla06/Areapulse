@@ -754,27 +754,11 @@ input, textarea, select { font-size:16px; }
   background:var(--bg-2);
   border-left:3px solid var(--accent);
   box-shadow:-12px 0 30px rgba(0,0,0,0.5);
-  /* Fixed-pixel offset instead of translateX(100%). A percentage transform
-     is resolved against the element's OWN computed width, which changes
-     instantly (untransitioned) whenever max-width:100vw recalculates on
-     viewport resize — e.g. the moment DevTools is closed and the viewport
-     snaps back to full width. transform, however, only recomputes on the
-     browser's next layout/paint, so for one or more frames the menu sits
-     translated by a percentage of its OLD (narrower) width against its NEW
-     (wider) box — leaving it not fully off-screen and overlapping the
-     visible page right when this trigger fires. A flat pixel offset larger
-     than any possible menu width is immune to this, since it never depends
-     on the element's own size. */
-  transform:translateX(120vw);
+  transform:translateX(100%);
   transition:transform .3s cubic-bezier(.4,0,.2,1);
   display:flex; flex-direction:column;
-  /* Belt-and-suspenders: even if a future change reintroduces a
-     width-relative transform, or any other timing issue leaves this
-     element visually mispositioned while "closed", pointer-events:none
-     guarantees it can never intercept a click when not .open. */
-  pointer-events:none;
 }
-.nav-menu.open { transform:translateX(0); pointer-events:auto; }
+.nav-menu.open { transform:translateX(0); }
 .nav-menu-head { display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--border); flex-shrink:0; }
 .nav-menu-close { width:32px; height:32px; border-radius:50%; background:var(--bg-3); border:1px solid var(--border); color:var(--muted); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; }
 .nav-menu-close:hover { color:var(--red); border-color:var(--red); }
